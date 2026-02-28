@@ -15,6 +15,9 @@ public class GscixEntity {
     private String stixId;
 
     @Field(type = FieldType.Keyword)
+    private java.util.List<String> extensions;
+
+    @Field(type = FieldType.Keyword)
     private String type;
 
     @Field(type = FieldType.Keyword)
@@ -101,10 +104,10 @@ public class GscixEntity {
     public static class EntityMetadata {
         @Field(type = FieldType.Date)
         private Instant createdAt;
-        
+
         @Field(type = FieldType.Date)
         private Instant updatedAt;
-        
+
         @Field(type = FieldType.Keyword)
         private String openctiInternalId;
     }

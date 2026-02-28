@@ -13,6 +13,9 @@ public class GscixRelation {
     private String id;
 
     @Field(type = FieldType.Keyword)
+    private java.util.List<String> extensions;
+
+    @Field(type = FieldType.Keyword)
     private String sourceRef;
 
     @Field(type = FieldType.Keyword)

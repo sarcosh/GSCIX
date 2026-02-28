@@ -34,6 +34,8 @@ public class GeopoliticalIngestService {
 
     private static final Logger logger = LoggerFactory.getLogger(GeopoliticalIngestService.class);
 
+    private static final String GSCI_EXTENSION_ID = "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8";
+
     private final GscixEntityRepository entityRepository;
     private final GscixRelationRepository relationRepository;
     private final WebClient webClient;
@@ -275,6 +277,7 @@ public class GeopoliticalIngestService {
     private GscixEntity createEntity(String type, String name, String description, String source) {
         GscixEntity entity = new GscixEntity();
         entity.setStixId(type + "--" + UUID.randomUUID());
+        entity.setExtensions(java.util.Collections.singletonList(GSCI_EXTENSION_ID));
         entity.setType(type);
         entity.setName(name);
         entity.setDescription(description);
@@ -291,6 +294,7 @@ public class GeopoliticalIngestService {
     private int createRelation(String sourceRef, String targetRef, String relationshipType, String description) {
         GscixRelation relation = new GscixRelation();
         relation.setId("relationship--" + UUID.randomUUID());
+        relation.setExtensions(java.util.Collections.singletonList(GSCI_EXTENSION_ID));
         relation.setSourceRef(sourceRef);
         relation.setTargetRef(targetRef);
         relation.setRelationshipType(relationshipType);

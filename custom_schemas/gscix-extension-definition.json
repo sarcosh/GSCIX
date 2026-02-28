@@ -1,0 +1,28 @@
+{
+    "type": "extension-definition",
+    "spec_version": "2.1",
+    "id": "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8",
+    "created": "2026-02-28T17:40:00.000Z",
+    "modified": "2026-02-28T17:40:00.000Z",
+    "name": "Geostrategic Cyber Intelligence (GSCI) Extension",
+    "description": "This extension defines custom objects and relationships for modeling geostrategic intent and its technical cyber implementation.",
+    "created_by_ref": "identity--311b3337-332e-49b0-994c-35905d606138",
+    "schema": "https://gscix.io/schemas/v1/gsci-extension.json",
+    "version": "1.0.0",
+    "extension_types": [
+        "new-sdo",
+        "new-sro"
+    ],
+    "extension_properties": [
+        "x-geo-strategic-actor",
+        "x-strategic-objective",
+        "x-hybrid-campaign",
+        "x-influence-vector",
+        "x-strategic-impact",
+        "x-strategic-assessment",
+        "pursues",
+        "executes",
+        "generates",
+        "integrates"
+    ]
+}
