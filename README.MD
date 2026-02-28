@@ -35,6 +35,8 @@ GSCIX is the first implementation of the **Geostrategic Cyber Intelligence (GSCI
 
 > **State Actor** → **Strategic Objective** → **Hybrid Campaign** → **Cyber Instrument** → **Strategic Effect**
 
+Para más detalles sobre las entidades utilizadas, consulta la [documentación detallada de esquemas personalizados](custom_schemas/README.MD).
+
 ---
 
 *Disclaimer: GSCIX is designed for sovereign intelligence analysis and geostrategic research.*
