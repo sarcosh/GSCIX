@@ -38,6 +38,11 @@
             "name": "narrative_penetration_score",
             "type": "number",
             "mandatory": false
+        },
+        {
+            "name": "doctrine_capacity_divergence_score",
+            "type": "number",
+            "mandatory": false
         }
     ],
     "relations": [

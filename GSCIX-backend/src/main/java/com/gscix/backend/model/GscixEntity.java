@@ -47,6 +47,10 @@ public class GscixEntity {
         @Field(type = FieldType.Double)
         private Double strategicAmbiguityScore;
         @Field(type = FieldType.Keyword)
+        private String doctrineType;
+        @Field(type = FieldType.Double)
+        private Double technologicalModernizationRate;
+        @Field(type = FieldType.Keyword)
         private String powerProjection;
         @Field(type = FieldType.Keyword)
         private String associatedAgencies;
@@ -106,6 +110,8 @@ public class GscixEntity {
         private Double cyberGeopoliticalCouplingIndex;
         @Field(type = FieldType.Double)
         private Double narrativePenetrationScore;
+        @Field(type = FieldType.Double)
+        private Double doctrineCapacityDivergenceScore;
     }
 
     @Data

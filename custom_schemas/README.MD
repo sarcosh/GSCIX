@@ -20,6 +20,8 @@ Represents a state or non-state entity with the capacity to project power and pu
 | `geopolitical_doctrine` | string | No | High-level strategy governing actions. | e.g., "Gerasimov Doctrine", "Unrestricted Warfare" |
 | `revisionist_index` | number | No | Score (0-10) of intent to change the status quo. | 0 = Status Quo, 10 = High Revisionist |
 | `strategic_ambiguity_score` | number | No | Conflict between public discourse and military capacity. | 0 = Transparent, 10 = Highly Ambiguous |
+| `doctrine_type` | enum | No | Declared strategy. | `Stability-Oriented`, `status-quo`, `revisionist`, `expansionist` |
+| `technological_modernization_rate` | number | No | Speed of military/tech advancement. | 0.0 to 10.0 |
 
 **Key Relations (Framework Internal):**
 - `pursues` → `x-strategic-objective`.
@@ -144,8 +146,8 @@ El modelo GSCIX ha sido refinado para evitar el "sesgo de inmediatez" mediante l
 ### 1. Detección de Infraestructura "Lenta" (`slow-drift`)
 Mientras que la mayoría de los modelos de inteligencia se centran en el *fast-spike* (un ataque de ransomware o DDoS), GSCIX permite modelar campañas de **`slow-drift`**. Esto captura la construcción de infraestructuras críticas (físicas o digitales) que no presentan una amenaza inmediata pero alteran el equilibrio de poder en horizontes **decadales**.
 
-### 2. Ponderación de Ambigüedad Estratégica
-Muchos actores estatales (ej. RPC en el 14.º Plan Quinquenal) utilizan un discurso de estabilidad mientras ejecutan una expansión militar operativa. La variable `strategic_ambiguity_score` permite al sistema alertar sobre riesgos incluso cuando la "doctrina pública" es pacífica, siempre que la capacidad operativa (`power_projection`) y los objetivos de **Fusión Civil-Militar** sugieran lo contrario.
+### 2. Ponderación de Ambigüedad Estratégica (Divergencia)
+Muchos actores estatales (ej. RPC en el 14.º Plan Quinquenal) utilizan un discurso de estabilidad mientras ejecutan una expansión militar operativa. La variable **`doctrine_capacity_divergence_score`** permite al sistema alertar sobre riesgos incluso cuando la `doctrine_type` declarada es `Stability-Oriented`, siempre que el `technological_modernization_rate` sugiera un rearme acelerado. Esto rompe la rigidez del etiquetado binario "Revisionista vs Estatus Quo".
 
 ### 3. Fusión Civil-Militar (`civil_military_fusion`)
 Esta flag permite al analista marcar objetivos que parecen puramente económicos o académicos (ej. investigación en semiconductores o redes 6G) pero que forman parte integral de la base de poder militar a largo plazo.

@@ -33,6 +33,12 @@ public class GeopoliticalIngestRequest {
     @JsonProperty("strategic_ambiguity_score")
     private Double strategicAmbiguityScore;
 
+    @JsonProperty("doctrine_type")
+    private String doctrineType; // Stability-Oriented, status-quo, revisionist, expansionist
+
+    @JsonProperty("technological_modernization_rate")
+    private Double technologicalModernizationRate;
+
     // --- x-strategic-objective (list) ---
     @JsonProperty("objectives")
     private List<ObjectiveDTO> objectives;
@@ -149,6 +155,9 @@ public class GeopoliticalIngestRequest {
 
         @JsonProperty("narrative_penetration_score")
         private Double narrativePenetrationScore;
+
+        @JsonProperty("doctrine_capacity_divergence_score")
+        private Double doctrineCapacityDivergenceScore;
     }
 
     @Data

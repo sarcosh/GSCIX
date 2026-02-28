@@ -42,6 +42,22 @@
             "name": "strategic_ambiguity_score",
             "type": "number",
             "mandatory": false
+        },
+        {
+            "name": "doctrine_type",
+            "type": "enum",
+            "values": [
+                "Stability-Oriented",
+                "status-quo",
+                "revisionist",
+                "expansionist"
+            ],
+            "mandatory": false
+        },
+        {
+            "name": "technological_modernization_rate",
+            "type": "number",
+            "mandatory": false
         }
     ],
     "relations": [

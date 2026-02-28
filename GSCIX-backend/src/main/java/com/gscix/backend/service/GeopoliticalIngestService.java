@@ -73,6 +73,8 @@ public class GeopoliticalIngestService {
         actorAttrs.setGeopoliticalDoctrine(request.getGeopoliticalDoctrine());
         actorAttrs.setRevisionistIndex(request.getRevisionistIndex());
         actorAttrs.setStrategicAmbiguityScore(request.getStrategicAmbiguityScore());
+        actorAttrs.setDoctrineType(request.getDoctrineType());
+        actorAttrs.setTechnologicalModernizationRate(request.getTechnologicalModernizationRate());
         actor.setGsciAttributes(actorAttrs);
         entityRepository.save(actor);
         entitiesCreated++;
@@ -213,6 +215,7 @@ public class GeopoliticalIngestService {
             assessAttrs.setStrategicSignalingScore(assess.getStrategicSignalingScore());
             assessAttrs.setCyberGeopoliticalCouplingIndex(assess.getCyberGeopoliticalCouplingIndex());
             assessAttrs.setNarrativePenetrationScore(assess.getNarrativePenetrationScore());
+            assessAttrs.setDoctrineCapacityDivergenceScore(assess.getDoctrineCapacityDivergenceScore());
             assessment.setGsciAttributes(assessAttrs);
             entityRepository.save(assessment);
             entitiesCreated++;
