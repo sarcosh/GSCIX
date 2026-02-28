@@ -41,6 +41,60 @@ Para más detalles sobre las entidades utilizadas, consulta la [documentación d
 
 *Disclaimer: GSCIX is designed for sovereign intelligence analysis and geostrategic research.*
 
+## 🏛 Arquitectura del Sistema
+
+GSCIX utiliza una arquitectura desacoplada diseñada para procesar inteligencia geoestratégica con alto rendimiento y escalabilidad.
+
+### Diagrama de Arquitectura
+```mermaid
+graph TD
+    subgraph "Analista / Usuario"
+        UI[Frontend (Dashboard)]
+    end
+
+    subgraph "Orquestación de Inteligencia (GSCIX Backend)"
+        API[PostgreSQL Ingest / Context API]
+        DIS[Discovery Service (OpenCTI)]
+        TEM[Temporal Tracking Engine]
+    end
+
+    subgraph "Persistencia y Fuentes"
+        ES[(Elasticsearch 8.x)]
+        OCTI[OpenCTI v7 API]
+    end
+
+    UI --> API
+    API --> ES
+    API --> TEM
+    API --> DIS
+    DIS <--> OCTI
+    ES --- E1[gscix_entities]
+    ES --- E2[gscix_relations]
+```
+
+### Componentes Clave
+1.  **GSCIX Backend (Java 21/Spring Boot):** El núcleo del sistema que maneja la lógica de negocio, el mapeo de STIX y la integración de índices de riesgo (HPI/EPS).
+2.  **Elasticsearch 8.x:** Motor de búsqueda y grafo de alta velocidad para almacenar entidades geoestratégicas personalizadas y sus relaciones dinámicas.
+3.  **OpenCTI Integration:** Capa de descubrimiento automático que vincula actores abstractos con grupos técnicos (APT) mediante la API GraphQL de OpenCTI.
+4.  **Temporal Engine:** Módulo encargado de gestionar campos `first_seen` y `last_seen` para mitigar el sesgo de inmediatez.
+
+## 🌐 Integración de Frontend
+
+GSCIX está diseñado para ser consumido por un dashboard analítico moderno. La estrategia de integración recomendada es:
+
+### Stack Tecnológico Sugerido
+- **Framework:** React 18+ o Vite para una interfaz reactiva.
+- **Gestión de Estado:** TanStack Query (React Query) para sincronización eficiente con la API.
+- **Visualización de Datos:**
+    - **D3.js / Cytoscape:** Para el grafo de influencia geoestratégica.
+    - **Recharts:** Para visualizar tendencias de riesgo (HPI y EPS).
+- **Estilo:** Vanilla CSS o Shadcn/UI para una estética premium de "Centro de Comando".
+
+### Interacción con la API
+El frontend consume datos principalmente de los endpoints:
+- `POST /api/v1/geopolitical/ingest`: Para el procesamiento de nuevas piezas de inteligencia.
+- `GET /api/v1/search` (En desarrollo): Para la exploración del grafo estratégico.
+
 ---
 
 ## 🧪 Guía de Pruebas Técnicas y Operaciones
