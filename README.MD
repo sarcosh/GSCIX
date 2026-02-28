@@ -110,7 +110,16 @@ curl -X POST http://localhost:8081/api/v1/geopolitical/ingest \
      -d @custom_schemas_tests/federacion_rusa.json
 ```
 
-### 2. Alta Manual de Entidades (Contrato de Datos)
+### 2. Ingesta Nativa de Bundles STIX 2.1 (Interoperabilidad Pro)
+Para importar inteligencia compleja y relacional cumpliendo el estándar STIX 2.1 (usando UUIDs y `extensions` SDR).
+
+```bash
+curl -X POST http://localhost:8081/api/v1/geopolitical/bundle \
+     -H "Content-Type: application/json" \
+     -d @custom_schemas_tests/bundle_china_optimized.json
+```
+
+### 3. Alta Manual de Entidades (Contrato de Datos)
 Para registrar un actor o grupo específico con metadatos simplificados:
 
 ```bash

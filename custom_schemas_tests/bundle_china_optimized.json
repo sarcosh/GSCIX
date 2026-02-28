@@ -1,0 +1,101 @@
+{
+    "type": "bundle",
+    "id": "bundle--23b8a10e-8947-414b-876a-7d499edec5b8",
+    "spec_version": "2.1",
+    "objects": [
+        {
+            "type": "x-geo-strategic-actor",
+            "spec_version": "2.1",
+            "id": "x-geo-strategic-actor--69cb80ad-659a-4844-b0cd-2854824a14c6",
+            "name": "República Popular China (RPC)",
+            "extensions": {
+                "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8": {
+                    "strategic_alignment": "Revisionist",
+                    "revisionist_index": 9.2,
+                    "geopolitical_context": "Bajo el pensamiento de Xi Jinping, la RPC busca el 'rejuvenecimiento nacional' y la soberanía tecnológica total para 2035.",
+                    "doctrine_capacity_divergence_score": 8.5,
+                    "first_seen": "2021-03-12T00:00:00Z"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-objective",
+            "spec_version": "2.1",
+            "id": "x-strategic-objective--53b8aa36-b03d-49bf-8c8d-09aa399fdbfa",
+            "name": "Reunificación de Taiwán (Centenario 2027)",
+            "description": "Instrucción directa de Xi Jinping para que el EPL sea capaz de una invasión exitosa en 2027.",
+            "extensions": {
+                "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8": {
+                    "priority_level": "critical",
+                    "first_seen": "2023-01-01T00:00:00Z"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-objective",
+            "spec_version": "2.1",
+            "id": "x-strategic-objective--088cc161-8391-4a2f-9d53-b5853c33370d",
+            "name": "Construcción de una 'Cyber Powerhouse'",
+            "description": "Dominio de estándares internacionales (IPv6, 6G) y autosuficiencia en semiconductores e IA.",
+            "extensions": {
+                "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8": {
+                    "priority_level": "high",
+                    "first_seen": "2021-03-12T00:00:00Z"
+                }
+            }
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "spec_version": "2.1",
+            "id": "x-hybrid-campaign--c2b3a0df-7c2b-42f1-b8f0-a79405ecbbf0",
+            "name": "Campaña de las 'Tres Guerras' (Three Warfares)",
+            "description": "Uso coordinado de guerra legal (Ley Anti-Secesión), guerra psicológica y de opinión pública para moldear el entorno estratégico de Taiwán.",
+            "extensions": {
+                "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8": {
+                    "phase": "sustained-pressure",
+                    "velocity": "slow-drift",
+                    "nature": [
+                        "cognitive",
+                        "technological"
+                    ],
+                    "first_seen": "2024-01-01T00:00:00Z"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-assessment",
+            "spec_version": "2.1",
+            "id": "x-strategic-assessment--e28fab14-6ac8-4f71-9cb7-0da44b21666f",
+            "description": "Evaluación de la sincronización de los 'relojes' geopolíticos hacia el pico de riesgo en 2027.",
+            "extensions": {
+                "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8": {
+                    "hybrid_pressure_index": 8.8,
+                    "escalation_probability_score": 9.5,
+                    "first_seen": "2026-02-28T18:51:00Z"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-impact",
+            "spec_version": "2.1",
+            "id": "x-strategic-impact--a3bc417b-0bb3-44e1-b10f-d17d328f7425",
+            "name": "Anti-Access/Area Denial (A2/AD) Digital",
+            "description": "Neutralización de las capacidades de mando y control occidentales en el Indo-Pacífico mediante instrumentos cibernéticos.",
+            "extensions": {
+                "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8": {
+                    "political_destabilization_index": 8.0,
+                    "confidence_score": 9.5
+                }
+            }
+        },
+        {
+            "type": "relationship",
+            "spec_version": "2.1",
+            "id": "relationship--4dd1dd73-c3d2-4ca4-a787-beaa0243fba4",
+            "source_ref": "x-geo-strategic-actor--69cb80ad-659a-4844-b0cd-2854824a14c6",
+            "target_ref": "intrusion-set--8e52ecdf-659a-4844-b0cd-2854824a14c6",
+            "relationship_type": "x-instrumentalizes",
+            "description": "Vinculación entre los objetivos estatales y los Intrusion Sets técnicos orquestados por la Fuerza de Apoyo Estratégico."
+        }
+    ]
+}
