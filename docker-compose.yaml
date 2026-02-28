@@ -27,7 +27,7 @@ services:
       - xpack.security.enabled=false
       - thread_pool.search.queue_size=5000
       - logger.org.elasticsearch.discovery="ERROR"
-      - "ES_JAVA_OPTS=-Xms${ELASTIC_MEMORY_SIZE} -Xmx${ELASTIC_MEMORY_SIZE}"
+      - "ES_JAVA_OPTS=-Xms${ELASTIC_MEMORY_SIZE:-1g} -Xmx${ELASTIC_MEMORY_SIZE:-1g}"
     restart: always
     ulimits:
       memlock:
@@ -46,7 +46,7 @@ services:
     volumes:
       - s3data:/data
     ports:
-      - "9000:9000"
+      - "9001:9000"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}    
