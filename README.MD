@@ -49,18 +49,18 @@ GSCIX utiliza una arquitectura desacoplada diseñada para procesar inteligencia 
 ```mermaid
 graph TD
     subgraph "Analista / Usuario"
-        UI[Frontend (Dashboard)]
+        UI["Frontend (Dashboard)"]
     end
 
     subgraph "Orquestación de Inteligencia (GSCIX Backend)"
-        API[PostgreSQL Ingest / Context API]
-        DIS[Discovery Service (OpenCTI)]
-        TEM[Temporal Tracking Engine]
+        API["PostgreSQL Ingest / Context API"]
+        DIS["Discovery Service (OpenCTI)"]
+        TEM["Temporal Tracking Engine"]
     end
 
     subgraph "Persistencia y Fuentes"
-        ES[(Elasticsearch 8.x)]
-        OCTI[OpenCTI v7 API]
+        ES[("Elasticsearch 8.x")]
+        OCTI["OpenCTI v7 API"]
     end
 
     UI --> API
