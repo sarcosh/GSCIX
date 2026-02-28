@@ -1,0 +1,12 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: gscix-backend
+  elasticsearch:
+    uris: ${SPRING_ELASTICSEARCH_URIS:http://elasticsearch:9200}
+    
+opencti:
+  url: ${OPENCTI_URL:http://opencti:8080}
+  token: ${OPENCTI_TOKEN:default_token}

@@ -1,0 +1,43 @@
+{
+    "id": "x-influence-vector",
+    "name": "Influence Vector",
+    "description": "Represents the narrative or channel used for information operations.",
+    "category": "Stix-Domain-Object",
+    "properties": [
+        {
+            "name": "name",
+            "type": "string",
+            "mandatory": true
+        },
+        {
+            "name": "description",
+            "type": "string",
+            "mandatory": false
+        },
+        {
+            "name": "narrative",
+            "type": "string",
+            "mandatory": true
+        },
+        {
+            "name": "channel",
+            "type": "string",
+            "mandatory": false
+        },
+        {
+            "name": "target_audience",
+            "type": "string",
+            "mandatory": false
+        }
+    ],
+    "relations": [
+        {
+            "name": "targets",
+            "targets": [
+                "Identity",
+                "Location",
+                "Sector"
+            ]
+        }
+    ]
+}

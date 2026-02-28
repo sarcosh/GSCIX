@@ -1,0 +1,53 @@
+{
+    "id": "x-strategic-assessment",
+    "name": "Strategic Assessment",
+    "description": "Dynamic predictive metrics and engine evaluations.",
+    "category": "Stix-Domain-Object",
+    "properties": [
+        {
+            "name": "name",
+            "type": "string",
+            "mandatory": true
+        },
+        {
+            "name": "description",
+            "type": "string",
+            "mandatory": false
+        },
+        {
+            "name": "hybrid_pressure_index",
+            "type": "number",
+            "mandatory": false
+        },
+        {
+            "name": "escalation_probability_score",
+            "type": "number",
+            "mandatory": false
+        },
+        {
+            "name": "strategic_signaling_score",
+            "type": "number",
+            "mandatory": false
+        },
+        {
+            "name": "cyber_geopolitical_coupling_index",
+            "type": "number",
+            "mandatory": false
+        },
+        {
+            "name": "narrative_penetration_score",
+            "type": "number",
+            "mandatory": false
+        }
+    ],
+    "relations": [
+        {
+            "name": "evaluates",
+            "targets": [
+                "x-geo-strategic-actor",
+                "x-hybrid-campaign",
+                "x-strategic-impact"
+            ]
+        }
+    ]
+}

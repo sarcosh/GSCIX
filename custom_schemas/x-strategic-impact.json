@@ -1,0 +1,44 @@
+{
+    "id": "x-strategic-impact",
+    "name": "Strategic Impact",
+    "description": "Evaluates the real-world effects of the campaigns.",
+    "category": "Stix-Domain-Object",
+    "properties": [
+        {
+            "name": "name",
+            "type": "string",
+            "mandatory": true
+        },
+        {
+            "name": "description",
+            "type": "string",
+            "mandatory": false
+        },
+        {
+            "name": "political_destabilization_index",
+            "type": "number",
+            "mandatory": false
+        },
+        {
+            "name": "economic_disruption_index",
+            "type": "number",
+            "mandatory": false
+        },
+        {
+            "name": "alliance_fragmentation_score",
+            "type": "number",
+            "mandatory": false
+        },
+        {
+            "name": "deterrence_signal_strength",
+            "type": "number",
+            "mandatory": false
+        },
+        {
+            "name": "confidence_score",
+            "type": "number",
+            "mandatory": true
+        }
+    ],
+    "relations": []
+}

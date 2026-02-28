@@ -1,0 +1,53 @@
+{
+    "id": "x-strategic-objective",
+    "name": "Strategic Objective",
+    "description": "Describes the high-level geopolitical goal.",
+    "category": "Stix-Domain-Object",
+    "properties": [
+        {
+            "name": "name",
+            "type": "string",
+            "mandatory": true,
+            "multiple": false
+        },
+        {
+            "name": "description",
+            "type": "string",
+            "mandatory": false,
+            "multiple": false
+        },
+        {
+            "name": "objective_type",
+            "type": "enum",
+            "values": [
+                "political",
+                "military",
+                "economic",
+                "societal"
+            ],
+            "mandatory": true
+        },
+        {
+            "name": "priority_level",
+            "type": "enum",
+            "values": [
+                "low",
+                "medium",
+                "high",
+                "critical"
+            ],
+            "mandatory": false
+        },
+        {
+            "name": "time_horizon",
+            "type": "enum",
+            "values": [
+                "short-term",
+                "medium-term",
+                "long-term"
+            ],
+            "mandatory": false
+        }
+    ],
+    "relations": []
+}

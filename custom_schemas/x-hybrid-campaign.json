@@ -1,0 +1,62 @@
+{
+    "id": "x-hybrid-campaign",
+    "name": "Hybrid Campaign",
+    "description": "A multi-domain container grouping cyber, information, and economic pressure.",
+    "category": "Stix-Domain-Object",
+    "properties": [
+        {
+            "name": "name",
+            "type": "string",
+            "mandatory": true
+        },
+        {
+            "name": "description",
+            "type": "string",
+            "mandatory": false
+        },
+        {
+            "name": "phase",
+            "type": "enum",
+            "values": [
+                "pre-conflict",
+                "escalation",
+                "sustained-pressure"
+            ],
+            "mandatory": true
+        },
+        {
+            "name": "integration_level",
+            "type": "string",
+            "mandatory": false
+        },
+        {
+            "name": "geographic_scope",
+            "type": "string",
+            "mandatory": false
+        },
+        {
+            "name": "escalation_risk_score",
+            "type": "number",
+            "mandatory": false
+        }
+    ],
+    "relations": [
+        {
+            "name": "integrates",
+            "targets": [
+                "Intrusion-Set",
+                "Attack-Pattern",
+                "Campaign",
+                "x-influence-vector"
+            ]
+        },
+        {
+            "name": "targets",
+            "targets": [
+                "Identity",
+                "Location",
+                "Sector"
+            ]
+        }
+    ]
+}

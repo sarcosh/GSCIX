@@ -1,0 +1,77 @@
+{
+    "id": "x-geo-strategic-actor",
+    "name": "Geo-Strategic Actor",
+    "description": "A state or non-state actor with geopolitical objectives.",
+    "category": "Stix-Domain-Object",
+    "properties": [
+        {
+            "name": "name",
+            "type": "string",
+            "mandatory": true,
+            "multiple": false
+        },
+        {
+            "name": "description",
+            "type": "string",
+            "mandatory": false,
+            "multiple": false
+        },
+        {
+            "name": "strategic_alignment",
+            "type": "enum",
+            "values": [
+                "NATO",
+                "BRICS",
+                "EU",
+                "Non-Aligned",
+                "Other"
+            ],
+            "mandatory": true
+        },
+        {
+            "name": "geopolitical_doctrine",
+            "type": "string",
+            "mandatory": false
+        },
+        {
+            "name": "revisionist_index",
+            "type": "number",
+            "mandatory": false
+        }
+    ],
+    "relations": [
+        {
+            "name": "controls",
+            "targets": [
+                "Threat-Actor-Group",
+                "Threat-Actor-Individual"
+            ]
+        },
+        {
+            "name": "sponsors",
+            "targets": [
+                "Threat-Actor-Group",
+                "Threat-Actor-Individual",
+                "Intrusion-Set"
+            ]
+        },
+        {
+            "name": "pursues",
+            "targets": [
+                "x-strategic-objective"
+            ]
+        },
+        {
+            "name": "executes",
+            "targets": [
+                "x-hybrid-campaign"
+            ]
+        },
+        {
+            "name": "generates",
+            "targets": [
+                "x-strategic-impact"
+            ]
+        }
+    ]
+}
