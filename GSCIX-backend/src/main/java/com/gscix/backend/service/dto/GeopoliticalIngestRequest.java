@@ -30,6 +30,9 @@ public class GeopoliticalIngestRequest {
     @JsonProperty("revisionist_index")
     private Double revisionistIndex;
 
+    @JsonProperty("strategic_ambiguity_score")
+    private Double strategicAmbiguityScore;
+
     // --- x-strategic-objective (list) ---
     @JsonProperty("objectives")
     private List<ObjectiveDTO> objectives;
@@ -70,7 +73,10 @@ public class GeopoliticalIngestRequest {
         private String priorityLevel; // low, medium, high, critical
 
         @JsonProperty("time_horizon")
-        private String timeHorizon; // short-term, medium-term, long-term
+        private String timeHorizon; // short-term, medium-term, long-term, decadal
+
+        @JsonProperty("civil_military_fusion")
+        private Boolean civilMilitaryFusion;
     }
 
     @Data
@@ -87,6 +93,9 @@ public class GeopoliticalIngestRequest {
 
         @JsonProperty("escalation_risk_score")
         private Double escalationRiskScore;
+
+        private String velocity; // fast-spike, slow-drift
+        private List<String> nature; // kinetic, cyber, infrastructural, cognitive, technological
     }
 
     @Data

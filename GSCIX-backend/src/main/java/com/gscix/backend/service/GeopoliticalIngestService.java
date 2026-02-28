@@ -72,6 +72,7 @@ public class GeopoliticalIngestService {
         actorAttrs.setStrategicAlignment(request.getStrategicAlignment());
         actorAttrs.setGeopoliticalDoctrine(request.getGeopoliticalDoctrine());
         actorAttrs.setRevisionistIndex(request.getRevisionistIndex());
+        actorAttrs.setStrategicAmbiguityScore(request.getStrategicAmbiguityScore());
         actor.setGsciAttributes(actorAttrs);
         entityRepository.save(actor);
         entitiesCreated++;
@@ -91,6 +92,7 @@ public class GeopoliticalIngestService {
                 objAttrs.setObjectiveType(obj.getObjectiveType());
                 objAttrs.setPriorityLevel(obj.getPriorityLevel());
                 objAttrs.setTimeHorizon(obj.getTimeHorizon());
+                objAttrs.setCivilMilitaryFusion(obj.getCivilMilitaryFusion());
                 objective.setGsciAttributes(objAttrs);
                 entityRepository.save(objective);
                 entitiesCreated++;
@@ -115,6 +117,8 @@ public class GeopoliticalIngestService {
             campAttrs.setIntegrationLevel(camp.getIntegrationLevel());
             campAttrs.setGeographicScope(camp.getGeographicScope());
             campAttrs.setEscalationRiskScore(camp.getEscalationRiskScore());
+            campAttrs.setVelocity(camp.getVelocity());
+            campAttrs.setNature(camp.getNature());
             campaign.setGsciAttributes(campAttrs);
             entityRepository.save(campaign);
             entitiesCreated++;

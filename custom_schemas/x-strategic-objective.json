@@ -44,8 +44,14 @@
             "values": [
                 "short-term",
                 "medium-term",
-                "long-term"
+                "long-term",
+                "decadal"
             ],
+            "mandatory": false
+        },
+        {
+            "name": "civil_military_fusion",
+            "type": "boolean",
             "mandatory": false
         }
     ],

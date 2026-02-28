@@ -37,6 +37,11 @@
             "name": "revisionist_index",
             "type": "number",
             "mandatory": false
+        },
+        {
+            "name": "strategic_ambiguity_score",
+            "type": "number",
+            "mandatory": false
         }
     ],
     "relations": [

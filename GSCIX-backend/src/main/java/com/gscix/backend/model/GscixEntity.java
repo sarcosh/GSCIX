@@ -44,6 +44,8 @@ public class GscixEntity {
         private String geopoliticalDoctrine;
         @Field(type = FieldType.Double)
         private Double revisionistIndex;
+        @Field(type = FieldType.Double)
+        private Double strategicAmbiguityScore;
         @Field(type = FieldType.Keyword)
         private String powerProjection;
         @Field(type = FieldType.Keyword)
@@ -56,6 +58,8 @@ public class GscixEntity {
         private String priorityLevel;
         @Field(type = FieldType.Keyword)
         private String timeHorizon;
+        @Field(type = FieldType.Boolean)
+        private Boolean civilMilitaryFusion;
 
         // x-hybrid-campaign fields
         @Field(type = FieldType.Keyword)
@@ -66,6 +70,10 @@ public class GscixEntity {
         private String geographicScope;
         @Field(type = FieldType.Double)
         private Double escalationRiskScore;
+        @Field(type = FieldType.Keyword)
+        private String velocity;
+        @Field(type = FieldType.Keyword)
+        private java.util.List<String> nature;
 
         // x-strategic-impact fields
         @Field(type = FieldType.Double)

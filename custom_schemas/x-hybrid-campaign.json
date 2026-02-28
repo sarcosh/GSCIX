@@ -38,6 +38,20 @@
             "name": "escalation_risk_score",
             "type": "number",
             "mandatory": false
+        },
+        {
+            "name": "velocity",
+            "type": "enum",
+            "values": [
+                "fast-spike",
+                "slow-drift"
+            ],
+            "mandatory": false
+        },
+        {
+            "name": "nature",
+            "type": "list",
+            "mandatory": false
         }
     ],
     "relations": [

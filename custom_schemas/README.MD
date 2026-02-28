@@ -19,6 +19,7 @@ Represents a state or non-state entity with the capacity to project power and pu
 | `strategic_alignment` | enum | Yes | The geopolitical block or ideology. | `NATO`, `BRICS`, `EU`, `Non-Aligned`, `Other` |
 | `geopolitical_doctrine` | string | No | High-level strategy governing actions. | e.g., "Gerasimov Doctrine", "Unrestricted Warfare" |
 | `revisionist_index` | number | No | Score (0-10) of intent to change the status quo. | 0 = Status Quo, 10 = High Revisionist |
+| `strategic_ambiguity_score` | number | No | Conflict between public discourse and military capacity. | 0 = Transparent, 10 = Highly Ambiguous |
 
 **Key Relations (Framework Internal):**
 - `pursues` → `x-strategic-objective`.
@@ -40,7 +41,8 @@ Defines the specific geopolitical goal an actor aims to achieve.
 | `name` | string | Yes | Short name of the objective. | e.g., "Electoral Interference" |
 | `objective_type` | enum | Yes | Dimension of the objective. | `political`, `military`, `economic`, `societal` |
 | `priority_level` | enum | No | Importance of the objective. | `low`, `medium`, `high`, `critical` |
-| `time_horizon` | enum | No | Estimated duration to achieve. | `short-term`, `medium-term`, `long-term` |
+| `time_horizon` | enum | No | Estimated duration to achieve. | `short-term` to `decadal` (10-30 years) |
+| `civil_military_fusion` | boolean | No | Objective that integrates civilian tech for military power. | true = Dual-use / Fusion |
 
 ---
 
@@ -52,6 +54,8 @@ A "strategic container" that groups various operations (cyber, info, economic) u
 | :--- | :--- | :---: | :--- | :--- |
 | `name` | string | Yes | Identifier for the campaign. | e.g., "Operation Steal-the-Vote" |
 | `phase` | enum | Yes | Current state of the campaign. | `pre-conflict`, `escalation`, `sustained-pressure` |
+| `velocity` | enum | No | Speed of implementation. | `fast-spike` vs `slow-drift` (infrastructural) |
+| `nature` | list | No | Domains of the campaign. | `kinetic`, `cyber`, `infrastructural`, `cognitive`, `technological` |
 | `escalation_risk_score` | number | No | Proxy for the likelihood of kinetic transition. | 0.0 to 10.0 |
 
 **Key Relations:**
@@ -130,6 +134,21 @@ Dentro del framework GSCI, los **Geo-Strategic Actors** no actúan directamente 
 Al vincular un `x-geo-strategic-actor` con un `Intrusion-Set` de OpenCTI:
 - El analista puede ver qué **Objetivos Estratégicos** (`x-strategic-objective`) están motivando las campañas técnicas.
 - GSCIX puede calcular el **Índice de Acoplamiento Cyber-Geopolítico** (`cyber_geopolitical_coupling_index`), que indica si la actividad APT detectada es una señal de una escalada estratégica mayor.
+
+---
+
+## 🏛 Analítica de Gran Estrategia: RPC Case Study
+
+El modelo GSCIX ha sido refinado para evitar el "sesgo de inmediatez" mediante la inclusión de variables de gran estrategia:
+
+### 1. Detección de Infraestructura "Lenta" (`slow-drift`)
+Mientras que la mayoría de los modelos de inteligencia se centran en el *fast-spike* (un ataque de ransomware o DDoS), GSCIX permite modelar campañas de **`slow-drift`**. Esto captura la construcción de infraestructuras críticas (físicas o digitales) que no presentan una amenaza inmediata pero alteran el equilibrio de poder en horizontes **decadales**.
+
+### 2. Ponderación de Ambigüedad Estratégica
+Muchos actores estatales (ej. RPC en el 14.º Plan Quinquenal) utilizan un discurso de estabilidad mientras ejecutan una expansión militar operativa. La variable `strategic_ambiguity_score` permite al sistema alertar sobre riesgos incluso cuando la "doctrina pública" es pacífica, siempre que la capacidad operativa (`power_projection`) y los objetivos de **Fusión Civil-Militar** sugieran lo contrario.
+
+### 3. Fusión Civil-Militar (`civil_military_fusion`)
+Esta flag permite al analista marcar objetivos que parecen puramente económicos o académicos (ej. investigación en semiconductores o redes 6G) pero que forman parte integral de la base de poder militar a largo plazo.
 
 ---
 
