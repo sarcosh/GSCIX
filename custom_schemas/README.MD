@@ -192,3 +192,59 @@ Esta tabla resume cómo se conectan las entidades entre sí para formar el grafo
 | `x-strategic-assessment` | `evaluates` | `x-geo-strategic-actor` | Evaluación global de riesgo del actor. |
 | `x-strategic-assessment` | `evaluates` | `x-hybrid-campaign` | Evaluación del progreso/peligro de la campaña. |
 | `x-strategic-assessment` | `evaluates` | `x-strategic-impact` | Validación de los efectos reportados. |
+
+---
+
+## 📦 7. Estructura de Agrupación: STIX 2.1 Bundle
+
+Para la interoperabilidad y la ingesta masiva, GSCIX utiliza el objeto `bundle` de STIX 2.1. Un bundle permite agrupar objetos de dominio (SDOs) y sus relaciones (SROs) en un único contenedor atómico.
+
+### Ejemplo de Bundle GSCIX (Optimizado)
+Este ejemplo muestra cómo agrupar un actor nacional, sus objetivos y la relación de instrumentalización técnica cumpliendo estrictamente STIX 2.1.
+
+```json
+{
+  "type": "bundle",
+  "id": "bundle--23b8a10e-8947-414b-876a-7d499edec5b8",
+  "spec_version": "2.1",
+  "objects": [
+    {
+      "type": "x-geo-strategic-actor",
+      "spec_version": "2.1",
+      "id": "x-geo-strategic-actor--69cb80ad-659a-4844-b0cd-2854824a14c6",
+      "name": "República Popular China (RPC)",
+      "extensions": {
+        "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8": {
+          "strategic_alignment": "Revisionist",
+          "revisionist_index": 9.2,
+          "doctrine_capacity_divergence_score": 8.5
+        }
+      }
+    },
+    {
+      "type": "x-strategic-objective",
+      "spec_version": "2.1",
+      "id": "x-strategic-objective--53b8aa36-b03d-49bf-8c8d-09aa399fdbfa",
+      "name": "Soberanía de Estándares Tecnológicos",
+      "description": "Liderazgo global en 6G y protocolos de red soberanos.",
+      "extensions": {
+        "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8": {
+          "priority_level": "high",
+          "time_horizon": "decadal"
+        }
+      }
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--4dd1dd73-c3d2-4ca4-a787-beaa0243fba4",
+      "source_ref": "x-geo-strategic-actor--69cb80ad-659a-4844-b0cd-2854824a14c6",
+      "target_ref": "x-strategic-objective--53b8aa36-b03d-49bf-8c8d-09aa399fdbfa",
+      "relationship_type": "pursues"
+    }
+  ]
+}
+```
+
+> [!NOTE]
+> GSCIX prefiere el uso de **UUIDv4** en los IDs de los objetos para garantizar la unicidad global del grafo de inteligencia.
