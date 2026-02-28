@@ -31,9 +31,9 @@ Traditional Cyber Threat Intelligence (CTI) often focuses on the *how* (malware,
 
 ## 🏛 The GSCI Framework
 
-GSCIX is the first implementation of the **Geostrategic Cyber Intelligence (GSCI)** model, which replaces the linear actor-victim flow with a multi-layered influence model:
+GSCIX is the first implementation of the **Geostrategic Cyber Intelligence (GSCI)** model, which replaces the linear actor-victim flow with a multi-layered influence model that instrumentalizes technical capabilities:
 
-> **State Actor** → **Strategic Objective** → **Hybrid Campaign** → **Cyber Instrument** → **Strategic Effect**
+> **State Actor** (`x-geo-strategic-actor`) → **Strategic Objective** → **Hybrid Campaign** → **Cyber Instrument** (APT / OpenCTI) → **Strategic Effect**
 
 Para más detalles sobre las entidades utilizadas, consulta la [documentación detallada de esquemas personalizados](custom_schemas/README.MD).
 

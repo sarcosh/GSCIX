@@ -19,7 +19,8 @@ import java.time.Instant;
 import java.util.*;
 
 /**
- * Service that processes geopolitical ingestion requests covering all GSCIX custom schemas:
+ * Service that processes geopolitical ingestion requests covering all GSCIX
+ * custom schemas:
  * x-geo-strategic-actor, x-strategic-objective, x-hybrid-campaign,
  * x-influence-vector, x-strategic-impact, x-strategic-assessment.
  *
@@ -64,8 +65,7 @@ public class GeopoliticalIngestService {
                 "x-geo-strategic-actor",
                 request.getActorName(),
                 request.getGeopoliticalContext(),
-                "GSCIX-INGEST"
-        );
+                "GSCIX-INGEST");
         GscixEntity.GsciAttributes actorAttrs = new GscixEntity.GsciAttributes();
         actorAttrs.setStrategicAlignment(request.getStrategicAlignment());
         actorAttrs.setGeopoliticalDoctrine(request.getGeopoliticalDoctrine());
@@ -84,8 +84,7 @@ public class GeopoliticalIngestService {
                         "x-strategic-objective",
                         obj.getName() != null ? obj.getName() : obj.getDescription(),
                         obj.getDescription(),
-                        "GSCIX-INGEST"
-                );
+                        "GSCIX-INGEST");
                 GscixEntity.GsciAttributes objAttrs = new GscixEntity.GsciAttributes();
                 objAttrs.setObjectiveType(obj.getObjectiveType());
                 objAttrs.setPriorityLevel(obj.getPriorityLevel());
@@ -95,7 +94,7 @@ public class GeopoliticalIngestService {
                 entitiesCreated++;
 
                 // Relation: actor --pursues--> objective
-                relationsCreated += createRelation(actor.getStixId(), objective.getStixId(), "pursues");
+                relationsCreated += createRelation(actor.getStixId(), objective.getStixId(), "pursues", null);
             }
         }
 
@@ -108,8 +107,7 @@ public class GeopoliticalIngestService {
                     "x-hybrid-campaign",
                     camp.getName(),
                     camp.getDescription(),
-                    "GSCIX-INGEST"
-            );
+                    "GSCIX-INGEST");
             GscixEntity.GsciAttributes campAttrs = new GscixEntity.GsciAttributes();
             campAttrs.setPhase(camp.getPhase());
             campAttrs.setIntegrationLevel(camp.getIntegrationLevel());
@@ -120,7 +118,14 @@ public class GeopoliticalIngestService {
             entitiesCreated++;
 
             // Relation: actor --executes--> campaign
-            relationsCreated += createRelation(actor.getStixId(), campaign.getStixId(), "executes");
+            relationsCreated += createRelation(actor.getStixId(), campaign.getStixId(), "executes", null);
+
+            // Relation: campaign --targets--> (General Context or specific target if
+            // defined)
+            if (camp.getGeographicScope() != null) {
+                relationsCreated += createRelation(campaign.getStixId(), "identity--geographic-scope", "targets",
+                        "Targeted region: " + camp.getGeographicScope());
+            }
         }
 
         // =====================================================================
@@ -132,8 +137,7 @@ public class GeopoliticalIngestService {
                         "x-influence-vector",
                         iv.getName(),
                         iv.getDescription(),
-                        "GSCIX-INGEST"
-                );
+                        "GSCIX-INGEST");
                 GscixEntity.GsciAttributes ivAttrs = new GscixEntity.GsciAttributes();
                 ivAttrs.setNarrative(iv.getNarrative());
                 ivAttrs.setChannel(iv.getChannel());
@@ -149,10 +153,16 @@ public class GeopoliticalIngestService {
                     List<GscixEntity> campaigns = entityRepository.findByType("x-hybrid-campaign");
                     for (GscixEntity c : campaigns) {
                         if (c.getName() != null && c.getName().equals(request.getCampaign().getName())) {
-                            relationsCreated += createRelation(c.getStixId(), vector.getStixId(), "integrates");
+                            relationsCreated += createRelation(c.getStixId(), vector.getStixId(), "integrates", null);
                             break;
                         }
                     }
+                }
+
+                // Relation: vector --targets--> (Target Audience)
+                if (iv.getTargetAudience() != null) {
+                    relationsCreated += createRelation(vector.getStixId(), "identity--target-audience", "targets",
+                            "Targeted audience: " + iv.getTargetAudience());
                 }
             }
         }
@@ -166,8 +176,7 @@ public class GeopoliticalIngestService {
                     "x-strategic-impact",
                     imp.getName() != null ? imp.getName() : "Impact of " + request.getActorName(),
                     imp.getDescription(),
-                    "GSCIX-INGEST"
-            );
+                    "GSCIX-INGEST");
             GscixEntity.GsciAttributes impAttrs = new GscixEntity.GsciAttributes();
             impAttrs.setPoliticalDestabilizationIndex(imp.getPoliticalDestabilizationIndex());
             impAttrs.setEconomicDisruptionIndex(imp.getEconomicDisruptionIndex());
@@ -179,7 +188,7 @@ public class GeopoliticalIngestService {
             entitiesCreated++;
 
             // Relation: actor --generates--> impact
-            relationsCreated += createRelation(actor.getStixId(), impact.getStixId(), "generates");
+            relationsCreated += createRelation(actor.getStixId(), impact.getStixId(), "generates", null);
         }
 
         // =====================================================================
@@ -191,8 +200,7 @@ public class GeopoliticalIngestService {
                     "x-strategic-assessment",
                     assess.getName() != null ? assess.getName() : "Assessment of " + request.getActorName(),
                     assess.getDescription(),
-                    "GSCIX-INGEST"
-            );
+                    "GSCIX-INGEST");
             GscixEntity.GsciAttributes assessAttrs = new GscixEntity.GsciAttributes();
             assessAttrs.setHybridPressureIndex(assess.getHybridPressureIndex());
             assessAttrs.setEscalationProbabilityScore(assess.getEscalationProbabilityScore());
@@ -204,15 +212,42 @@ public class GeopoliticalIngestService {
             entitiesCreated++;
 
             // Relation: assessment --evaluates--> actor
-            relationsCreated += createRelation(assessment.getStixId(), actor.getStixId(), "evaluates");
+            relationsCreated += createRelation(assessment.getStixId(), actor.getStixId(), "evaluates",
+                    "Strategic evaluation of " + actor.getName());
+
+            // Relation: assessment --evaluates--> campaign (if exists)
+            if (request.getCampaign() != null) {
+                List<GscixEntity> campaigns = entityRepository.findByType("x-hybrid-campaign");
+                for (GscixEntity c : campaigns) {
+                    if (c.getName() != null && c.getName().equals(request.getCampaign().getName())) {
+                        relationsCreated += createRelation(assessment.getStixId(), c.getStixId(), "evaluates",
+                                "Performance evaluation of campaign " + c.getName());
+                        break;
+                    }
+                }
+            }
+
+            // Relation: assessment --evaluates--> impact (if exists)
+            if (request.getImpact() != null) {
+                List<GscixEntity> impacts = entityRepository.findByType("x-strategic-impact");
+                for (GscixEntity i : impacts) {
+                    if (i.getName() != null && i.getMetadata().getCreatedAt().isAfter(Instant.now().minusSeconds(10))) {
+                        relationsCreated += createRelation(assessment.getStixId(), i.getStixId(), "evaluates",
+                                "Effectiveness assessment");
+                        break;
+                    }
+                }
+            }
         }
 
         // =====================================================================
         // 7. Auto-Discovery: Search OpenCTI for matching Threat Actors
         // =====================================================================
-        List<GeopoliticalIngestResponse.OpenCtiMatch> matches = autoDiscoverOpenCti(actor);
+        List<GeopoliticalIngestResponse.OpenCtiMatch> matches = autoDiscoverOpenCti(actor,
+                request.getGeopoliticalDoctrine());
         for (GeopoliticalIngestResponse.OpenCtiMatch match : matches) {
-            relationsCreated += createRelation(actor.getStixId(), match.getStandardId(), match.getRelationshipType());
+            relationsCreated += createRelation(actor.getStixId(), match.getStandardId(), match.getRelationshipType(),
+                    "Automated linkage via OpenCTI Discovery");
         }
 
         // =====================================================================
@@ -222,8 +257,7 @@ public class GeopoliticalIngestService {
         response.setStatus("OK");
         response.setMessage(String.format(
                 "Ingested actor '%s' with %d entities and %d relations. Found %d OpenCTI matches.",
-                request.getActorName(), entitiesCreated, relationsCreated, matches.size()
-        ));
+                request.getActorName(), entitiesCreated, relationsCreated, matches.size()));
         response.setActorEntityId(actor.getStixId());
         response.setEntitiesCreated(entitiesCreated);
         response.setRelationsCreated(relationsCreated);
@@ -254,12 +288,14 @@ public class GeopoliticalIngestService {
         return entity;
     }
 
-    private int createRelation(String sourceRef, String targetRef, String relationshipType) {
+    private int createRelation(String sourceRef, String targetRef, String relationshipType, String description) {
         GscixRelation relation = new GscixRelation();
         relation.setId("relationship--" + UUID.randomUUID());
         relation.setSourceRef(sourceRef);
         relation.setTargetRef(targetRef);
         relation.setRelationshipType(relationshipType);
+        relation.setDescription(description);
+        relation.setStartTime(Instant.now());
         relation.setConfidence(75);
         relationRepository.save(relation);
         logger.debug("Created relation: {} --{}--> {}", sourceRef, relationshipType, targetRef);
@@ -271,24 +307,31 @@ public class GeopoliticalIngestService {
      * matches the ingested actor, and returns matches with relationship types
      * based on the x-geo-strategic-actor schema (controls, sponsors).
      */
-    private List<GeopoliticalIngestResponse.OpenCtiMatch> autoDiscoverOpenCti(GscixEntity actor) {
+    private List<GeopoliticalIngestResponse.OpenCtiMatch> autoDiscoverOpenCti(GscixEntity actor, String doctrine) {
         List<GeopoliticalIngestResponse.OpenCtiMatch> matches = new ArrayList<>();
 
+        // Determine relationship type: controls (state units) vs sponsors (proxies)
+        String relType = "sponsors";
+        if (doctrine != null
+                && (doctrine.toLowerCase().contains("unit") || doctrine.toLowerCase().contains("command"))) {
+            relType = "controls";
+        }
+
         String query = String.format("""
-            query SearchThreatActors {
-              threatActors(search: "%s", first: 20) {
-                edges {
-                  node {
-                    id
-                    standard_id
-                    name
-                    description
-                    entity_type
+                query SearchThreatActors {
+                  threatActors(search: "%s", first: 20) {
+                    edges {
+                      node {
+                        id
+                        standard_id
+                        name
+                        description
+                        entity_type
+                      }
+                    }
                   }
                 }
-              }
-            }
-            """, actor.getName());
+                """, actor.getName());
 
         try {
             GraphQLResponse response = webClient.post()
@@ -301,13 +344,14 @@ public class GeopoliticalIngestService {
             if (response != null && response.getData() != null && response.getData().getThreatActors() != null) {
                 for (GraphQLResponse.Edge edge : response.getData().getThreatActors().getEdges()) {
                     GraphQLResponse.Node node = edge.getNode();
-                    if (node.getStandard_id() == null) continue;
+                    if (node.getStandard_id() == null)
+                        continue;
 
                     GeopoliticalIngestResponse.OpenCtiMatch match = new GeopoliticalIngestResponse.OpenCtiMatch();
                     match.setName(node.getName());
                     match.setOpenctiId(node.getId());
                     match.setStandardId(node.getStandard_id());
-                    match.setRelationshipType("sponsors"); // Default: the geo-strategic-actor sponsors the threat actor
+                    match.setRelationshipType(relType);
                     matches.add(match);
 
                     logger.info("Auto-discovered OpenCTI Threat Actor: {} ({})", node.getName(), node.getStandard_id());

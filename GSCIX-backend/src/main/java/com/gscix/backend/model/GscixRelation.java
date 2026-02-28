@@ -21,6 +21,15 @@ public class GscixRelation {
     @Field(type = FieldType.Keyword)
     private String relationshipType;
 
+    @Field(type = FieldType.Text)
+    private String description;
+
+    @Field(type = FieldType.Date)
+    private java.time.Instant startTime;
+
+    @Field(type = FieldType.Date)
+    private java.time.Instant stopTime;
+
     @Field(type = FieldType.Integer)
     private Integer confidence;
 }
