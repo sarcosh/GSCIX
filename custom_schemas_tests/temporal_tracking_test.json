@@ -1,0 +1,35 @@
+{
+    "actor_name": "Long-Term Strategic Competitor",
+    "strategic_alignment": "Other",
+    "geopolitical_doctrine": "Decadal Modernization Plan",
+    "first_seen": "2021-01-01T00:00:00Z",
+    "last_seen": "2026-02-28T18:00:00Z",
+    "objectives": [
+        {
+            "name": "Orbital Infrastructure Dominance",
+            "description": "Establishment of permanent logistics hubs in LEO by 2035.",
+            "objective_type": "military",
+            "first_seen": "2023-06-15T09:00:00Z",
+            "last_seen": "2026-02-28T12:00:00Z"
+        }
+    ],
+    "campaign": {
+        "name": "Project Celestial Drift",
+        "description": "Slow deployment of dual-use satellite constellations.",
+        "phase": "pre-conflict",
+        "velocity": "slow-drift",
+        "first_seen": "2024-03-20T14:30:00Z",
+        "last_seen": "2026-02-28T17:45:00Z"
+    },
+    "assessment": {
+        "name": "LEO Strategic Audit",
+        "description": "Longitudinal analysis of orbital asset deployment vs declared peaceful doctrine.",
+        "doctrine_capacity_divergence_score": 7.5,
+        "first_seen": "2026-01-01T00:00:00Z",
+        "last_seen": "2026-02-28T18:00:00Z"
+    },
+    "source_metadata": {
+        "tool": "TEMPORAL-TEST",
+        "export_date": "2026-02-28"
+    }
+}

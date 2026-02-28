@@ -1,20 +1,18 @@
 {
     "id": "x-strategic-objective",
     "name": "Strategic Objective",
-    "description": "Describes the high-level geopolitical goal.",
+    "description": "Defines the specific geopolitical goal an actor aims to achieve.",
     "category": "Stix-Domain-Object",
     "properties": [
         {
             "name": "name",
             "type": "string",
-            "mandatory": true,
-            "multiple": false
+            "mandatory": true
         },
         {
             "name": "description",
             "type": "string",
-            "mandatory": false,
-            "multiple": false
+            "mandatory": false
         },
         {
             "name": "objective_type",
@@ -52,6 +50,16 @@
         {
             "name": "civil_military_fusion",
             "type": "boolean",
+            "mandatory": false
+        },
+        {
+            "name": "first_seen",
+            "type": "timestamp",
+            "mandatory": false
+        },
+        {
+            "name": "last_seen",
+            "type": "timestamp",
             "mandatory": false
         }
     ],

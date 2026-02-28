@@ -39,6 +39,12 @@ public class GeopoliticalIngestRequest {
     @JsonProperty("technological_modernization_rate")
     private Double technologicalModernizationRate;
 
+    @JsonProperty("first_seen")
+    private java.time.Instant firstSeen;
+
+    @JsonProperty("last_seen")
+    private java.time.Instant lastSeen;
+
     // --- x-strategic-objective (list) ---
     @JsonProperty("objectives")
     private List<ObjectiveDTO> objectives;
@@ -83,6 +89,12 @@ public class GeopoliticalIngestRequest {
 
         @JsonProperty("civil_military_fusion")
         private Boolean civilMilitaryFusion;
+
+        @JsonProperty("first_seen")
+        private java.time.Instant firstSeen;
+
+        @JsonProperty("last_seen")
+        private java.time.Instant lastSeen;
     }
 
     @Data
@@ -102,6 +114,12 @@ public class GeopoliticalIngestRequest {
 
         private String velocity; // fast-spike, slow-drift
         private List<String> nature; // kinetic, cyber, infrastructural, cognitive, technological
+
+        @JsonProperty("first_seen")
+        private java.time.Instant firstSeen;
+
+        @JsonProperty("last_seen")
+        private java.time.Instant lastSeen;
     }
 
     @Data
@@ -134,6 +152,12 @@ public class GeopoliticalIngestRequest {
 
         @JsonProperty("confidence_score")
         private Double confidenceScore;
+
+        @JsonProperty("first_seen")
+        private java.time.Instant firstSeen;
+
+        @JsonProperty("last_seen")
+        private java.time.Instant lastSeen;
     }
 
     @Data
@@ -158,6 +182,12 @@ public class GeopoliticalIngestRequest {
 
         @JsonProperty("doctrine_capacity_divergence_score")
         private Double doctrineCapacityDivergenceScore;
+
+        @JsonProperty("first_seen")
+        private java.time.Instant firstSeen;
+
+        @JsonProperty("last_seen")
+        private java.time.Instant lastSeen;
     }
 
     @Data

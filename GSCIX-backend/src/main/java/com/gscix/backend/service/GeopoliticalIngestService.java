@@ -75,6 +75,8 @@ public class GeopoliticalIngestService {
         actorAttrs.setStrategicAmbiguityScore(request.getStrategicAmbiguityScore());
         actorAttrs.setDoctrineType(request.getDoctrineType());
         actorAttrs.setTechnologicalModernizationRate(request.getTechnologicalModernizationRate());
+        actorAttrs.setFirstSeen(request.getFirstSeen());
+        actorAttrs.setLastSeen(request.getLastSeen());
         actor.setGsciAttributes(actorAttrs);
         entityRepository.save(actor);
         entitiesCreated++;
@@ -95,6 +97,8 @@ public class GeopoliticalIngestService {
                 objAttrs.setPriorityLevel(obj.getPriorityLevel());
                 objAttrs.setTimeHorizon(obj.getTimeHorizon());
                 objAttrs.setCivilMilitaryFusion(obj.getCivilMilitaryFusion());
+                objAttrs.setFirstSeen(obj.getFirstSeen());
+                objAttrs.setLastSeen(obj.getLastSeen());
                 objective.setGsciAttributes(objAttrs);
                 entityRepository.save(objective);
                 entitiesCreated++;
@@ -121,6 +125,8 @@ public class GeopoliticalIngestService {
             campAttrs.setEscalationRiskScore(camp.getEscalationRiskScore());
             campAttrs.setVelocity(camp.getVelocity());
             campAttrs.setNature(camp.getNature());
+            campAttrs.setFirstSeen(camp.getFirstSeen());
+            campAttrs.setLastSeen(camp.getLastSeen());
             campaign.setGsciAttributes(campAttrs);
             entityRepository.save(campaign);
             entitiesCreated++;
@@ -191,6 +197,8 @@ public class GeopoliticalIngestService {
             impAttrs.setAllianceFragmentationScore(imp.getAllianceFragmentationScore());
             impAttrs.setDeterrenceSignalStrength(imp.getDeterrenceSignalStrength());
             impAttrs.setConfidenceScore(imp.getConfidenceScore());
+            impAttrs.setFirstSeen(imp.getFirstSeen());
+            impAttrs.setLastSeen(imp.getLastSeen());
             impact.setGsciAttributes(impAttrs);
             entityRepository.save(impact);
             entitiesCreated++;
@@ -216,6 +224,8 @@ public class GeopoliticalIngestService {
             assessAttrs.setCyberGeopoliticalCouplingIndex(assess.getCyberGeopoliticalCouplingIndex());
             assessAttrs.setNarrativePenetrationScore(assess.getNarrativePenetrationScore());
             assessAttrs.setDoctrineCapacityDivergenceScore(assess.getDoctrineCapacityDivergenceScore());
+            assessAttrs.setFirstSeen(assess.getFirstSeen());
+            assessAttrs.setLastSeen(assess.getLastSeen());
             assessment.setGsciAttributes(assessAttrs);
             entityRepository.save(assessment);
             entitiesCreated++;

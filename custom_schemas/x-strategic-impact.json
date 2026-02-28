@@ -38,6 +38,16 @@
             "name": "confidence_score",
             "type": "number",
             "mandatory": true
+        },
+        {
+            "name": "first_seen",
+            "type": "timestamp",
+            "mandatory": false
+        },
+        {
+            "name": "last_seen",
+            "type": "timestamp",
+            "mandatory": false
         }
     ],
     "relations": []

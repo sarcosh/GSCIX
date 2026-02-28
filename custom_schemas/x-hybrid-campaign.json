@@ -52,6 +52,16 @@
             "name": "nature",
             "type": "list",
             "mandatory": false
+        },
+        {
+            "name": "first_seen",
+            "type": "timestamp",
+            "mandatory": false
+        },
+        {
+            "name": "last_seen",
+            "type": "timestamp",
+            "mandatory": false
         }
     ],
     "relations": [

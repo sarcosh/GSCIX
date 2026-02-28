@@ -112,6 +112,12 @@ public class GscixEntity {
         private Double narrativePenetrationScore;
         @Field(type = FieldType.Double)
         private Double doctrineCapacityDivergenceScore;
+
+        @Field(type = FieldType.Date)
+        private Instant firstSeen;
+
+        @Field(type = FieldType.Date)
+        private Instant lastSeen;
     }
 
     @Data
