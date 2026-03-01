@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GSCIX - Geo-Strategic Cyber Intelligence Extension</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#06b6d4", // Cyan-500 for the cyber/tech feel
+              "primary-dark": "#0891b2",
+              "background-light": "#f1f5f9", // Slate-100
+              "background-dark": "#0f172a", // Slate-900 (Deep Command Center Blue)
+              "surface-light": "#ffffff",
+              "surface-dark": "#1e293b", // Slate-800
+              "accent-amber": "#f59e0b",
+              "accent-red": "#ef4444",
+              "accent-green": "#10b981",
+              "border-light": "#e2e8f0",
+              "border-dark": "#334155",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"],
+            },
+            borderRadius: {
+              DEFAULT: "0.375rem",
+              'lg': '0.5rem',
+              'xl': '0.75rem',
+            },
+          },
+        },
+      };
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }.tech-grid {
+            background-size: 40px 40px;
+            background-image:
+                linear-gradient(to right, rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(6, 182, 212, 0.05) 1px, transparent 1px);
+        }
+        .dark .tech-grid {
+            background-image:
+                linear-gradient(to right, rgba(6, 182, 212, 0.08) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(6, 182, 212, 0.08) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 font-sans min-h-screen flex flex-col transition-colors duration-200">
+<header class="bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark h-16 flex items-center justify-between px-6 sticky top-0 z-50">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-icons-outlined text-primary text-3xl">hub</span>
+<span class="font-bold text-xl tracking-tight">GSCIX <span class="text-xs font-mono text-slate-400 font-normal">v2.1.0</span></span>
+</div>
+<div class="hidden md:flex h-6 w-px bg-border-light dark:bg-border-dark mx-2"></div>
+<div class="hidden md:flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+<span class="w-2 h-2 rounded-full bg-accent-green animate-pulse"></span>
+<span>System Operational</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-3 px-3 py-1.5 rounded bg-slate-100 dark:bg-slate-900 border border-border-light dark:border-border-dark">
+<span class="text-xs font-mono text-slate-500 dark:text-slate-400 uppercase">Threat Level</span>
+<div class="flex gap-1">
+<div class="w-1.5 h-4 bg-accent-red rounded-sm"></div>
+<div class="w-1.5 h-4 bg-accent-red rounded-sm"></div>
+<div class="w-1.5 h-4 bg-accent-amber rounded-sm"></div>
+<div class="w-1.5 h-4 bg-slate-300 dark:bg-slate-700 rounded-sm"></div>
+</div>
+</div>
+<button class="p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors">
+<span class="material-icons-outlined">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-accent-amber flex items-center justify-center text-white font-bold text-xs">
+                OP
+            </div>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<aside class="w-64 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark hidden lg:flex flex-col">
+<nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+<div class="px-3 py-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-wider mb-2 mt-2">Intelligence Core</div>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg bg-primary/10 text-primary dark:text-primary-400 border border-primary/20" href="#">
+<span class="material-icons-outlined text-lg">dashboard</span>
+                    Command Center
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-outlined text-lg">public</span>
+                    Geo-Strategic Actors
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-outlined text-lg">flag</span>
+                    Strategic Objectives
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-outlined text-lg">alt_route</span>
+                    Hybrid Campaigns
+                </a>
+<div class="px-3 py-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6">Analytics &amp; Ops</div>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-outlined text-lg">radar</span>
+                    Risk Radar
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-outlined text-lg">link</span>
+                    Cyber Linkage (STIX)
+                </a>
+<div class="px-3 py-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-wider mb-2 mt-6">System</div>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-outlined text-lg">schema</span>
+                    Data Schemas
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-outlined text-lg">settings</span>
+                    Configuration
+                </a>
+</nav>
+<div class="p-4 border-t border-border-light dark:border-border-dark">
+<div class="flex items-center gap-3 p-3 rounded-lg bg-slate-100 dark:bg-slate-900 border border-border-light dark:border-border-dark">
+<div class="w-2 h-2 rounded-full bg-primary animate-ping"></div>
+<div class="flex flex-col">
+<span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Ingestion Active</span>
+<span class="text-[10px] text-slate-500 font-mono">240 events/sec</span>
+</div>
+</div>
+</div>
+</aside>
+<main class="flex-1 overflow-y-auto tech-grid p-6">
+<div class="max-w-7xl mx-auto space-y-6">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h1 class="text-2xl font-bold text-slate-900 dark:text-white font-mono uppercase tracking-tight">Global Situation Board</h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Real-time geo-strategic indicators and escalation metrics.</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-xs font-mono text-slate-500 bg-white dark:bg-slate-800 px-2 py-1 rounded border border-border-light dark:border-border-dark shadow-sm">
+                            Last Updated: 09:42:15 UTC
+                        </span>
+<button class="flex items-center gap-1 bg-primary hover:bg-primary-dark text-white px-3 py-1.5 rounded text-sm font-medium transition-colors shadow-lg shadow-primary/20">
+<span class="material-icons-outlined text-sm">refresh</span>
+                            Refresh Data
+                        </button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-5 shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-icons-outlined text-6xl text-primary">speed</span>
+</div>
+<h3 class="text-slate-500 dark:text-slate-400 text-xs font-mono uppercase tracking-widest mb-1">Hybrid Pressure Index</h3>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-bold text-slate-900 dark:text-white">82.4</span>
+<span class="text-xs font-medium text-accent-red flex items-center">
+<span class="material-icons-outlined text-xs">arrow_upward</span> 4.2%
+                            </span>
+</div>
+<div class="w-full bg-slate-200 dark:bg-slate-700 h-1.5 mt-3 rounded-full overflow-hidden">
+<div class="bg-gradient-to-r from-primary to-accent-red h-full rounded-full" style="width: 82%"></div>
+</div>
+<p class="text-[10px] text-slate-400 mt-2">Cumulative pressure across active zones.</p>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-5 shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-icons-outlined text-6xl text-accent-amber">warning_amber</span>
+</div>
+<h3 class="text-slate-500 dark:text-slate-400 text-xs font-mono uppercase tracking-widest mb-1">Escalation Probability</h3>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-bold text-slate-900 dark:text-white">High</span>
+<span class="text-xs font-mono px-1.5 py-0.5 rounded bg-accent-amber/10 text-accent-amber border border-accent-amber/20">
+                                EPS &gt; 75
+                            </span>
+</div>
+<div class="mt-3 flex gap-1">
+<div class="h-1.5 w-full bg-accent-red rounded-full"></div>
+<div class="h-1.5 w-full bg-accent-red rounded-full"></div>
+<div class="h-1.5 w-full bg-accent-amber rounded-full"></div>
+<div class="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full"></div>
+</div>
+<p class="text-[10px] text-slate-400 mt-2">Based on dip/mil signals analysis.</p>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-5 shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-icons-outlined text-6xl text-accent-green">campaign</span>
+</div>
+<h3 class="text-slate-500 dark:text-slate-400 text-xs font-mono uppercase tracking-widest mb-1">Active Campaigns</h3>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-bold text-slate-900 dark:text-white">14</span>
+<span class="text-xs font-medium text-slate-500">
+                                3 Critical
+                            </span>
+</div>
+<div class="flex -space-x-2 overflow-hidden mt-3 pt-1">
+<img alt="" class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-slate-800" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAN9ek0tMiEA53eLHKGnxTJgclG-kHyROTIUx0TqrHKF-QrNJ1_bviDDh58tGiY-8ZIgolVr5085q9pLF5ui0vLFIycpUp_9zCEdCWXKp0P8xFTEnnRwn1iq_7IjL7oJmdyItx9upCmSGqcwsXmqjttYjAyx4VDRfry1y34X5CWpzdtFZnsBKJTZysGnWOU-Mr-VkfRqDZkKOrjoGDuDQK1U0W0UQD_MjCDSnV5kTsYu-tEeRbiIoMxvIiAAKHr_XhUpvBTmPN5CxY"/>
+<img alt="" class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-slate-800" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATr7Cyzh6IhyMUTdGRjSpuHmUZ9HortBnbLBxUa1ynzEfn7G6CcIaJegIhKPZ0tuyYT4Hbxd8mwNfW6DbSFkfuxZlSggfkXzg5ZW2VX7YLHXFRi_PUwK546FYxYghGrzbBXajgdJYMMArbA_M5Cf3psRkKK-iaYhQ0ey6Pi_5H_ymxDMgG_idWVUcIw8VE3hAouo-GsOhIQAGKJhQ5isdIoNckNiFLPpK2oa1995S4Lrv5P-cUoa2VF1FL1jHkvvSXwim2Gl6fKIQ"/>
+<img alt="" class="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-slate-800" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCe5tB09Y3sOYGka-eEb9MBwH8QWkw_yAw0-40lH_Qm1R9nWutmA2hZDEDYWQZ9Z72s1bfAx_d9aX-KONDGSUmhD3zRY066IDR8Gkb3kRyg4EdH7SVOm1xENiI2YDwtyZ0idfGcI4_-te3QOPyXdLWeTjE2ALkUvhOZW0wv2tPow3kCIAcFcg7TMQWCjXLINJrfY9WZPB53ue6U9p2NpljugE_SNGgDdDydm94DnOMdsFRcIocaDCcMFuF4uQwrp0M5UJwc9lSt2Ug"/>
+<div class="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-700 ring-2 ring-white dark:ring-slate-800 flex items-center justify-center text-[10px] text-slate-500 font-bold">+11</div>
+</div>
+<p class="text-[10px] text-slate-400 mt-2">Monitoring multi-domain ops.</p>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-5 shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-icons-outlined text-6xl text-purple-500">link</span>
+</div>
+<h3 class="text-slate-500 dark:text-slate-400 text-xs font-mono uppercase tracking-widest mb-1">STIX Correlations</h3>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-bold text-slate-900 dark:text-white">892</span>
+<span class="text-xs font-medium text-accent-green flex items-center">
+<span class="material-icons-outlined text-xs">add</span> 12 New
+                            </span>
+</div>
+<div class="mt-3 flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400">
+<span class="inline-flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-primary"></span> Actor
+                            </span>
+<span class="inline-flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-purple-500"></span> Malware
+                            </span>
+<span class="inline-flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-accent-amber"></span> Infra
+                            </span>
+</div>
+<p class="text-[10px] text-slate-400 mt-2">Linked entities in Graph DB.</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="lg:col-span-2 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-6 shadow-sm">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+<span class="material-icons-outlined text-primary">ssid_chart</span>
+                                    Escalation Risk Trend
+                                </h2>
+<p class="text-xs text-slate-500 dark:text-slate-400">Historical view of EPS (Escalation Probability Score) across key actors.</p>
+</div>
+<div class="flex gap-4 text-xs">
+<div class="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+<span class="w-3 h-0.5 bg-accent-red"></span> APT28
+                                </div>
+<div class="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+<span class="w-3 h-0.5 bg-primary"></span> Volt Typhoon
+                                </div>
+<div class="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+<span class="w-3 h-0.5 bg-slate-400"></span> Charming Kitten
+                                </div>
+</div>
+</div>
+<div class="h-64 w-full relative border-l border-b border-slate-200 dark:border-slate-700">
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+<div class="border-t border-dashed border-slate-200 dark:border-slate-800 w-full h-0"></div>
+<div class="border-t border-dashed border-slate-200 dark:border-slate-800 w-full h-0"></div>
+<div class="border-t border-dashed border-slate-200 dark:border-slate-800 w-full h-0"></div>
+<div class="border-t border-dashed border-slate-200 dark:border-slate-800 w-full h-0"></div>
+<div class="border-t border-dashed border-slate-200 dark:border-slate-800 w-full h-0"></div>
+</div>
+<svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
+<path d="M0,200 C50,190 100,210 150,150 C200,90 250,120 300,100 C350,80 400,90 450,50 C500,10 550,40 600,20 L600,250 L0,250 Z" fill="url(#gradientRed)" opacity="0.1"></path>
+<path d="M0,200 C50,190 100,210 150,150 C200,90 250,120 300,100 C350,80 400,90 450,50 C500,10 550,40 600,20" fill="none" stroke="#ef4444" stroke-linecap="round" stroke-width="2"></path>
+<circle class="animate-pulse" cx="450" cy="50" fill="#ef4444" r="4"></circle>
+<defs>
+<linearGradient id="gradientRed" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#ef4444"></stop>
+<stop offset="100%" stop-color="#ef4444" stop-opacity="0"></stop>
+</linearGradient>
+</defs>
+</svg>
+<svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
+<path d="M0,220 C100,215 200,200 300,180 C400,160 500,140 600,130" fill="none" stroke="#06b6d4" stroke-dasharray="4 2" stroke-linecap="round" stroke-width="2"></path>
+</svg>
+<svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
+<path d="M0,240 C150,235 300,245 450,230 C525,225 600,220 600,215" fill="none" stroke="#94a3b8" stroke-linecap="round" stroke-width="2"></path>
+</svg>
+<div class="absolute -left-8 top-0 h-full flex flex-col justify-between text-[10px] text-slate-400 text-right pr-2">
+<span>100</span>
+<span>75</span>
+<span>50</span>
+<span>25</span>
+<span>0</span>
+</div>
+<div class="absolute -bottom-6 w-full flex justify-between text-[10px] text-slate-400">
+<span>Jan 01</span>
+<span>Jan 15</span>
+<span>Feb 01</span>
+<span>Feb 15</span>
+<span>Mar 01</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-6 shadow-sm flex flex-col">
+<div class="mb-4">
+<h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+<span class="material-icons-outlined text-accent-amber">track_changes</span>
+                                Strategic Posture
+                            </h2>
+<p class="text-xs text-slate-500 dark:text-slate-400">Analysis of doctrine vs. capability for selected actor.</p>
+</div>
+<div class="flex-1 flex items-center justify-center relative">
+<div class="relative w-48 h-48 sm:w-56 sm:h-56">
+<div class="absolute inset-0 rounded-full border border-slate-200 dark:border-slate-700"></div>
+<div class="absolute inset-4 rounded-full border border-dashed border-slate-200 dark:border-slate-700"></div>
+<div class="absolute inset-8 rounded-full border border-slate-200 dark:border-slate-700"></div>
+<div class="absolute inset-12 rounded-full border border-dashed border-slate-200 dark:border-slate-700"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="w-full h-px bg-slate-200 dark:border-slate-700"></div>
+</div>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="h-full w-px bg-slate-200 dark:border-slate-700"></div>
+</div>
+<div class="absolute inset-0 flex items-center justify-center transform rotate-45">
+<div class="w-full h-px bg-slate-200 dark:border-slate-700"></div>
+</div>
+<div class="absolute inset-0 flex items-center justify-center transform -rotate-45">
+<div class="w-full h-px bg-slate-200 dark:border-slate-700"></div>
+</div>
+<svg class="absolute inset-0 w-full h-full overflow-visible drop-shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+<polygon fill="rgba(6, 182, 212, 0.2)" points="112,10 180,40 200,112 170,180 112,160 60,160 20,112 50,40" stroke="#06b6d4" stroke-width="2"></polygon>
+<circle cx="112" cy="10" fill="#fff" r="2"></circle>
+<circle cx="180" cy="40" fill="#fff" r="2"></circle>
+<circle cx="200" cy="112" fill="#fff" r="2"></circle>
+<circle cx="170" cy="180" fill="#fff" r="2"></circle>
+<circle cx="112" cy="160" fill="#fff" r="2"></circle>
+<circle cx="60" cy="160" fill="#fff" r="2"></circle>
+<circle cx="20" cy="112" fill="#fff" r="2"></circle>
+<circle cx="50" cy="40" fill="#fff" r="2"></circle>
+</svg>
+<span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-500">CYBER</span>
+<span class="absolute top-1/2 -right-10 -translate-y-1/2 text-[10px] font-bold text-slate-500">ECON</span>
+<span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-500">DIPLOMACY</span>
+<span class="absolute top-1/2 -left-10 -translate-y-1/2 text-[10px] font-bold text-slate-500">ESPIONAGE</span>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-border-light dark:border-border-dark flex justify-between items-center text-xs">
+<span class="text-slate-500">Focus: <span class="text-slate-800 dark:text-white font-semibold">Federation Rusa</span></span>
+<span class="text-primary font-mono cursor-pointer hover:underline">View Full Profile</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-sm overflow-hidden">
+<div class="p-5 border-b border-border-light dark:border-border-dark flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<h2 class="text-lg font-bold text-slate-900 dark:text-white">Geo-Strategic Actors Watchlist</h2>
+<p class="text-xs text-slate-500 dark:text-slate-400">Monitoring state-aligned entities and their current operational status.</p>
+</div>
+<div class="flex items-center gap-2">
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-icons-outlined text-slate-400 text-sm">search</span>
+<input class="pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-200 focus:ring-1 focus:ring-primary focus:border-primary w-48" placeholder="Search actors..." type="text"/>
+</div>
+<button class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800">
+<span class="material-icons-outlined text-sm">filter_list</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left">
+<thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-900/50 border-b border-border-light dark:border-border-dark">
+<tr>
+<th class="px-6 py-3 font-medium" scope="col">Actor Name</th>
+<th class="px-6 py-3 font-medium" scope="col">Alignment</th>
+<th class="px-6 py-3 font-medium text-center" scope="col">HPI Score</th>
+<th class="px-6 py-3 font-medium" scope="col">Strategic Objective</th>
+<th class="px-6 py-3 font-medium" scope="col">Last Seen</th>
+<th class="px-6 py-3 font-medium text-right" scope="col">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-light dark:divide-border-dark">
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="px-6 py-4 font-medium text-slate-900 dark:text-white flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-red-900/20 text-red-500 flex items-center justify-center font-bold text-xs border border-red-900/30">RU</div>
+<div>
+                                            APT28
+                                            <div class="text-[10px] text-slate-500 font-normal">Federation Rusa</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Revisionist
+                                        </span>
+</td>
+<td class="px-6 py-4 text-center">
+<div class="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-xs font-bold text-slate-700 dark:text-slate-300">9.5</div>
+</td>
+<td class="px-6 py-4 text-slate-600 dark:text-slate-300">
+                                        Electoral Interference
+                                    </td>
+<td class="px-6 py-4 text-slate-500 text-xs font-mono">
+                                        2023-10-24 14:30
+                                    </td>
+<td class="px-6 py-4 text-right">
+<button class="text-primary hover:text-primary-dark font-medium text-xs">Analyze</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="px-6 py-4 font-medium text-slate-900 dark:text-white flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-blue-900/20 text-blue-500 flex items-center justify-center font-bold text-xs border border-blue-900/30">CN</div>
+<div>
+                                            Volt Typhoon
+                                            <div class="text-[10px] text-slate-500 font-normal">People's Republic of China</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Strategic Comp
+                                        </span>
+</td>
+<td class="px-6 py-4 text-center">
+<div class="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-xs font-bold text-slate-700 dark:text-slate-300">8.2</div>
+</td>
+<td class="px-6 py-4 text-slate-600 dark:text-slate-300">
+                                        Critical Infrastructure
+                                    </td>
+<td class="px-6 py-4 text-slate-500 text-xs font-mono">
+                                        2023-11-02 09:15
+                                    </td>
+<td class="px-6 py-4 text-right">
+<button class="text-primary hover:text-primary-dark font-medium text-xs">Analyze</button>
+</td>
+</tr>
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="px-6 py-4 font-medium text-slate-900 dark:text-white flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-green-900/20 text-green-500 flex items-center justify-center font-bold text-xs border border-green-900/30">IR</div>
+<div>
+                                            Charming Kitten
+                                            <div class="text-[10px] text-slate-500 font-normal">Islamic Republic of Iran</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Regional
+                                        </span>
+</td>
+<td class="px-6 py-4 text-center">
+<div class="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-xs font-bold text-slate-700 dark:text-slate-300">6.4</div>
+</td>
+<td class="px-6 py-4 text-slate-600 dark:text-slate-300">
+                                        Dissident Surveillance
+                                    </td>
+<td class="px-6 py-4 text-slate-500 text-xs font-mono">
+                                        2023-10-18 11:45
+                                    </td>
+<td class="px-6 py-4 text-right">
+<button class="text-primary hover:text-primary-dark font-medium text-xs">Analyze</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-3 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-900/30 flex items-center justify-between text-xs text-slate-500">
+<span>Showing 3 of 12 tracked actors</span>
+<div class="flex gap-2">
+<button class="hover:text-primary">Previous</button>
+<button class="hover:text-primary">Next</button>
+</div>
+</div>
+</div>
+</div>
+<footer class="mt-12 mb-6 border-t border-border-light dark:border-border-dark pt-6 text-center text-xs text-slate-400">
+<p>© 2024 GSCIX System. Classified. Sovereign Intelligence Use Only.</p>
+<div class="flex justify-center gap-4 mt-2">
+<a class="hover:text-primary" href="#">Documentation</a>
+<a class="hover:text-primary" href="#">STIX 2.1 Schema</a>
+<a class="hover:text-primary" href="#">API Status</a>
+</div>
+</footer>
+</main>
+</div>
+
+</body></html>

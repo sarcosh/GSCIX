@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GSCIX - Geo-Strategic Influence Graph (Light)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#06b6d4", // Cyan-500
+              secondary: "#f59e0b", // Amber-500
+              "primary-dark": "#0891b2",
+              "background-light": "#f8fafc",
+              "surface-white": "#ffffff",
+              "surface-hover": "#f1f5f9",
+              "text-main": "#0f172a",
+              "text-muted": "#64748b",
+              "border-color": "#e2e8f0",
+              "accent-blue": "#3b82f6",
+              "accent-red": "#ef4444",
+              "accent-green": "#10b981",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"],
+            },
+            boxShadow: {
+                'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                'glow-cyan': '0 0 10px rgba(6, 182, 212, 0.4)',
+                'glow-amber': '0 0 10px rgba(245, 158, 11, 0.4)',
+            }
+          },
+        },
+      };
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        .graph-grid {
+            background-color: #f8fafc;
+            background-image: linear-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(148, 163, 184, 0.15) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .node {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .node:hover {
+            transform: scale(1.05);
+            cursor: pointer;
+            z-index: 50;
+        }
+        .status-badge {
+            @apply px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase;
+        }
+    </style>
+</head>
+<body class="bg-background-light text-text-main h-screen overflow-hidden flex flex-col">
+<nav class="h-16 border-b border-border-color bg-surface-white flex items-center justify-between px-6 z-30 shadow-sm">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2.5">
+<div class="bg-primary/10 p-1.5 rounded-lg">
+<span class="material-symbols-outlined text-primary text-2xl">hub</span>
+</div>
+<div class="flex flex-col">
+<span class="font-bold text-lg leading-none tracking-tight text-slate-900">GSCIX</span>
+<span class="text-[10px] uppercase tracking-wider text-text-muted font-medium">Influence Graph</span>
+</div>
+</div>
+<div class="h-8 w-px bg-slate-200 mx-2"></div>
+<div class="flex gap-1 bg-slate-100 p-1 rounded-lg">
+<a class="px-3 py-1.5 text-xs font-medium text-text-muted hover:text-slate-900 rounded-md hover:bg-white transition-all" href="#">Overview</a>
+<a class="px-3 py-1.5 text-xs font-medium text-primary bg-white shadow-sm rounded-md" href="#">Graph View</a>
+<a class="px-3 py-1.5 text-xs font-medium text-text-muted hover:text-slate-900 rounded-md hover:bg-white transition-all" href="#">Intel Feed</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-[18px] group-focus-within:text-primary transition-colors">search</span>
+<input class="pl-9 pr-4 py-1.5 text-sm rounded-md bg-slate-50 border border-slate-200 focus:border-primary focus:ring-1 focus:ring-primary w-64 text-slate-700 placeholder-slate-400 transition-all" placeholder="Search entities, campaigns..." type="text"/>
+</div>
+<div class="h-8 w-px bg-slate-200 mx-1"></div>
+<button class="relative p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+</button>
+<div class="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center text-white text-xs font-bold shadow-soft cursor-pointer hover:bg-slate-800 transition-colors">
+            JS
+        </div>
+</div>
+</nav>
+<main class="flex-1 flex overflow-hidden relative">
+<aside class="w-72 border-r border-border-color bg-surface-white flex flex-col z-20 hidden md:flex shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]">
+<div class="p-5 border-b border-border-color">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-xs font-bold uppercase tracking-wider text-text-muted">Graph Layers</h3>
+<button class="text-[10px] text-primary hover:underline font-medium">Reset</button>
+</div>
+<div class="space-y-3">
+<label class="flex items-center justify-between group cursor-pointer p-2 hover:bg-slate-50 rounded-md border border-transparent hover:border-slate-100 transition-all">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">public</span>
+</div>
+<span class="text-sm font-medium text-slate-700">Geo-Strategic Actors</span>
+</div>
+<input checked="" class="form-checkbox rounded text-primary border-slate-300 focus:ring-primary h-4 w-4" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between group cursor-pointer p-2 hover:bg-slate-50 rounded-md border border-transparent hover:border-slate-100 transition-all">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-md bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[18px]">flag</span>
+</div>
+<span class="text-sm font-medium text-slate-700">Strategic Objectives</span>
+</div>
+<input checked="" class="form-checkbox rounded text-secondary border-slate-300 focus:ring-secondary h-4 w-4" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between group cursor-pointer p-2 hover:bg-slate-50 rounded-md border border-transparent hover:border-slate-100 transition-all">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-md bg-accent-red/10 flex items-center justify-center text-accent-red">
+<span class="material-symbols-outlined text-[18px]">campaign</span>
+</div>
+<span class="text-sm font-medium text-slate-700">Hybrid Campaigns</span>
+</div>
+<input checked="" class="form-checkbox rounded text-accent-red border-slate-300 focus:ring-accent-red h-4 w-4" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between group cursor-pointer p-2 hover:bg-slate-50 rounded-md border border-transparent hover:border-slate-100 transition-all">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center text-slate-600">
+<span class="material-symbols-outlined text-[18px]">bug_report</span>
+</div>
+<span class="text-sm font-medium text-slate-700">Intrusion Sets</span>
+</div>
+<input class="form-checkbox rounded text-slate-500 border-slate-300 focus:ring-slate-500 h-4 w-4" type="checkbox"/>
+</label>
+</div>
+</div>
+<div class="p-5 border-b border-border-color">
+<h3 class="text-xs font-bold uppercase tracking-wider text-text-muted mb-4">Analytical Filters</h3>
+<div class="space-y-5">
+<div>
+<div class="flex justify-between mb-2">
+<label class="text-xs font-medium text-slate-600">Revisionist Index</label>
+<span class="text-xs text-primary font-mono font-bold bg-primary/10 px-1.5 rounded">&gt; 7.0</span>
+</div>
+<input class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary" max="10" min="0" type="range" value="7"/>
+<div class="flex justify-between mt-1 text-[10px] text-slate-400">
+<span>Low</span>
+<span>Critical</span>
+</div>
+</div>
+<div>
+<div class="flex justify-between mb-2">
+<label class="text-xs font-medium text-slate-600">Threat Recency</label>
+</div>
+<div class="relative">
+<select class="w-full text-xs bg-white border border-slate-300 rounded-md py-2 pl-3 pr-8 focus:border-primary focus:ring-primary shadow-sm appearance-none cursor-pointer text-slate-700 font-medium">
+<option>Last 30 Days</option>
+<option>Last 90 Days</option>
+<option>Year to Date</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2 text-slate-400 text-sm pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 mt-auto">
+<div class="bg-amber-50 p-4 rounded-lg border border-amber-200 shadow-sm">
+<div class="flex items-start gap-3">
+<div class="bg-white p-1 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-amber-500 text-sm">warning</span>
+</div>
+<div>
+<p class="text-xs font-bold text-amber-800 mb-1">HPI Alert: High</p>
+<p class="text-[11px] text-amber-700 leading-snug">Hybrid Pressure Index spike detected for <span class="font-bold underline decoration-amber-400/50">Federation Rusa</span>. Sanction correlation probable.</p>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<div class="flex-1 relative overflow-hidden graph-grid cursor-move">
+<div class="absolute top-6 right-6 flex flex-col gap-2 z-10">
+<div class="bg-white p-1.5 rounded-lg shadow-soft border border-slate-200 flex flex-col gap-1">
+<button class="p-2 rounded hover:bg-slate-100 hover:text-primary transition-colors text-slate-500" title="Zoom In">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+<div class="h-px w-full bg-slate-100"></div>
+<button class="p-2 rounded hover:bg-slate-100 hover:text-primary transition-colors text-slate-500" title="Zoom Out">
+<span class="material-symbols-outlined text-[20px]">remove</span>
+</button>
+<div class="h-px w-full bg-slate-100"></div>
+<button class="p-2 rounded hover:bg-slate-100 hover:text-primary transition-colors text-slate-500" title="Fit to Screen">
+<span class="material-symbols-outlined text-[20px]">center_focus_strong</span>
+</button>
+<div class="h-px w-full bg-slate-100"></div>
+<button class="p-2 rounded hover:bg-slate-100 hover:text-primary transition-colors text-slate-500" title="Reset Layout">
+<span class="material-symbols-outlined text-[20px]">refresh</span>
+</button>
+</div>
+</div>
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<div class="relative w-full h-full pointer-events-auto transform scale-90 translate-x-8 translate-y-4">
+<svg class="absolute inset-0 w-full h-full z-0 overflow-visible">
+<defs>
+<marker id="arrowhead" markerHeight="7" markerWidth="10" orient="auto" refX="9" refY="3.5">
+<polygon fill="#94a3b8" opacity="0.5" points="0 0, 10 3.5, 0 7"></polygon>
+</marker>
+</defs>
+<line marker-end="url(#arrowhead)" stroke="#06b6d4" stroke-opacity="0.4" stroke-width="2" x1="50%" x2="30%" y1="50%" y2="30%"></line>
+<line stroke="#f59e0b" stroke-opacity="0.4" stroke-width="2" x1="50%" x2="70%" y1="50%" y2="30%"></line>
+<line stroke="#06b6d4" stroke-dasharray="6,4" stroke-opacity="0.3" stroke-width="2" x1="50%" x2="40%" y1="50%" y2="70%"></line>
+<line stroke="#ef4444" stroke-opacity="0.4" stroke-width="1.5" x1="30%" x2="20%" y1="30%" y2="40%"></line>
+<line stroke="#ef4444" stroke-opacity="0.4" stroke-width="1.5" x1="30%" x2="25%" y1="30%" y2="15%"></line>
+<line stroke="#64748b" stroke-opacity="0.3" stroke-width="1.5" x1="70%" x2="80%" y1="30%" y2="20%"></line>
+<circle cx="50%" cy="50%" fill="#06b6d4" fill-opacity="0.05" r="70">
+<animate attributeName="r" dur="3s" from="50" repeatCount="indefinite" to="90"></animate>
+<animate attributeName="opacity" dur="3s" from="0.5" repeatCount="indefinite" to="0"></animate>
+</circle>
+</svg>
+<div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 node group">
+<div class="relative">
+<div class="w-24 h-24 rounded-full bg-white border-4 border-primary shadow-glow-cyan flex items-center justify-center relative z-10">
+<span class="material-symbols-outlined text-primary text-[40px]">public</span>
+</div>
+<div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg">
+                            GEO-STRATEGIC ACTOR
+                        </div>
+<div class="absolute top-28 left-1/2 -translate-x-1/2 text-center w-48 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
+<p class="text-sm font-bold text-slate-900">Federation Rusa</p>
+<p class="text-[10px] text-slate-500 font-mono">ID: x-gsa-ru-001</p>
+</div>
+</div>
+</div>
+<div class="absolute top-[30%] left-[30%] transform -translate-x-1/2 -translate-y-1/2 z-10 node group">
+<div class="w-16 h-16 rounded-full bg-white border-2 border-secondary shadow-glow-amber flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-[28px]">flag</span>
+</div>
+<div class="absolute top-20 left-1/2 -translate-x-1/2 text-center w-36 bg-white/80 rounded px-1">
+<p class="text-xs font-bold text-slate-800">Electoral Interference</p>
+</div>
+</div>
+<div class="absolute top-[40%] left-[20%] transform -translate-x-1/2 -translate-y-1/2 z-10 node group">
+<div class="w-12 h-12 rounded-full bg-white border border-accent-red shadow-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-accent-red text-[20px]">campaign</span>
+</div>
+<div class="absolute top-14 left-1/2 -translate-x-1/2 text-center w-32">
+<p class="text-[10px] font-semibold text-slate-600 bg-white/60 px-1 rounded">Op. GhostWriter</p>
+</div>
+</div>
+<div class="absolute top-[15%] left-[25%] transform -translate-x-1/2 -translate-y-1/2 z-10 node group">
+<div class="w-12 h-12 rounded-full bg-white border border-accent-red shadow-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-accent-red text-[20px]">campaign</span>
+</div>
+<div class="absolute top-14 left-1/2 -translate-x-1/2 text-center w-32">
+<p class="text-[10px] font-semibold text-slate-600 bg-white/60 px-1 rounded">Op. SolarWinds</p>
+</div>
+</div>
+<div class="absolute top-[30%] left-[70%] transform -translate-x-1/2 -translate-y-1/2 z-10 node group">
+<div class="relative">
+<div class="w-20 h-20 rounded-full bg-slate-50 border-2 border-slate-400 shadow-soft flex items-center justify-center">
+<span class="material-symbols-outlined text-slate-500 text-[32px]">bug_report</span>
+</div>
+<div class="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center text-[10px] font-bold text-white border-2 border-white shadow-sm">!</div>
+</div>
+<div class="absolute top-24 left-1/2 -translate-x-1/2 text-center w-32 mt-1">
+<div class="bg-white border border-slate-200 rounded px-2 py-1 shadow-sm">
+<p class="text-xs font-bold text-slate-800">APT28</p>
+<p class="text-[9px] text-slate-500 font-mono">OpenCTI Linked</p>
+</div>
+</div>
+</div>
+<div class="absolute top-[20%] left-[80%] transform -translate-x-1/2 -translate-y-1/2 z-10 node group">
+<div class="w-12 h-12 rounded-full bg-white border border-purple-500 shadow-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-purple-500 text-[20px]">memory</span>
+</div>
+<div class="absolute top-14 left-1/2 -translate-x-1/2 text-center w-32">
+<p class="text-[10px] font-semibold text-slate-600 bg-white/60 px-1 rounded">X-Agent</p>
+</div>
+</div>
+<div class="absolute top-[70%] left-[40%] transform -translate-x-1/2 -translate-y-1/2 z-10 node group">
+<div class="w-14 h-14 rounded-full bg-white border-2 border-indigo-500 shadow-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-indigo-500 text-[24px]">gavel</span>
+</div>
+<div class="absolute top-16 left-1/2 -translate-x-1/2 text-center w-32">
+<p class="text-[11px] font-bold text-slate-700 bg-white/60 px-1 rounded">Destabilization</p>
+</div>
+</div>
+</div>
+</div>
+<div class="absolute bottom-6 left-6 z-10 flex gap-3">
+<div class="bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-soft flex items-center gap-3">
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+</span>
+<span class="text-xs font-mono font-medium text-slate-600">Live Stream: <span class="text-primary">Active</span></span>
+</div>
+<div class="bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-soft flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-slate-400">hub</span>
+<span class="text-xs font-mono font-medium text-slate-600">Nodes: 14 | Edges: 22</span>
+</div>
+</div>
+</div>
+<aside class="w-96 border-l border-border-color bg-surface-white flex flex-col z-20 shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)] overflow-y-auto">
+<div class="p-6 border-b border-border-color bg-slate-50/50">
+<div class="flex items-center justify-between mb-3">
+<span class="text-[10px] uppercase tracking-wider font-bold text-primary border border-primary/20 px-2 py-0.5 rounded-full bg-primary/5">Geo-Strategic Actor</span>
+<div class="flex gap-2">
+<button class="text-slate-400 hover:text-slate-600 transition-colors"><span class="material-symbols-outlined text-[20px]">edit</span></button>
+<button class="text-slate-400 hover:text-slate-600 transition-colors"><span class="material-symbols-outlined text-[20px]">close</span></button>
+</div>
+</div>
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 rounded-full bg-white shadow-sm border border-slate-200 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">public</span>
+</div>
+<div>
+<h2 class="text-xl font-bold text-slate-900 leading-tight">Federation Rusa</h2>
+<p class="text-xs text-slate-500 font-mono">uuid: 89df-12-ae34-bb90</p>
+</div>
+</div>
+<div class="flex gap-2 mt-3">
+<span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide bg-red-50 text-red-700 border border-red-100">
+                    High Revisionist
+                </span>
+<span class="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700 border border-blue-100">
+                    NATO-Adversary
+                </span>
+</div>
+</div>
+<div class="flex-1 p-6 space-y-8">
+<div>
+<h3 class="text-xs font-bold uppercase text-text-muted mb-4 flex items-center gap-2 border-b border-slate-100 pb-2">
+<span class="material-symbols-outlined text-[16px]">analytics</span> Strategic Metrics
+                </h3>
+<div class="space-y-5">
+<div>
+<div class="flex justify-between items-end mb-1.5">
+<span class="text-sm font-medium text-slate-700">Revisionist Index</span>
+<span class="text-sm font-mono font-bold text-red-600 bg-red-50 px-1.5 rounded">9.5/10</span>
+</div>
+<div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+<div class="bg-gradient-to-r from-orange-400 to-red-500 h-full rounded-full" style="width: 95%"></div>
+</div>
+<p class="text-[10px] text-slate-400 mt-1.5 italic">Calculated based on recent doctrinal shifts.</p>
+</div>
+<div>
+<div class="flex justify-between items-end mb-1.5">
+<span class="text-sm font-medium text-slate-700">Doctrine-Capacity Divergence</span>
+<span class="text-sm font-mono font-bold text-amber-600 bg-amber-50 px-1.5 rounded">4.2</span>
+</div>
+<div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+<div class="bg-amber-400 h-full rounded-full" style="width: 42%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-end mb-1.5">
+<span class="text-sm font-medium text-slate-700">Strategic Ambiguity</span>
+<span class="text-sm font-mono font-bold text-primary bg-cyan-50 px-1.5 rounded">Low</span>
+</div>
+<div class="flex gap-1 mt-1">
+<div class="h-2 w-full bg-primary rounded-sm"></div>
+<div class="h-2 w-full bg-primary rounded-sm"></div>
+<div class="h-2 w-full bg-slate-200 rounded-sm"></div>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h3 class="text-xs font-bold uppercase text-text-muted mb-4 flex items-center gap-2 border-b border-slate-100 pb-2">
+<span class="material-symbols-outlined text-[16px]">hub</span> Tactical Linkage (OpenCTI)
+                </h3>
+<div class="bg-white rounded-lg p-4 text-sm border border-slate-200 shadow-soft">
+<div class="flex justify-between items-start mb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400 text-[18px]">bug_report</span>
+<span class="font-bold text-slate-800">APT28 (Fancy Bear)</span>
+</div>
+<span class="text-[10px] bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded font-mono">Linked</span>
+</div>
+<p class="text-xs text-slate-500 mb-4 leading-relaxed">State-sponsored cyber espionage group attributed to Russia's GRU Main Intelligence Directorate.</p>
+<div class="grid grid-cols-2 gap-2 text-xs mb-3">
+<div class="bg-slate-50 p-2 rounded border border-slate-100">
+<span class="block text-[10px] text-slate-400 mb-0.5">Relationship</span>
+<span class="font-mono text-emerald-600 font-semibold">controls</span>
+</div>
+<div class="bg-slate-50 p-2 rounded border border-slate-100">
+<span class="block text-[10px] text-slate-400 mb-0.5">Last Seen</span>
+<span class="font-mono text-slate-700">2023-10-24</span>
+</div>
+</div>
+<button class="w-full py-2 text-xs font-semibold bg-white border border-slate-200 hover:border-primary hover:text-primary rounded-md text-slate-600 transition-all shadow-sm flex items-center justify-center gap-1">
+                        View in OpenCTI <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+</button>
+</div>
+</div>
+<div>
+<h3 class="text-xs font-bold uppercase text-text-muted mb-4 flex items-center gap-2 border-b border-slate-100 pb-2">
+<span class="material-symbols-outlined text-[16px]">history</span> Intelligence Timeline
+                </h3>
+<ul class="space-y-0 relative border-l-2 border-slate-100 ml-2">
+<li class="ml-5 relative pb-6">
+<div class="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full bg-white border-2 border-primary shadow-sm"></div>
+<p class="text-[10px] text-primary font-bold uppercase tracking-wide mb-0.5">2 hours ago</p>
+<p class="text-sm font-medium text-slate-800 leading-snug">New Hybrid Campaign detected targeting Baltic energy sector.</p>
+</li>
+<li class="ml-5 relative pb-2">
+<div class="absolute -left-[27px] top-1.5 h-3.5 w-3.5 rounded-full bg-white border-2 border-slate-300"></div>
+<p class="text-[10px] text-slate-400 font-bold uppercase tracking-wide mb-0.5">Yesterday</p>
+<p class="text-sm font-medium text-slate-600 leading-snug">Updated Strategic Objectives for Q4 2023.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="p-4 bg-slate-50 border-t border-border-color grid grid-cols-2 gap-3">
+<button class="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm text-sm font-semibold transition-colors text-slate-700">
+<span class="material-symbols-outlined text-[18px]">download</span> Export
+            </button>
+<button class="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-colors shadow-lg">
+<span class="material-symbols-outlined text-[18px]">bolt</span> Analyze
+            </button>
+</div>
+</aside>
+</main>
+<button class="fixed bottom-8 right-8 w-12 h-12 rounded-full bg-slate-900 text-white shadow-lg shadow-slate-900/20 flex items-center justify-center hover:bg-primary hover:scale-105 transition-all z-50">
+<span class="material-symbols-outlined text-[24px]">question_mark</span>
+</button>
+
+</body></html>

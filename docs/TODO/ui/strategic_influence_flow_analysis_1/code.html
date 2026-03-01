@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GSCIX - Strategic Influence Flow Analysis</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3b82f6", // Blue from the GitHub/Tech aesthetic
+                        secondary: "#10b981", // Emerald for positive/active signals
+                        danger: "#ef4444", // Red for threats
+                        warning: "#f59e0b", // Amber for alerts
+                        "background-light": "#f8fafc",
+                        "background-dark": "#0f172a",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1e293b",
+                        "border-light": "#e2e8f0",
+                        "border-dark": "#334155",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.375rem",
+                    },
+                },
+            },
+        };
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }.flow-line {
+            position: absolute;
+            z-index: 0;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200 font-display transition-colors duration-200 antialiased min-h-screen flex flex-col">
+<nav class="h-16 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark flex items-center justify-between px-6 sticky top-0 z-50">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-3xl">hub</span>
+<span class="font-bold text-xl tracking-tight text-slate-900 dark:text-white">GSCIX <span class="text-slate-400 dark:text-slate-500 font-normal text-base">| Strategic Influence Flow</span></span>
+</div>
+<div class="hidden md:flex ml-8 space-x-1">
+<a class="px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors" href="#">Dashboard</a>
+<a class="px-3 py-2 text-sm font-medium text-slate-900 dark:text-white border-b-2 border-primary" href="#">Flow Analysis</a>
+<a class="px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors" href="#">Ingestion</a>
+<a class="px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors" href="#">Settings</a>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-2.5 top-2 text-slate-400 text-lg">search</span>
+<input class="pl-9 pr-4 py-1.5 bg-slate-100 dark:bg-slate-800 border border-border-light dark:border-border-dark rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64 text-slate-700 dark:text-slate-300" placeholder="Search actor, campaign..." type="text"/>
+</div>
+<button class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-symbols-outlined">contrast</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs">
+                JD
+            </div>
+</div>
+</nav>
+<main class="flex-1 p-6 overflow-hidden flex flex-col">
+<header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+<div>
+<h1 class="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">share_reviews</span>
+                    Influence Propagation Matrix
+                </h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Visualizing hierarchical flow: Actor → Objective → Campaign → Instrument → Effect</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg p-1 shadow-sm">
+<button class="px-3 py-1.5 text-xs font-medium rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm">Sankey View</button>
+<button class="px-3 py-1.5 text-xs font-medium rounded hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors">Tree Map</button>
+<button class="px-3 py-1.5 text-xs font-medium rounded hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors">Network</button>
+</div>
+<button class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all">
+<span class="material-symbols-outlined text-lg">filter_list</span>
+                    Filter Signal
+                </button>
+</div>
+</header>
+<div class="flex-1 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-sm overflow-x-auto relative flex flex-col">
+<div class="h-12 border-b border-border-light dark:border-border-dark flex items-center px-6 gap-8 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-danger"></span> High Risk Propagation
+                </div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-warning"></span> Moderate Influence
+                </div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span> Validated Attribution
+                </div>
+<div class="flex-1 text-right font-mono text-slate-400 dark:text-slate-500">
+                    HPI (Hybrid Pressure Index): <span class="text-slate-800 dark:text-slate-200 font-bold">87.4</span>
+</div>
+</div>
+<div class="flex-1 p-8 min-w-[1200px] flex justify-between relative">
+<svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="grad-danger" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" style="stop-color:#ef4444;stop-opacity:0.6"></stop>
+<stop offset="100%" style="stop-color:#ef4444;stop-opacity:0.1"></stop>
+</linearGradient>
+<linearGradient id="grad-warning" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.5"></stop>
+<stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0.1"></stop>
+</linearGradient>
+</defs>
+<path class="opacity-40 dark:opacity-60" d="M 220 150 C 350 150, 350 100, 480 100" fill="none" stroke="url(#grad-danger)" stroke-width="20"></path>
+<path class="opacity-30 dark:opacity-50" d="M 220 150 C 350 150, 350 300, 480 300" fill="none" stroke="url(#grad-warning)" stroke-width="8"></path>
+<path class="opacity-40 dark:opacity-60" d="M 720 100 C 800 100, 800 120, 880 120" fill="none" stroke="url(#grad-danger)" stroke-width="12"></path>
+<path class="opacity-40 dark:opacity-60" d="M 720 100 C 800 100, 800 200, 880 200" fill="none" stroke="url(#grad-danger)" stroke-width="6"></path>
+<path class="opacity-40 dark:opacity-60" d="M 1120 120 C 1180 120, 1180 100, 1240 100" fill="none" stroke="url(#grad-danger)" stroke-width="10"></path>
+</svg>
+<div class="w-64 flex flex-col justify-center space-y-6 relative z-10">
+<div class="mb-4 font-mono text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold border-b border-dashed border-slate-300 dark:border-slate-700 pb-2">Origin: State Actor</div>
+<div class="bg-surface-light dark:bg-surface-dark border-l-4 border-danger shadow-lg rounded-r-lg p-4 relative group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+<div class="absolute -right-3 top-1/2 transform -translate-y-1/2 w-6 h-6 bg-surface-light dark:bg-surface-dark rounded-full border border-danger flex items-center justify-center">
+<span class="material-symbols-outlined text-danger text-sm">chevron_right</span>
+</div>
+<div class="flex justify-between items-start mb-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                                APT29 (Bear)
+                            </span>
+<span class="text-xs text-slate-400">UUID-9f3a</span>
+</div>
+<h3 class="font-bold text-slate-800 dark:text-slate-100 mb-1">Federación Rusa</h3>
+<div class="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                            Strategic Alignment: <span class="text-danger font-semibold">Revisionist</span>
+</div>
+<div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 mb-1">
+<div class="bg-danger h-1.5 rounded-full" style="width: 85%"></div>
+</div>
+<div class="flex justify-between text-[10px] text-slate-400">
+<span>Activity Volume</span>
+<span>High (85%)</span>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border-l-4 border-warning shadow opacity-60 rounded-r-lg p-4 relative group cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                Unattributed
+                            </span>
+</div>
+<h3 class="font-bold text-slate-800 dark:text-slate-100 mb-1">Unknown Actor Group</h3>
+<div class="text-xs text-slate-500 dark:text-slate-400">
+                            Linked by TTPs only
+                        </div>
+</div>
+</div>
+<div class="w-64 flex flex-col justify-start pt-12 space-y-12 relative z-10">
+<div class="mb-4 font-mono text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold border-b border-dashed border-slate-300 dark:border-slate-700 pb-2">Strategic Objective</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 shadow-md rounded-lg p-4 relative hover:border-danger dark:hover:border-danger transition-colors">
+<div class="absolute -left-3 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-danger rounded-full"></div>
+<div class="absolute -right-3 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-danger rounded-full"></div>
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-slate-400 text-lg">flag</span>
+<span class="text-xs font-mono text-slate-400">OBJ-2023-A</span>
+</div>
+<h4 class="font-semibold text-slate-800 dark:text-slate-200 text-sm mb-2">Electoral Destabilization</h4>
+<div class="flex flex-wrap gap-1 mb-2">
+<span class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[10px] text-slate-600 dark:text-slate-300">Political</span>
+<span class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[10px] text-slate-600 dark:text-slate-300">Social</span>
+</div>
+<div class="text-[10px] text-slate-500 mt-2">
+                            Priority: <span class="font-bold text-danger">Critical</span>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg p-4 relative opacity-70">
+<div class="absolute -left-3 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-warning rounded-full"></div>
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-slate-400 text-lg">public</span>
+<span class="text-xs font-mono text-slate-400">OBJ-2023-B</span>
+</div>
+<h4 class="font-semibold text-slate-800 dark:text-slate-200 text-sm">Energy Sector Coercion</h4>
+<div class="text-[10px] text-slate-500 mt-2">
+                            Priority: <span class="font-bold text-warning">High</span>
+</div>
+</div>
+</div>
+<div class="w-64 flex flex-col justify-start pt-24 space-y-8 relative z-10">
+<div class="mb-4 font-mono text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold border-b border-dashed border-slate-300 dark:border-slate-700 pb-2">Hybrid Campaign</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-l-4 border-l-primary border-y-slate-200 dark:border-y-slate-700 border-r-slate-200 dark:border-r-slate-700 shadow-md rounded-r-lg p-4 relative">
+<div class="absolute -left-[5px] top-1/2 transform -translate-y-1/2 w-2 h-2 bg-primary rounded-full"></div>
+<div class="absolute -right-3 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-primary rounded-full"></div>
+<div class="flex justify-between mb-1">
+<span class="text-[10px] font-mono text-primary font-bold">ACTIVE</span>
+<span class="text-[10px] text-slate-400">Started: 2d ago</span>
+</div>
+<h4 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1">Operation "Silent Leak"</h4>
+<p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mb-2">Coordinated info-ops + credential harvesting aimed at local gov.</p>
+<div class="flex items-center gap-2 text-[10px] text-slate-400">
+<span class="material-symbols-outlined text-sm">speed</span> Velocity: Fast
+                        </div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg p-4 relative opacity-60">
+<h4 class="font-semibold text-slate-800 dark:text-slate-200 text-sm mb-1">Operation "Grid Lock"</h4>
+<span class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[10px] text-slate-500">Dormant</span>
+</div>
+</div>
+<div class="w-64 flex flex-col justify-start pt-20 space-y-4 relative z-10">
+<div class="mb-4 font-mono text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold border-b border-dashed border-slate-300 dark:border-slate-700 pb-2">Instruments &amp; Effects</div>
+<div class="flex items-center gap-3 p-3 bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+<div class="w-8 h-8 rounded bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm">language</span>
+</div>
+<div>
+<div class="text-xs font-bold text-slate-700 dark:text-slate-300">Social Media Botnet</div>
+<div class="text-[10px] text-slate-400">Telegram / X</div>
+</div>
+</div>
+<div class="flex items-center gap-3 p-3 bg-surface-light dark:bg-surface-dark border border-danger dark:border-red-900/50 rounded-lg shadow-md relative overflow-hidden">
+<div class="absolute inset-0 bg-red-50 dark:bg-red-900/10 pointer-events-none"></div>
+<div class="w-8 h-8 rounded bg-red-100 dark:bg-red-900/50 flex items-center justify-center relative z-10">
+<span class="material-symbols-outlined text-danger text-sm">terminal</span>
+</div>
+<div class="relative z-10">
+<div class="text-xs font-bold text-slate-700 dark:text-slate-200">Custom Malware</div>
+<div class="text-[10px] text-slate-400">Backdoor.Win32</div>
+</div>
+<span class="ml-auto text-xs font-bold text-danger">High Impact</span>
+</div>
+<div class="flex items-center gap-3 p-3 bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm opacity-75">
+<div class="w-8 h-8 rounded bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-purple-600 dark:text-purple-400 text-sm">article</span>
+</div>
+<div>
+<div class="text-xs font-bold text-slate-700 dark:text-slate-300">Disinformation Article</div>
+<div class="text-[10px] text-slate-400">State Media Outlet</div>
+</div>
+</div>
+</div>
+</div>
+<div class="border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-900/50 p-4">
+<div class="flex items-center justify-between mb-3">
+<h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Selected Context: Operation "Silent Leak"</h3>
+<div class="flex gap-2">
+<button class="text-xs text-primary hover:underline">View STIX 2.1 Object</button>
+<button class="text-xs text-primary hover:underline">Export Graph</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+<div class="p-3 bg-surface-light dark:bg-surface-dark rounded border border-border-light dark:border-border-dark">
+<div class="text-slate-400 text-xs mb-1">Escalation Probability</div>
+<div class="font-mono text-lg font-bold text-danger">72%</div>
+<div class="text-xs text-slate-500 mt-1">Increasing trend (+12% / 24h)</div>
+</div>
+<div class="p-3 bg-surface-light dark:bg-surface-dark rounded border border-border-light dark:border-border-dark">
+<div class="text-slate-400 text-xs mb-1">Hybrid Pressure Index</div>
+<div class="font-mono text-lg font-bold text-warning">6.8 / 10</div>
+<div class="text-xs text-slate-500 mt-1">Moderate Intensity</div>
+</div>
+<div class="p-3 bg-surface-light dark:bg-surface-dark rounded border border-border-light dark:border-border-dark">
+<div class="text-slate-400 text-xs mb-1">Target Audience</div>
+<div class="font-medium text-slate-700 dark:text-slate-300">EU Civil Society</div>
+<div class="text-xs text-slate-500 mt-1">Geo: Baltic Region</div>
+</div>
+<div class="p-3 bg-surface-light dark:bg-surface-dark rounded border border-border-light dark:border-border-dark">
+<div class="text-slate-400 text-xs mb-1">Technical Attribution</div>
+<div class="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-secondary">verified</span>
+                            Confirmed
+                        </div>
+<div class="text-xs text-slate-500 mt-1">OpenCTI Confidence: 95</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="h-8 bg-surface-light dark:bg-surface-dark border-t border-border-light dark:border-border-dark flex items-center px-4 justify-between text-[10px] text-slate-400">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span>System Operational</span>
+</div>
+<span>GSCIX Engine v2.1.4</span>
+<span>Elasticsearch 8.x Connected</span>
+</div>
+<div class="flex items-center gap-4">
+<span>Last Ingestion: 2 mins ago</span>
+<span class="font-mono">SECURE//GSCIX//EYES-ONLY</span>
+</div>
+</footer>
+
+</body></html>
