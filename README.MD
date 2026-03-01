@@ -35,30 +35,30 @@ GSCIX is the first implementation of the **Geostrategic Cyber Intelligence (GSCI
 
 > **State Actor** (`x-geo-strategic-actor`) → **Strategic Objective** → **Hybrid Campaign** → **Cyber Instrument** (APT / OpenCTI) → **Strategic Effect**
 
-Para más detalles sobre las entidades utilizadas, consulta la [documentación detallada de esquemas personalizados](custom_schemas/README.MD).
+For more details on the entities used, consult the [detailed custom schemas documentation](custom_schemas/README.MD).
 
 ---
 
 *Disclaimer: GSCIX is designed for sovereign intelligence analysis and geostrategic research.*
 
-## 🏛 Arquitectura del Sistema
+## 🏛 System Architecture
 
-GSCIX utiliza una arquitectura desacoplada diseñada para procesar inteligencia geoestratégica con alto rendimiento y escalabilidad.
+GSCIX uses a decoupled architecture designed for processing geo-strategic intelligence with high performance and scalability.
 
-### Diagrama de Arquitectura
+### Architecture Diagram
 ```mermaid
 graph TD
-    subgraph "Analista / Usuario"
+    subgraph "Analyst / User"
         UI["Frontend (Dashboard)"]
     end
 
-    subgraph "Orquestación de Inteligencia (GSCIX Backend)"
-        API["PostgreSQL Ingest / Context API"]
+    subgraph "Intelligence Orchestration (GSCIX Backend)"
+        API["GSCIX Ingest / Context API"]
         DIS["Discovery Service (OpenCTI)"]
         TEM["Temporal Tracking Engine"]
     end
 
-    subgraph "Persistencia y Fuentes"
+    subgraph "Persistence and Sources"
         ES[("Elasticsearch 8.x")]
         OCTI["OpenCTI v7 API"]
     end
@@ -72,37 +72,37 @@ graph TD
     ES --- E2[gscix_relations]
 ```
 
-### Componentes Clave
-1.  **GSCIX Backend (Java 21/Spring Boot):** El núcleo del sistema que maneja la lógica de negocio, el mapeo de STIX y la integración de índices de riesgo (HPI/EPS).
-2.  **Elasticsearch 8.x:** Motor de búsqueda y grafo de alta velocidad para almacenar entidades geoestratégicas personalizadas y sus relaciones dinámicas.
-3.  **OpenCTI Integration:** Capa de descubrimiento automático que vincula actores abstractos con grupos técnicos (APT) mediante la API GraphQL de OpenCTI.
-4.  **Temporal Engine:** Módulo encargado de gestionar campos `first_seen` y `last_seen` para mitigar el sesgo de inmediatez.
+### Key Components
+1.  **GSCIX Backend (Java 21/Spring Boot):** The core of the system that handles business logic, STIX mapping, and risk index integration (HPI/EPS).
+2.  **Elasticsearch 8.x:** High-speed search and graph engine for storing custom geo-strategic entities and their dynamic relations.
+3.  **OpenCTI Integration:** Automatic discovery layer that links abstract actors with technical groups (APT) via the OpenCTI v7 GraphQL API.
+4.  **Temporal Engine:** Module responsible for managing `first_seen` and `last_seen` fields to mitigate recency bias.
 
-## 🌐 Integración de Frontend
+## 🌐 Frontend Integration
 
-GSCIX está diseñado para ser consumido por un dashboard analítico moderno. La estrategia de integración recomendada es:
+GSCIX is designed to be consumed by a modern analytical dashboard. The recommended integration strategy is:
 
-### Stack Tecnológico Sugerido
-- **Framework:** React 18+ o Vite para una interfaz reactiva.
-- **Gestión de Estado:** TanStack Query (React Query) para sincronización eficiente con la API.
-- **Visualización de Datos:**
-    - **D3.js / Cytoscape:** Para el grafo de influencia geoestratégica.
-    - **Recharts:** Para visualizar tendencias de riesgo (HPI y EPS).
-- **Estilo:** Vanilla CSS o Shadcn/UI para una estética premium de "Centro de Comando".
+### Suggested Tech Stack
+- **Framework:** React 18+ or Vite for a reactive interface.
+- **State Management:** TanStack Query (React Query) for efficient API synchronization.
+- **Data Visualization:**
+    - **D3.js / Cytoscape:** For the geo-strategic influence graph.
+    - **Recharts:** For visualizing risk trends (HPI and EPS).
+- **Styling:** Vanilla CSS or Shadcn/UI for a premium "Command Center" aesthetic.
 
-### Interacción con la API
-El frontend consume datos principalmente de los endpoints:
-- `POST /api/v1/geopolitical/ingest`: Para el procesamiento de nuevas piezas de inteligencia.
-- `GET /api/v1/search` (En desarrollo): Para la exploración del grafo estratégico.
+### API Interaction
+The frontend primarily consumes data from the following endpoints:
+- `POST /api/v1/geopolitical/ingest`: For processing new pieces of intelligence.
+- `GET /api/v1/search` (Under development): For strategic graph exploration.
 
 ---
 
-## 🧪 Guía de Pruebas Técnicas y Operaciones
+## 🧪 Technical Testing and Operations Guide
 
-Sigue esta guía para validar las capacidades del sistema GSCIX, desde la ingesta manual hasta la integración con NotebookLM.
+Follow this guide to validate GSCIX system capabilities, from manual ingestion to NotebookLM integration.
 
-### 1. Ingesta desde NotebookLM (Carga Masiva)
-Simula la recepción de un análisis destilado por la IA. Este proceso crea el actor, sus objetivos, la campaña y los indicadores de impacto automáticamente.
+### 1. Ingestion from NotebookLM (Massive Loading)
+Simulates the reception of an AI-distilled analysis. This process automatically creates the actor, their objectives, the campaign, and impact indicators.
 
 ```bash
 curl -X POST http://localhost:8081/api/v1/geopolitical/ingest \
