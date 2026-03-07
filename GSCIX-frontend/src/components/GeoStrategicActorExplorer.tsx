@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-    Globe,
     Search,
     Plus,
     Download,
@@ -8,17 +7,16 @@ import {
     Share2,
     ShieldCheck,
     MoreVertical,
-    Activity,
     Box,
-    History,
     AlertCircle,
     Loader2,
     RefreshCw,
-    Trash2
+    Trash2,
+    History
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import apiService from '../services/api';
-import type { GscixEntity } from '../types/api';
+import type { GscixEntity, HpiAnalytics } from '../types/api';
 
 const StatCard = ({ title, value, subtext, icon: Icon, colorClass }: any) => (
     <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 shadow-sm relative overflow-hidden group">
@@ -38,6 +36,9 @@ export const GeoStrategicActorExplorer: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [actorAnalytics, setActorAnalytics] = useState<Record<string, HpiAnalytics>>({});
+    const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
     const fetchActors = async () => {
         try {
@@ -48,9 +49,26 @@ export const GeoStrategicActorExplorer: React.FC = () => {
                 setSelectedActor(data[0]);
             }
             setError(null);
+
+            // Fetch analytics
+            setLoadingAnalytics(true);
+            const analyticsMap: Record<string, HpiAnalytics> = {};
+            await Promise.all(data.map(async (actor) => {
+                try {
+                    const analytics = await apiService.getActorAnalytics(actor.stixId);
+                    analyticsMap[actor.stixId] = analytics;
+                } catch {
+                    // Fail silently for individual actors
+                    console.debug('No analytics for', actor.stixId);
+                }
+            }));
+            setActorAnalytics(analyticsMap);
+            setLoadingAnalytics(false);
+
         } catch (err: any) {
             console.error('Failed to fetch actors:', err);
             setError('Could not connect to GSCIX backend. Please ensure the backend is running.');
+            setLoadingAnalytics(false);
         } finally {
             setLoading(false);
         }
@@ -79,10 +97,26 @@ export const GeoStrategicActorExplorer: React.FC = () => {
         fetchActors();
     }, []);
 
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = () => setOpenMenuId(null);
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
+
     const filteredActors = actors.filter(actor =>
         actor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         actor.gsciAttributes?.geopolitical_doctrine?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const formatDate = (dateString?: string) => {
+        if (!dateString) return 'Unknown';
+        try {
+            return new Date(dateString).toISOString().split('T')[0];
+        } catch {
+            return dateString;
+        }
+    };
 
     return (
         <div className="bg-background-light dark:bg-background-dark transition-colors duration-200">
@@ -115,9 +149,9 @@ export const GeoStrategicActorExplorer: React.FC = () => {
                 </div>
 
                 {/* Main Content Area */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    {/* Left: Table Section */}
-                    <div className="lg:col-span-8 flex flex-col gap-6">
+                <div className="flex flex-col gap-8">
+                    {/* Top: Table Section */}
+                    <div className="w-full flex flex-col gap-6">
                         {/* Toolbar */}
                         <div className="flex flex-col sm:flex-row gap-4 justify-between items-center glass-panel p-2 rounded-lg">
                             <div className="relative w-full sm:max-w-md">
@@ -173,6 +207,8 @@ export const GeoStrategicActorExplorer: React.FC = () => {
                                             <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Alignment</th>
                                             <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Core Doctrine</th>
                                             <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">HPI Score</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">First Seen</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Last Seen</th>
                                             <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
                                         </tr>
                                     </thead>
@@ -211,32 +247,78 @@ export const GeoStrategicActorExplorer: React.FC = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="text-sm dark:text-slate-300 font-medium">{actor.gsciAttributes?.geopolitical_doctrine || 'Not defined'}</div>
-                                                    <div className="text-xs text-slate-500 dark:text-slate-400">{actor.gsciAttributes?.power_projection || 'N/A'}</div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 max-w-[60px]">
-                                                            <div
-                                                                className={cn("h-2 rounded-full", (actor.gsciAttributes?.hybrid_pressure_index || 0) > 7 ? "bg-risk-high" : "bg-primary")}
-                                                                style={{ width: `${(actor.gsciAttributes?.hybrid_pressure_index || 0) * 10}%` }}
-                                                            ></div>
-                                                        </div>
-                                                        <span className="text-xs font-bold dark:text-slate-300">{actor.gsciAttributes?.hybrid_pressure_index || '0.0'}</span>
+                                                    <div className="text-sm dark:text-slate-300 font-medium">
+                                                        {actor.gsciAttributes?.geopolitical_doctrine || actor.gsciAttributes?.power_projection || 'Not informed'}
                                                     </div>
                                                 </td>
+                                                <td className="px-6 py-4">
+                                                    {loadingAnalytics ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 max-w-[60px] overflow-hidden">
+                                                                <div className="h-full bg-slate-300 dark:bg-slate-600 animate-pulse w-full"></div>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 max-w-[60px]">
+                                                                <div
+                                                                    className={cn("h-1.5 rounded-full",
+                                                                        (actorAnalytics[actor.stixId]?.current_hpi || actor.gsciAttributes?.hybrid_pressure_index || 0) > 7 ? "bg-risk-high" :
+                                                                            (actorAnalytics[actor.stixId]?.current_hpi || actor.gsciAttributes?.hybrid_pressure_index || 0) > 4 ? "bg-secondary" : "bg-primary"
+                                                                    )}
+                                                                    style={{ width: `${Math.min(100, (actorAnalytics[actor.stixId]?.current_hpi || actor.gsciAttributes?.hybrid_pressure_index || 0) * 10)}%` }}
+                                                                ></div>
+                                                            </div>
+                                                            <span className={cn(
+                                                                "text-sm font-bold",
+                                                                (actorAnalytics[actor.stixId]?.current_hpi || actor.gsciAttributes?.hybrid_pressure_index || 0) > 7 ? "text-risk-high" : "text-primary"
+                                                            )}>
+                                                                {(actorAnalytics[actor.stixId]?.current_hpi || actor.gsciAttributes?.hybrid_pressure_index || 0).toFixed(1)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400 font-mono">
+                                                    {formatDate(actor.gsciAttributes?.first_seen)}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400 font-mono">
+                                                    {formatDate(actor.gsciAttributes?.last_seen)}
+                                                </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-2">
+                                                    <div className="relative flex justify-end">
                                                         <button
-                                                            onClick={(e) => handleDelete(e, actor.stixId)}
-                                                            className="p-1.5 text-slate-400 hover:text-risk-high hover:bg-risk-high/10 rounded transition-all"
-                                                            title="Delete Actor"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOpenMenuId(openMenuId === actor.stixId ? null : actor.stixId);
+                                                            }}
+                                                            className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded transition-all"
                                                         >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                        <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded transition-all">
                                                             <MoreVertical size={16} />
                                                         </button>
+
+                                                        {openMenuId === actor.stixId && (
+                                                            <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-border-light dark:border-border-dark z-50 overflow-hidden animate-in fade-in zoom-in duration-150 py-1">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setOpenMenuId(null);
+                                                                    }}
+                                                                    className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                                                >
+                                                                    Edit Actor Profile
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        handleDelete(e, actor.stixId);
+                                                                        setOpenMenuId(null);
+                                                                    }}
+                                                                    className="w-full text-left px-4 py-2 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                    Delete Actor
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -247,77 +329,104 @@ export const GeoStrategicActorExplorer: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Right: Detailed Panel */}
-                    <div className="lg:col-span-4">
+                    {/* Bottom: Detailed Panel */}
+                    <div className="w-full">
                         {selectedActor ? (
-                            <div className="glass-panel rounded-xl overflow-hidden sticky top-24">
-                                <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white border-b border-white/5">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="px-3 py-1 bg-risk-high/20 text-risk-high rounded text-[10px] font-bold uppercase tracking-widest border border-risk-high/30">
-                                            Priority Threat
+                            <div className="mt-6 border border-border-light dark:border-border-dark rounded-xl bg-surface-light dark:bg-surface-dark shadow-lg overflow-hidden flex flex-col md:flex-row">
+                                <div className="p-6 md:w-1/3 border-b md:border-b-0 md:border-r border-border-light dark:border-border-dark bg-gray-50/50 dark:bg-slate-900/50">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center text-risk-high text-xl font-bold">
+                                            {selectedActor.name.substring(0, 2).toUpperCase()}
                                         </div>
-                                        <div className="flex gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                                            <span className="text-[10px] font-bold text-emerald-500 uppercase">Analyzing</span>
-                                        </div>
-                                    </div>
-                                    <h2 className="text-2xl font-bold">{selectedActor.name}</h2>
-                                    <p className="text-slate-400 text-sm mt-1">{selectedActor.description || 'Global strategic threat actor operating in multi-domain conflict zones.'}</p>
-                                </div>
-
-                                <div className="p-6 space-y-6 bg-surface-light dark:bg-surface-dark">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-border-light dark:border-border-dark">
-                                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Modernization Rate</div>
-                                            <div className="text-lg font-bold dark:text-white">{(selectedActor.gsciAttributes?.technological_modernization_rate || 0) * 100}%</div>
-                                        </div>
-                                        <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-border-light dark:border-border-dark">
-                                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Ambigity Score</div>
-                                            <div className="text-lg font-bold dark:text-white">{selectedActor.gsciAttributes?.strategic_ambiguity_score || '0.0'}</div>
+                                        <div>
+                                            <h2 className="text-lg font-bold">{selectedActor.name}</h2>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 font-mono uppercase">
+                                                {selectedActor.gsciAttributes?.strategic_alignment || 'Unknown'} Actor
+                                            </div>
                                         </div>
                                     </div>
-
                                     <div className="space-y-4">
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                            <Activity size={14} className="text-primary" />
-                                            Active Strategic Objectives
-                                        </h4>
-                                        <div className="space-y-3">
-                                            <div className="flex gap-3">
-                                                <div className="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></div>
-                                                <div>
-                                                    <div className="text-sm font-semibold dark:text-slate-200">{selectedActor.gsciAttributes?.objective_type || 'General Objectives'}</div>
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400">Time Horizon: {selectedActor.gsciAttributes?.time_horizon || 'Unknown'}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-3">
-                                                <div className="mt-1 w-1.5 h-1.5 rounded-full bg-risk-high shrink-0"></div>
-                                                <div>
-                                                    <div className="text-sm font-semibold dark:text-slate-200">Revisionist Alignment</div>
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400">Index: {selectedActor.gsciAttributes?.revisionist_index || '0.0'}</p>
-                                                </div>
+                                        <div>
+                                            <label className="text-xs uppercase text-slate-500 dark:text-slate-400 font-semibold tracking-wider">Strategic Objective</label>
+                                            <p className="text-sm mt-1 dark:text-slate-300">{selectedActor.gsciAttributes?.objective_type || 'General Objectives'}</p>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs uppercase text-slate-500 dark:text-slate-400 font-semibold tracking-wider">Revisionist Index</label>
+                                            <div className="mt-1 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-risk-high/10 text-risk-high border border-risk-high/20">
+                                                {selectedActor.gsciAttributes?.revisionist_index || '0.0'}
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-border-light dark:border-border-dark">
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-4">
-                                            <History size={14} className="text-primary" />
-                                            Recent Technical Activity
-                                        </h4>
-                                        <div className="bg-slate-900 rounded-lg p-3 font-mono text-[10px] text-blue-400 space-y-1">
-                                            <div>{">"} correlation_start --actor={selectedActor.stixId.substring(0, 8)}</div>
-                                            <div className="text-slate-500">[2024-03-07 08:34] Fetching STIX from OpenCTI...</div>
-                                            <div className="text-emerald-500">[2024-03-07 08:35] Identified linked cyber units via ElasticSearch</div>
-                                            <div className="text-amber-500">[2024-03-07 08:35] Warning: High Strategic Ambigity detected</div>
-                                            <div>{">"} build_report --format=pdf_gscix</div>
+                                        <div>
+                                            <label className="text-xs uppercase text-slate-500 dark:text-slate-400 font-semibold tracking-wider">Description</label>
+                                            <p className="text-sm mt-1 text-slate-500 dark:text-slate-400 leading-relaxed">
+                                                {selectedActor.description || 'Global strategic threat actor operating in multi-domain conflict zones.'}
+                                            </p>
                                         </div>
                                     </div>
+                                </div>
+                                <div className="p-6 md:w-2/3 flex flex-col justify-center">
+                                    <h3 className="font-semibold text-sm uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-6">Hybrid Pressure Index (HPI) Analysis</h3>
 
-                                    <button className="w-full py-3 bg-slate-900 hover:bg-black text-white rounded-lg font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-2">
-                                        <Globe size={18} />
-                                        Interactive Influence Map
-                                    </button>
+                                    {loadingAnalytics ? (
+                                        <div className="flex items-center justify-center p-8">
+                                            <Loader2 className="animate-spin text-primary" size={32} />
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                            {/* Current HPI */}
+                                            <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-6 border border-border-light dark:border-border-dark flex flex-col items-center justify-center text-center shadow-inner">
+                                                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Current HPI</div>
+                                                <div className={cn(
+                                                    "text-5xl font-bold mb-2",
+                                                    (actorAnalytics[selectedActor.stixId]?.current_hpi || selectedActor.gsciAttributes?.hybrid_pressure_index || 0) > 7 ? "text-risk-high" :
+                                                        (actorAnalytics[selectedActor.stixId]?.current_hpi || selectedActor.gsciAttributes?.hybrid_pressure_index || 0) > 4 ? "text-secondary" : "text-primary"
+                                                )}>
+                                                    {(actorAnalytics[selectedActor.stixId]?.current_hpi || selectedActor.gsciAttributes?.hybrid_pressure_index || 0).toFixed(1)}
+                                                </div>
+                                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mt-4 overflow-hidden">
+                                                    <div
+                                                        className={cn(
+                                                            "h-full rounded-full transition-all duration-1000",
+                                                            (actorAnalytics[selectedActor.stixId]?.current_hpi || selectedActor.gsciAttributes?.hybrid_pressure_index || 0) > 7 ? "bg-risk-high" :
+                                                                (actorAnalytics[selectedActor.stixId]?.current_hpi || selectedActor.gsciAttributes?.hybrid_pressure_index || 0) > 4 ? "bg-secondary" : "bg-primary"
+                                                        )}
+                                                        style={{ width: `${Math.min(100, (actorAnalytics[selectedActor.stixId]?.current_hpi || selectedActor.gsciAttributes?.hybrid_pressure_index || 0) * 10)}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+
+                                            {/* Historical Data & Spike */}
+                                            <div className="flex flex-col gap-4 justify-center">
+                                                <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-4 border border-border-light dark:border-border-dark flex justify-between items-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
+                                                    <div>
+                                                        <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Historical Avg (10y)</div>
+                                                        <div className="text-2xl font-bold dark:text-slate-200 mt-1">
+                                                            {actorAnalytics[selectedActor.stixId]?.historical_avg ? actorAnalytics[selectedActor.stixId].historical_avg.toFixed(1) : '—'}
+                                                        </div>
+                                                    </div>
+                                                    <History className="text-slate-300 dark:text-slate-600" size={32} />
+                                                </div>
+
+                                                {actorAnalytics[selectedActor.stixId]?.spike_detected ? (
+                                                    <div className="bg-risk-high/10 rounded-xl p-4 border border-risk-high/30 flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                                                        <AlertCircle className="text-risk-high shrink-0 mt-0.5" size={24} />
+                                                        <div>
+                                                            <div className="text-sm font-bold text-risk-high uppercase">Escalation Spike Detected</div>
+                                                            <div className="text-xs text-risk-high/80 mt-1 leading-relaxed">Cyber-geopolitical coupling index surged by &gt;2.0 points in the last 30 days.</div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20 flex items-start gap-3 shadow-sm">
+                                                        <ShieldCheck className="text-emerald-500 shrink-0 mt-0.5" size={24} />
+                                                        <div>
+                                                            <div className="text-sm font-bold text-emerald-500 uppercase">Stable Baseline</div>
+                                                            <div className="text-xs text-emerald-500/80 mt-1 leading-relaxed">No anomalous escalation in cyber-geopolitical intensity detected recently.</div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (

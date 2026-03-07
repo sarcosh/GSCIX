@@ -80,3 +80,9 @@ export interface IngestionJob {
     entitiesCreated: number;
     relationsCreated: number;
 }
+
+export interface HpiAnalytics {
+    current_hpi: number;
+    historical_avg: number;
+    spike_detected: boolean;
+}

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { GscixEntity, ValidationResponse, GscixRelation, IngestionJob } from '../types/api';
+import type { GscixEntity, ValidationResponse, GscixRelation, IngestionJob, HpiAnalytics } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 console.log('API Base URL:', API_BASE_URL);
@@ -67,6 +67,12 @@ export const apiService = {
 
     async deleteEntity(id: string): Promise<void> {
         await apiClient.delete(`/geopolitical/entities/${id}`);
+    },
+
+    // Analytics
+    async getActorAnalytics(id: string): Promise<HpiAnalytics> {
+        const response = await apiClient.get<HpiAnalytics>(`/geopolitical/entities/${id}/analytics`);
+        return response.data;
     }
 };
 
