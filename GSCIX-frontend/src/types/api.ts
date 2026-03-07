@@ -81,8 +81,18 @@ export interface IngestionJob {
     relationsCreated: number;
 }
 
+export interface HpiTrendPoint {
+    date: string;
+    hpi: number;
+    drift: number;
+}
+
 export interface HpiAnalytics {
     current_hpi: number;
     historical_avg: number;
     spike_detected: boolean;
+    avg_confidence_score: number;
+    pressure_breakdown: Record<string, number>;
+    predominant_vector: string;
+    trend_data: HpiTrendPoint[];
 }
