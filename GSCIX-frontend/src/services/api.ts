@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { GscixEntity, GscixRelation } from '../types/api';
+import type { GscixEntity, ValidationResponse, GscixRelation, IngestionJob } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 console.log('API Base URL:', API_BASE_URL);
@@ -44,6 +44,29 @@ export const apiService = {
     ingestData: async (data: any) => {
         const response = await apiClient.post('/geopolitical/ingest', data);
         return response.data;
+    },
+
+    ingestBundle: async (data: any, filename?: string) => {
+        const response = await apiClient.post('/geopolitical/bundle', data, {
+            params: filename ? { filename } : {}
+        });
+        return response.data;
+    },
+
+    // Validate
+    validateSchema: async (data: any): Promise<ValidationResponse> => {
+        const response = await apiClient.post<ValidationResponse>('/geopolitical/validate', data);
+        return response.data;
+    },
+
+    // History
+    async getIngestionHistory(): Promise<IngestionJob[]> {
+        const response = await apiClient.get<IngestionJob[]>('/geopolitical/history');
+        return response.data;
+    },
+
+    async deleteEntity(id: string): Promise<void> {
+        await apiClient.delete(`/geopolitical/entities/${id}`);
     }
 };
 

@@ -57,3 +57,26 @@ export interface GscixRelation {
     targetRef: string;
     relationship_type: string;
 }
+
+export interface ValidationError {
+    objectId: string;
+    objectType: string;
+    property?: string;
+    error: string;
+}
+
+export interface ValidationResponse {
+    status: 'OK' | 'ERROR' | 'WARNING';
+    message: string;
+    errors?: ValidationError[];
+}
+
+export interface IngestionJob {
+    id: string;
+    filename: string;
+    status: 'OK' | 'WARNING' | 'ERROR';
+    message: string;
+    timestamp: string;
+    entitiesCreated: number;
+    relationsCreated: number;
+}

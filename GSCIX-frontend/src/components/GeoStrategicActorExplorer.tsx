@@ -13,16 +13,12 @@ import {
     History,
     AlertCircle,
     Loader2,
-    RefreshCw
+    RefreshCw,
+    Trash2
 } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { cn } from '../lib/utils';
 import apiService from '../services/api';
 import type { GscixEntity } from '../types/api';
-
-function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
-}
 
 const StatCard = ({ title, value, subtext, icon: Icon, colorClass }: any) => (
     <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 shadow-sm relative overflow-hidden group">
@@ -36,21 +32,12 @@ const StatCard = ({ title, value, subtext, icon: Icon, colorClass }: any) => (
     </div>
 );
 
-export const GeoStrategicActorExplorer = () => {
+export const GeoStrategicActorExplorer: React.FC = () => {
     const [actors, setActors] = useState<GscixEntity[]>([]);
     const [selectedActor, setSelectedActor] = useState<GscixEntity | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isDarkMode, setIsDarkMode] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-
-    useEffect(() => {
-        if (isDarkMode) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-    }, [isDarkMode]);
 
     const fetchActors = async () => {
         try {
@@ -69,6 +56,25 @@ export const GeoStrategicActorExplorer = () => {
         }
     };
 
+    const handleDelete = async (e: React.MouseEvent, stixId: string) => {
+        e.stopPropagation(); // Prevent row click
+        if (window.confirm('Are you sure you want to delete this actor and all its associated relations? This action cannot be undone.')) {
+            try {
+                setLoading(true);
+                await apiService.deleteEntity(stixId);
+                if (selectedActor?.stixId === stixId) {
+                    setSelectedActor(null);
+                }
+                await fetchActors();
+            } catch (err) {
+                console.error('Delete failed:', err);
+                setError('Failed to delete actor.');
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
     useEffect(() => {
         fetchActors();
     }, []);
@@ -79,41 +85,7 @@ export const GeoStrategicActorExplorer = () => {
     );
 
     return (
-        <div className="min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-200">
-            {/* Navigation */}
-            <nav className="border-b border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark sticky top-0 z-50">
-                <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex h-16 justify-between items-center">
-                        <div className="flex items-center gap-8">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/20">
-                                    G
-                                </div>
-                                <span className="font-bold text-xl tracking-tight dark:text-white">GSCIX</span>
-                                <span className="hidden sm:inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 rounded-full border border-slate-200 dark:border-slate-700 ml-1">v1.2.4-PRO</span>
-                            </div>
-
-                            <div className="hidden md:flex items-center gap-6">
-                                <a href="#" className="text-sm font-medium text-primary border-b-2 border-primary py-5">Actor Explorer</a>
-                                <a href="#" className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary transition-colors">Influence Flow</a>
-                                <a href="#" className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary transition-colors">Risk Analytics</a>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => setIsDarkMode(!isDarkMode)}
-                                className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                {isDarkMode ? '🌞' : '🌙'}
-                            </button>
-                            <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 border-2 border-white dark:border-slate-800 shadow-sm">
-                                JD
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </nav>
+        <div className="bg-background-light dark:bg-background-dark transition-colors duration-200">
 
             <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Header */}
@@ -254,9 +226,18 @@ export const GeoStrategicActorExplorer = () => {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <button className="text-slate-400 hover:text-primary transition-colors">
-                                                        <MoreVertical size={18} />
-                                                    </button>
+                                                    <div className="flex justify-end gap-2">
+                                                        <button
+                                                            onClick={(e) => handleDelete(e, actor.stixId)}
+                                                            className="p-1.5 text-slate-400 hover:text-risk-high hover:bg-risk-high/10 rounded transition-all"
+                                                            title="Delete Actor"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                        <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded transition-all">
+                                                            <MoreVertical size={16} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
