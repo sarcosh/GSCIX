@@ -13,7 +13,8 @@ import {
     RefreshCw,
     Trash2,
     History,
-    Activity
+    Activity,
+    AlertTriangle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import apiService from '../services/api';
@@ -589,6 +590,26 @@ export const GeoStrategicActorExplorer: React.FC = () => {
                                         analytics={actorAnalytics[selectedActor.stixId]}
                                         loading={loadingAnalytics}
                                     />
+                                    {/* Strategic Divergence Warning */}
+                                    {selectedActor.gsciAttributes?.doctrine_type?.toLowerCase().includes('stability') &&
+                                        actorAnalytics[selectedActor.stixId]?.max_divergence_score > 7.0 && (
+                                            <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-4 flex items-start gap-3 shadow-lg animate-in fade-in slide-in-from-top-2 relative">
+                                                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-red-500/5 to-transparent rounded-xl"></div>
+                                                <AlertTriangle className="text-amber-500 shrink-0 mt-0.5 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]" size={24} />
+                                                <div className="z-10 min-w-0">
+                                                    <div className="text-sm font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2">
+                                                        <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                                                        WARNING: Strategic Divergence Detected
+                                                    </div>
+                                                    <div className="text-xs text-amber-400/80 mt-1.5 leading-relaxed">
+                                                        Operational expansion detected under stability narrative.
+                                                        <span className="ml-1 font-mono text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded inline-block mt-1">
+                                                            Divergence Score: {actorAnalytics[selectedActor.stixId]?.max_divergence_score.toFixed(1)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     <div className="min-h-[280px]">
                                         <HPITrendChart
                                             analytics={actorAnalytics[selectedActor.stixId]}

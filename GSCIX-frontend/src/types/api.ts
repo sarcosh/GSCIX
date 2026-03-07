@@ -95,4 +95,5 @@ export interface HpiAnalytics {
     pressure_breakdown: Record<string, number>;
     predominant_vector: string;
     trend_data: HpiTrendPoint[];
+    max_divergence_score: number;
 }
