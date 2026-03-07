@@ -232,6 +232,7 @@ export const GeoStrategicActorExplorer = () => {
                                                         actor.gsciAttributes?.strategic_alignment === 'BRICS' && "bg-orange-500/10 text-orange-600 border border-orange-500/20",
                                                         actor.gsciAttributes?.strategic_alignment === 'Non-Aligned' && "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20",
                                                         actor.gsciAttributes?.strategic_alignment === 'EU' && "bg-indigo-500/10 text-indigo-600 border border-indigo-500/20",
+                                                        actor.gsciAttributes?.strategic_alignment === 'Revisionist' && "bg-risk-high/10 text-risk-high border border-risk-high/20",
                                                         (!actor.gsciAttributes?.strategic_alignment || actor.gsciAttributes?.strategic_alignment === 'Other') && "bg-slate-500/10 text-slate-600 border border-slate-500/20"
                                                     )}>
                                                         {actor.gsciAttributes?.strategic_alignment || 'Unknown'}
