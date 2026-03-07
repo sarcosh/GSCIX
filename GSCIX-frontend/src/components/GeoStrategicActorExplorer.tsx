@@ -250,7 +250,7 @@ const HPITrendChart = ({ analytics, loading }: { analytics?: HpiAnalytics; loadi
 };
 
 
-export const GeoStrategicActorExplorer: React.FC = () => {
+export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId: string) => void }> = ({ onNavigateToGraph }) => {
     const [actors, setActors] = useState<GscixEntity[]>([]);
     const [selectedActor, setSelectedActor] = useState<GscixEntity | null>(null);
     const [loading, setLoading] = useState(true);
@@ -527,6 +527,19 @@ export const GeoStrategicActorExplorer: React.FC = () => {
                                                                 >
                                                                     Edit Actor Profile
                                                                 </button>
+                                                                {onNavigateToGraph && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setOpenMenuId(null);
+                                                                            onNavigateToGraph(actor.stixId);
+                                                                        }}
+                                                                        className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <Share2 size={14} />
+                                                                        View in Graph
+                                                                    </button>
+                                                                )}
                                                                 <button
                                                                     onClick={(e) => {
                                                                         handleDelete(e, actor.stixId);

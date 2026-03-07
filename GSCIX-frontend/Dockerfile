@@ -1,8 +1,9 @@
 # Stage 1: Build the React application
 FROM node:20-alpine as build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci && npm cache clean --force
 COPY . .
 RUN npm run build
 

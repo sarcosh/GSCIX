@@ -1,9 +1,9 @@
 import React from 'react';
-import { cn } from '../lib/utils'; // Assuming this utility exists or I'll provide a simple version
+import { cn } from '../lib/utils';
 
 interface NavbarProps {
-    activeView: 'explorer' | 'ingestion';
-    onViewChange: (view: 'explorer' | 'ingestion') => void;
+    activeView: 'explorer' | 'ingestion' | 'influence';
+    onViewChange: (view: 'explorer' | 'ingestion' | 'influence') => void;
     isDarkMode: boolean;
     onToggleDarkMode: () => void;
 }
@@ -40,6 +40,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 Actor Explorer
                             </button>
                             <button
+                                onClick={() => onViewChange('influence')}
+                                className={cn(
+                                    "text-sm font-medium py-5 transition-colors border-b-2",
+                                    activeView === 'influence'
+                                        ? "text-primary border-primary"
+                                        : "text-slate-500 dark:text-slate-400 border-transparent hover:text-primary"
+                                )}
+                            >
+                                Influence Graph
+                            </button>
+                            <button
                                 onClick={() => onViewChange('ingestion')}
                                 className={cn(
                                     "text-sm font-medium py-5 transition-colors border-b-2",
@@ -50,7 +61,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                             >
                                 Data Ingestion
                             </button>
-                            <a href="#" className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary transition-colors py-5 border-b-2 border-transparent">Risk Analytics</a>
                         </div>
                     </div>
 

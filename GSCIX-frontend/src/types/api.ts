@@ -53,8 +53,8 @@ export interface GscixEntity {
 export interface GscixRelation {
     id: string;
     type: string;
-    sourceRef: string;
-    targetRef: string;
+    source_ref: string;
+    target_ref: string;
     relationship_type: string;
 }
 
@@ -96,4 +96,13 @@ export interface HpiAnalytics {
     predominant_vector: string;
     trend_data: HpiTrendPoint[];
     max_divergence_score: number;
+}
+
+export interface InfluenceGraphData {
+    entities: GscixEntity[];
+    relations: GscixRelation[];
+    rootId: string | null;
+    depth: number;
+    nodeCount: number;
+    edgeCount: number;
 }

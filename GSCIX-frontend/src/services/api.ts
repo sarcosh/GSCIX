@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { GscixEntity, ValidationResponse, GscixRelation, IngestionJob, HpiAnalytics } from '../types/api';
+import type { GscixEntity, ValidationResponse, GscixRelation, IngestionJob, HpiAnalytics, InfluenceGraphData } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 console.log('API Base URL:', API_BASE_URL);
@@ -72,6 +72,34 @@ export const apiService = {
     // Analytics
     async getActorAnalytics(id: string): Promise<HpiAnalytics> {
         const response = await apiClient.get<HpiAnalytics>(`/geopolitical/entities/${id}/analytics`);
+        return response.data;
+    },
+
+    // Relations (all)
+    getAllRelations: async (): Promise<GscixRelation[]> => {
+        const response = await apiClient.get<any>('/gscix/relations');
+        const data = response.data;
+        if (data && typeof data === 'object' && Array.isArray(data.content)) {
+            return data.content;
+        }
+        return Array.isArray(data) ? data : [];
+    },
+
+    getRelationsByTarget: async (targetId: string): Promise<GscixRelation[]> => {
+        const response = await apiClient.get<GscixRelation[]>(`/gscix/relations/source/${targetId}`);
+        return response.data;
+    },
+
+    // Influence Graph (server-side BFS)
+    getInfluenceGraph: async (rootId: string, depth: number = 2): Promise<InfluenceGraphData> => {
+        const response = await apiClient.get<InfluenceGraphData>(`/gscix/graph/${rootId}`, {
+            params: { depth }
+        });
+        return response.data;
+    },
+
+    getActorsOverview: async (): Promise<InfluenceGraphData> => {
+        const response = await apiClient.get<InfluenceGraphData>('/gscix/graph');
         return response.data;
     }
 };
