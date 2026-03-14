@@ -76,7 +76,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         setLoading(true);
         try {
             console.log('Fetching graph for rootId:', rootId);
-            const data = await apiService.getInfluenceGraph(rootId, 2);
+            const data = await apiService.getInfluenceGraph(rootId, 5);
             console.log('Graph data received:', data);
             setEntities(data.entities);
             setRelations(data.relations);
@@ -165,10 +165,12 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                 const lsStr = e.last_seen || e.gsciAttributes?.last_seen;
 
                 const firstSeen = fsStr ? new Date(fsStr) : null;
-                const lastSeen = lsStr ? new Date(lsStr) : (firstSeen || null);
+                // If no last_seen, the entity is considered still active (no upper bound)
+                const lastSeen = lsStr ? new Date(lsStr) : null;
 
                 if (dateRange.from) {
                     const fromDate = new Date(dateRange.from);
+                    // Only filter out if the entity has a definitive end date before the range
                     if (lastSeen && lastSeen < fromDate) return false;
                 }
                 if (dateRange.to) {
@@ -669,7 +671,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             </div>
                             <div>
                                 <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{rootActor.name}</h2>
-                                <p className="text-xs text-slate-500 font-mono">{rootActor.stixId?.substring(0, 24)}...</p>
+                                <p className="text-xs text-slate-500 font-mono break-all">{rootActor.stixId}</p>
                             </div>
                         </div>
                         <div className="flex gap-2 mt-3 flex-wrap">

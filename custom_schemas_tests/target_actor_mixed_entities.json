@@ -9,7 +9,7 @@
             "description": "Establish leverage over European energy markets through pipeline control and LNG export monopolization.",
             "objective_type": "economic",
             "priority_level": "high",
-            "time_horizon": "decade",
+            "time_horizon": "decadal",
             "first_seen": "2024-01-15T00:00:00Z",
             "extensions": {
                 "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
@@ -52,12 +52,13 @@
             "id": "x-strategic-impact--mixed-001",
             "name": "European Energy Market Destabilization",
             "description": "Measurable disruption to European gas spot prices and supply chain confidence.",
+            "political_destabilization_index": 6.2,
+            "economic_disruption_index": 8.7,
+            "confidence_score": 78,
             "first_seen": "2024-09-01T00:00:00Z",
             "extensions": {
                 "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
-                    "extension_type": "new-sdo",
-                    "political_destabilization_index": 6.2,
-                    "economic_disruption_index": 8.7
+                    "extension_type": "new-sdo"
                 }
             }
         },

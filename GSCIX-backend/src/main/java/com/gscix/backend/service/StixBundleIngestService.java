@@ -70,6 +70,19 @@ public class StixBundleIngestService {
         int relationsCreated = 0;
         List<String> ingestedEntityIds = new ArrayList<>();
 
+        // Collect all target_refs from relationships in the bundle so we can
+        // determine which entities are "root" nodes (not pointed to by any
+        // relationship within the bundle).
+        Set<String> targetRefs = new HashSet<>();
+        for (Map<String, Object> obj : objects) {
+            if ("relationship".equals(obj.get("type"))) {
+                String tRef = (String) obj.get("target_ref");
+                if (tRef != null) {
+                    targetRefs.add(tRef);
+                }
+            }
+        }
+
         for (Map<String, Object> obj : objects) {
             String type = (String) obj.get("type");
             String id = (String) obj.get("id");
@@ -87,16 +100,20 @@ public class StixBundleIngestService {
         }
 
         // If a target actor was specified, create 'attributed-to' relationships
-        // from the target actor to each ingested entity (excluding the actor itself).
+        // only for root entities — those that are NOT the target_ref of any
+        // relationship within the bundle. This avoids redundant links for
+        // entities that are already reachable through the graph.
         if (targetActorId != null && !targetActorId.isBlank()) {
+            int linked = 0;
             for (String entityId : ingestedEntityIds) {
-                if (!entityId.equals(targetActorId)) {
+                if (!entityId.equals(targetActorId) && !targetRefs.contains(entityId)) {
                     createAttributedToRelation(targetActorId, entityId);
                     relationsCreated++;
+                    linked++;
                 }
             }
-            logger.info("Created {} 'attributed-to' relations linking actor {} to ingested entities.",
-                    ingestedEntityIds.size(), targetActorId);
+            logger.info("Created {} 'attributed-to' relations linking actor {} to root entities (out of {} total).",
+                    linked, targetActorId, ingestedEntityIds.size());
         }
 
         Map<String, Object> result = Map.of(
