@@ -285,6 +285,38 @@ export const DataIngestionPanel: React.FC = () => {
 
                 {/* Right Column: Preview & Action */}
                 <div className="lg:col-span-2 space-y-6 flex flex-col">
+                    {/* Validation Feedback */}
+                    {validationResult && (
+                        <div className={cn(
+                            "rounded-xl px-6 py-4 border shadow-sm",
+                            validationResult.status === 'OK' ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/50" : "bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800/50"
+                        )}>
+                            <div className="flex items-center gap-3 mb-2">
+                                {validationResult.status === 'OK' ? (
+                                    <CheckCircle className="text-emerald-500" size={20} />
+                                ) : (
+                                    <XCircle className="text-rose-500" size={20} />
+                                )}
+                                <span className={cn(
+                                    "text-sm font-bold",
+                                    validationResult.status === 'OK' ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"
+                                )}>
+                                    {validationResult.message}
+                                </span>
+                            </div>
+                            {validationResult.errors && validationResult.errors.length > 0 && (
+                                <ul className="space-y-1 mt-3">
+                                    {validationResult.errors.map((err, i) => (
+                                        <li key={i} className="text-xs text-rose-600 dark:text-rose-300 flex items-start gap-2">
+                                            <span className="font-bold opacity-70">[{err.objectType}]</span>
+                                            <span>{err.error}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    )}
+
                     <div className="bg-surface-light dark:bg-surface-dark shadow-sm rounded-xl border border-border-light dark:border-border-dark flex flex-col flex-1 overflow-hidden">
                         <div className="px-4 py-3 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                             <div className="flex items-center gap-3">
@@ -314,37 +346,7 @@ export const DataIngestionPanel: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Validation Feedback Overlay/Footer */}
-                        {validationResult && (
-                            <div className={cn(
-                                "border-t px-6 py-4",
-                                validationResult.status === 'OK' ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/50" : "bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800/50"
-                            )}>
-                                <div className="flex items-center gap-3 mb-2">
-                                    {validationResult.status === 'OK' ? (
-                                        <CheckCircle className="text-emerald-500" size={20} />
-                                    ) : (
-                                        <XCircle className="text-rose-500" size={20} />
-                                    )}
-                                    <span className={cn(
-                                        "text-sm font-bold",
-                                        validationResult.status === 'OK' ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"
-                                    )}>
-                                        {validationResult.message}
-                                    </span>
-                                </div>
-                                {validationResult.errors && validationResult.errors.length > 0 && (
-                                    <ul className="space-y-1 mt-3">
-                                        {validationResult.errors.map((err, i) => (
-                                            <li key={i} className="text-xs text-rose-600 dark:text-rose-300 flex items-start gap-2">
-                                                <span className="font-bold opacity-70">[{err.objectType}]</span>
-                                                <span>{err.error}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                        )}
+
                     </div>
 
                     <div className="bg-surface-light dark:bg-surface-dark shadow-sm rounded-xl p-6 border border-border-light dark:border-border-dark flex flex-col sm:flex-row justify-between items-center gap-4">
