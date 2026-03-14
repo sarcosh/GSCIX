@@ -1,14 +1,11 @@
 
 
-1- Cuando se seleccionan los diversos elementos del grafo se desplazan los elementos. Los elementos deben permanecer en su lugar cuando se hace click sobre uno de los elementos. Lo mismo pasa cuando selecciono las pastillas asociadas a cada elemento.
 
-2- Inicialmente el elemento del actor está remarcado con un halo alrededor del icono pero cuando se selecciona otro elemento, a pesar de que el icono de ese elemento adquiere el halo, el halo del actor no desaparece. El halo del actor debe desaparecer cuando se selecciona otro elemento.
 
-3- Estaría bien que una vez se seleccione un elemento del grafo o se haga click en su pastilla, se desplegara como en un componente acordeon la información relevante asociada a ese elemento. Por ejemplo, si selecciono el una campaña hibrida, se desplegara la información asociada a esa campaña hibrida. Si selecciono un objetivo, se desplegara la información asociada al objetivo. Y así sucesivamente. 
 
 4- Cuando se carga el grafo del actor "Strategic Divergence Test Actor" no se muestran todas las pastillas de los elementos mostrados en el grafo. Parece que solo se están mostrando las pastillas de los elementos que están relacionados con el actor. Sería conveniente que se mostraran todas las pastillas de los elementos mostrados en el grafo.
 
-5- No es necesario los "Analytical Filters" y por lo tanto se pueden eliminar
+5- No es necesario los "Analytical Filters" y por lo tanto se pueden eliminar. En su lugar estaría bien que hubiera un filtro para poder especificar dos fechas ("Desde" y "Hasta") y que se muestren los elementos que están dentro de ese rango de fechas.
 
 6- En la vista "Influence Graph" cuando se elimina la sección derecha (detalle del actor, etc...) solo se puede recuperar seleccionando el actor. Sería conveniente que se pudiera recuperar. Además cuando se selecciona cualquier otro elemento del grafo, la sección derecha no se muestra; y se debería mostrar con la selección de la pastilla del elemento.
 

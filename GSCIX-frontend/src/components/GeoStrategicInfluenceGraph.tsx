@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     X, Download, Zap,
     Globe, Flag, Megaphone, Bug, Plus, Minus,
-    Maximize2, RefreshCw, AlertTriangle, ExternalLink
+    Maximize2, RefreshCw, AlertTriangle, ExternalLink,
+    Share2, Shield, Activity
 } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { cn } from '../lib/utils';
@@ -25,7 +26,10 @@ const LAYER_FILTERS = [
     { key: 'x-geo-strategic-actor', label: 'Geo-Strategic Actors', icon: Globe, color: 'text-cyan-500 bg-cyan-500/10' },
     { key: 'x-strategic-objective', label: 'Strategic Objectives', icon: Flag, color: 'text-amber-500 bg-amber-500/10' },
     { key: 'x-hybrid-campaign', label: 'Hybrid Campaigns', icon: Megaphone, color: 'text-red-500 bg-red-500/10' },
+    { key: 'x-influence-vector', label: 'Influence Vectors', icon: Share2, color: 'text-purple-500 bg-purple-500/10' },
+    { key: 'x-strategic-impact', label: 'Strategic Impacts', icon: Activity, color: 'text-indigo-500 bg-indigo-500/10' },
     { key: 'x-strategic-assessment', label: 'Assessments', icon: Zap, color: 'text-emerald-500 bg-emerald-500/10' },
+    { key: 'intrusion-set', label: 'Intrusion Sets', icon: Shield, color: 'text-slate-500 bg-slate-500/10' },
 ];
 
 interface InfluenceGraphProps {
@@ -298,7 +302,16 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Graph Layers</h3>
                         <button
-                            onClick={() => setActiveLayers(Object.fromEntries(LAYER_FILTERS.map(l => [l.key, true])))}
+                            onClick={() => setActiveLayers({
+                                'x-geo-strategic-actor': true,
+                                'x-strategic-objective': true,
+                                'x-hybrid-campaign': true,
+                                'x-strategic-assessment': true,
+                                'x-influence-vector': true,
+                                'x-strategic-impact': true,
+                                'intrusion-set': true,
+                                'threat-actor': true,
+                            })}
                             className="text-[10px] text-cyan-500 hover:underline font-medium"
                         >
                             Reset
@@ -651,7 +664,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     {selectedNode.gsciAttributes?.confidence_score !== undefined && (
                                         <div className="flex justify-between text-sm">
                                             <span className="text-slate-500">Confidence</span>
-                                            <span className="font-mono font-semibold text-slate-700 dark:text-white">{selectedNode.gsciAttributes.confidence_score}%</span>
+                                            <span className="font-mono font-semibold text-slate-700 dark:text-white">{(selectedNode.gsciAttributes.confidence_score ?? 0)}%</span>
                                         </div>
                                     )}
                                 </div>
@@ -662,11 +675,10 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         <div>
                             <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                                 <span>🕸️ Graph Elements</span>
-                                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">{graphData.nodes.length - 1}</span>
+                                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">{graphData.nodes.length}</span>
                             </h3>
                             <ul className="space-y-2">
                                 {graphData.nodes
-                                    .filter((n: any) => n.id !== selectedNode.stixId)
                                     .map((n: any) => {
                                         const nodeEntity = n.entity as GscixEntity;
                                         const isHighlighted = highlightedConnectionId === n.id;
@@ -733,16 +745,58 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                                     <span className="text-[10px] text-cyan-400 font-bold font-mono">{(nodeEntity.gsciAttributes.hybrid_pressure_index ?? 0).toFixed(1)}</span>
                                                                 </div>
                                                             )}
-                                                            {nodeEntity.gsciAttributes?.confidence_score !== undefined && (
+                                                            {(nodeEntity.gsciAttributes?.confidence_score !== undefined || nodeEntity.type === 'x-influence-vector') && (
                                                                 <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
                                                                     <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Confidence</span>
-                                                                    <span className="text-[10px] text-emerald-400 font-bold font-mono">{nodeEntity.gsciAttributes.confidence_score}%</span>
+                                                                    <span className="text-[10px] text-emerald-400 font-bold font-mono">{(nodeEntity.gsciAttributes?.confidence_score ?? 0)}%</span>
                                                                 </div>
                                                             )}
                                                             <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
                                                                 <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Type</span>
                                                                 <span className="text-[10px] text-amber-500 font-bold">{NODE_CONFIG[n.type]?.label || n.type}</span>
                                                             </div>
+
+                                                            {/* Custom Attributes for Influence Vector */}
+                                                            {nodeEntity.type === 'x-influence-vector' && (
+                                                                <>
+                                                                    {nodeEntity.gsciAttributes?.channel && (
+                                                                        <div className="col-span-2 bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Channel</span>
+                                                                            <span className="text-[10px] text-purple-400 font-medium">{nodeEntity.gsciAttributes.channel}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {nodeEntity.gsciAttributes?.target_audience && (
+                                                                        <div className="col-span-2 bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Target Audience</span>
+                                                                            <span className="text-[10px] text-slate-300">{nodeEntity.gsciAttributes.target_audience}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {nodeEntity.gsciAttributes?.narrative && (
+                                                                        <div className="col-span-2 bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Narrative</span>
+                                                                            <p className="text-[10px] text-slate-400 leading-tight italic line-clamp-3">{nodeEntity.gsciAttributes.narrative}</p>
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            )}
+
+                                                            {/* Custom Attributes for Strategic Impact */}
+                                                            {nodeEntity.type === 'x-strategic-impact' && (
+                                                                <>
+                                                                    {nodeEntity.gsciAttributes?.political_destabilization_index !== undefined && (
+                                                                        <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Pol. Destab.</span>
+                                                                            <span className="text-[10px] text-red-400 font-bold font-mono">{(nodeEntity.gsciAttributes.political_destabilization_index ?? 0).toFixed(1)}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {nodeEntity.gsciAttributes?.economic_disruption_index !== undefined && (
+                                                                        <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Econ. Disrup.</span>
+                                                                            <span className="text-[10px] text-amber-500 font-bold font-mono">{(nodeEntity.gsciAttributes.economic_disruption_index ?? 0).toFixed(1)}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            )}
                                                         </div>
                                                         {nodeEntity.gsciAttributes?.nature && nodeEntity.gsciAttributes.nature.length > 0 && (
                                                             <div className="flex flex-wrap gap-1">

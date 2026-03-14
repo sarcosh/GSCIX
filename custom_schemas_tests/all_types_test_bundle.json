@@ -1,0 +1,168 @@
+{
+    "type": "bundle",
+    "id": "bundle--all-types-test-001",
+    "objects": [
+        {
+            "type": "x-geo-strategic-actor",
+            "id": "x-geo-strategic-actor--test-001",
+            "name": "Global Test Actor",
+            "description": "A comprehensive test actor to verify all graph elements.",
+            "strategic_alignment": "Other",
+            "geopolitical_doctrine": "Multi-Domain Testing",
+            "revisionist_index": 5.0,
+            "strategic_ambiguity_score": 3.0,
+            "doctrine_type": "status-quo",
+            "technological_modernization_rate": 7.5,
+            "first_seen": "2024-01-01T00:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-objective",
+            "id": "x-strategic-objective--test-001",
+            "name": "Full Coverage Verification",
+            "description": "Objective to ensure all icons and data fields are visible.",
+            "objective_type": "political",
+            "priority_level": "critical",
+            "time_horizon": "short-term",
+            "civil_military_fusion": false,
+            "first_seen": "2024-02-15T00:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "id": "x-hybrid-campaign--test-001",
+            "name": "Visual Validation 2026",
+            "description": "A campaign involving diverse sensors and vectors.",
+            "phase": "sustained-pressure",
+            "nature": ["cyber", "cognitive", "technological"],
+            "velocity": "fast-spike",
+            "escalation_risk_score": 4.5,
+            "first_seen": "2025-06-01T00:00:00Z",
+            "last_seen": "2026-12-31T23:59:59Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-influence-vector",
+            "id": "x-influence-vector--test-001",
+            "name": "Cross-Platform Narrative",
+            "description": "Testing the narrative display logic.",
+            "narrative": "Verified UI enhancements perform as expected across all layers.",
+            "channel": "GitHub, Matrix, Telegram",
+            "target_audience": "Developer Community",
+            "confidence_score": 95,
+            "first_seen": "2026-03-01T00:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-impact",
+            "id": "x-strategic-impact--test-001",
+            "name": "Infrastructure Disruption",
+            "description": "Testing impact indices display.",
+            "political_destabilization_index": 7.2,
+            "economic_disruption_index": 8.5,
+            "deterrence_signal_strength": 6.0,
+            "confidence_score": 85,
+            "first_seen": "2026-06-15T00:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--test-001",
+            "name": "Comprehensive UI Audit",
+            "description": "Assessment of graph component stability.",
+            "hybrid_pressure_index": 4.2,
+            "confidence_score": 100,
+            "strategic_signaling_score": 5.0,
+            "first_seen": "2026-03-14T00:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "intrusion-set",
+            "id": "intrusion-set--test-001",
+            "name": "Panda-Verify",
+            "description": "A test intrusion set associated with the actor.",
+            "first_seen": "2026-01-01T00:00:00Z"
+        },
+        {
+            "type": "threat-actor",
+            "id": "threat-actor--test-001",
+            "name": "The Validator",
+            "description": "Individual persona for testing threat actor display.",
+            "threat_actor_types": ["activist"],
+            "first_seen": "2025-10-10T00:00:00Z"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--test-1",
+            "source_ref": "x-geo-strategic-actor--test-001",
+            "target_ref": "x-strategic-objective--test-001",
+            "relationship_type": "pursues"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--test-2",
+            "source_ref": "x-geo-strategic-actor--test-001",
+            "target_ref": "x-hybrid-campaign--test-001",
+            "relationship_type": "executes"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--test-3",
+            "source_ref": "x-hybrid-campaign--test-001",
+            "target_ref": "x-influence-vector--test-001",
+            "relationship_type": "uses"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--test-4",
+            "source_ref": "x-hybrid-campaign--test-001",
+            "target_ref": "x-strategic-impact--test-001",
+            "relationship_type": "results-in"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--test-5",
+            "source_ref": "x-strategic-assessment--test-001",
+            "target_ref": "x-geo-strategic-actor--test-001",
+            "relationship_type": "evaluates"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--test-6",
+            "source_ref": "x-geo-strategic-actor--test-001",
+            "target_ref": "intrusion-set--test-001",
+            "relationship_type": "attributed-to"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--test-7",
+            "source_ref": "intrusion-set--test-001",
+            "target_ref": "threat-actor--test-001",
+            "relationship_type": "associated-with"
+        }
+    ]
+}
