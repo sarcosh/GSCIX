@@ -47,6 +47,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     const [selectedAnalytics, setSelectedAnalytics] = useState<HpiAnalytics | null>(null);
     const [highlightedConnectionId, setHighlightedConnectionId] = useState<string | null>(null);
     const [panelVisible, setPanelVisible] = useState(true);
+    const [leftPanelVisible, setLeftPanelVisible] = useState(true);
     const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({
         'x-geo-strategic-actor': true,
         'x-strategic-objective': true,
@@ -439,11 +440,13 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     return (
         <div className="h-[calc(100vh-64px)] flex overflow-hidden bg-slate-50 dark:bg-slate-950">
             {/* ── Left Sidebar ── */}
+            {leftPanelVisible && (
             <aside className="w-72 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 z-20 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.08)]">
                 {/* Graph Layers */}
                 <div className="p-5 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Graph Layers</h3>
+                        <div className="flex items-center gap-2">
                         <button
                             onClick={() => setActiveLayers({
                                 'x-geo-strategic-actor': true,
@@ -459,6 +462,10 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         >
                             Reset
                         </button>
+                        <button onClick={() => setLeftPanelVisible(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors" title="Hide filters">
+                            <X size={14} />
+                        </button>
+                        </div>
                     </div>
                     <div className="space-y-2">
                         {LAYER_FILTERS.map(layer => (
@@ -534,6 +541,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                     )}
                 </div>
             </aside>
+            )}
 
             {/* ── Central Graph Canvas ── */}
             <div className="flex-1 relative overflow-hidden bg-slate-50 dark:bg-slate-950 cursor-move"
@@ -541,6 +549,19 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                     backgroundImage: 'linear-gradient(rgba(148,163,184,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.1) 1px, transparent 1px)',
                     backgroundSize: '40px 40px',
                 }}>
+
+                {/* Left sidebar recovery button */}
+                {!leftPanelVisible && (
+                    <div className="absolute top-1/2 -left-1 -translate-y-1/2 z-10">
+                        <button
+                            onClick={() => setLeftPanelVisible(true)}
+                            className="flex items-center justify-center w-8 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-r-xl shadow-lg text-slate-400 hover:text-cyan-500 transition-all group"
+                            title="Show Filters"
+                        >
+                            <ChevronLeft size={20} className="rotate-180 group-hover:translate-x-0.5 transition-transform" />
+                        </button>
+                    </div>
+                )}
 
                 {/* Zoom controls */}
                 <div className="absolute top-6 right-6 flex flex-col gap-2 z-10">
