@@ -109,6 +109,17 @@ export const apiService = {
     getOpenctiUrl: async (): Promise<string> => {
         const response = await apiClient.get<{ url: string }>('/gscix/config/opencti-url');
         return response.data.url;
+    },
+
+    // Create
+    createEntity: async (entity: Partial<GscixEntity>): Promise<GscixEntity> => {
+        const response = await apiClient.post<GscixEntity>('/gscix/entities', entity);
+        return response.data;
+    },
+
+    createRelation: async (relation: { source_ref: string; target_ref: string; relationship_type: string; description?: string }): Promise<GscixRelation> => {
+        const response = await apiClient.post<GscixRelation>('/gscix/relations', relation);
+        return response.data;
     }
 };
 

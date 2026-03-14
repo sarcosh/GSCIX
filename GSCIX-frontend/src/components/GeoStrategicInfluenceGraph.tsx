@@ -3,7 +3,8 @@ import {
     X, Download, Zap,
     Globe, Flag, Megaphone, Bug, Plus, Minus,
     Maximize2, RefreshCw, AlertTriangle, ExternalLink,
-    Share2, Activity, ChevronLeft, Layers, Users
+    Share2, Activity, ChevronLeft, Layers, Users,
+    PlusSquare, GitBranch, Save, ArrowLeft
 } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { cn } from '../lib/utils';
@@ -40,6 +41,7 @@ interface InfluenceGraphProps {
 export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ initialActorId }) => {
     const [entities, setEntities] = useState<GscixEntity[]>([]);
     const [relations, setRelations] = useState<GscixRelation[]>([]);
+    const [allEntities, setAllEntities] = useState<GscixEntity[]>([]);
     const [loading, setLoading] = useState(true);
     const [rootActor, setRootActor] = useState<GscixEntity | null>(null);
     const [selectedAnalytics, setSelectedAnalytics] = useState<HpiAnalytics | null>(null);
@@ -57,6 +59,10 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     });
     const [dateRange, setDateRange] = useState({ from: '', to: '' });
     const [openctiBaseUrl, setOpenctiBaseUrl] = useState<string>('');
+    const [graphMode, setGraphMode] = useState<'view' | 'add-entity' | 'add-relation'>('view');
+    const [saving, setSaving] = useState(false);
+    const [newEntity, setNewEntity] = useState<Record<string, any>>({ type: 'x-strategic-objective', name: '', description: '' });
+    const [newRelation, setNewRelation] = useState({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
     const graphRef = useRef<any>(null);
     const initialZoomDone = useRef(false);
     const d3ForcesConfigured = useRef(false);
@@ -108,9 +114,19 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         }
     }, []);
 
+    const refreshAllEntities = useCallback(async () => {
+        try {
+            const all = await apiService.getEntities();
+            setAllEntities(all);
+        } catch (err) {
+            console.error('Failed to fetch all entities:', err);
+        }
+    }, []);
+
     useEffect(() => {
         fetchGraph(initialActorId);
-    }, [initialActorId, fetchGraph]);
+        refreshAllEntities();
+    }, [initialActorId, fetchGraph, refreshAllEntities]);
 
     // Fetch OpenCTI base URL once on mount
     useEffect(() => {
@@ -541,6 +557,23 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             <Maximize2 size={18} />
                         </button>
                     </div>
+                    <div className="bg-white dark:bg-slate-800 p-1.5 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 flex flex-col gap-1">
+                        <button
+                            onClick={() => { setGraphMode(graphMode === 'add-entity' ? 'view' : 'add-entity'); setPanelVisible(true); }}
+                            className={cn("p-2 rounded transition-colors", graphMode === 'add-entity' ? "bg-cyan-500/20 text-cyan-500" : "hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-cyan-500 text-slate-500")}
+                            title="Add Entity"
+                        >
+                            <PlusSquare size={18} />
+                        </button>
+                        <div className="h-px w-full bg-slate-100 dark:bg-slate-700"></div>
+                        <button
+                            onClick={() => { setGraphMode(graphMode === 'add-relation' ? 'view' : 'add-relation'); setPanelVisible(true); }}
+                            className={cn("p-2 rounded transition-colors", graphMode === 'add-relation' ? "bg-cyan-500/20 text-cyan-500" : "hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-cyan-500 text-slate-500")}
+                            title="Add Relation"
+                        >
+                            <GitBranch size={18} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="absolute inset-0 z-0">
@@ -651,8 +684,356 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
             </div>
 
             {/* ── Right Detail Panel ── */}
-            {panelVisible && rootActor && (
+            {panelVisible && (graphMode !== 'view' || rootActor) && (
                 <aside className="w-96 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col z-20 shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.08)] overflow-y-auto shrink-0 [scrollbar-gutter:stable]">
+
+                {/* ── ADD ENTITY FORM ── */}
+                {graphMode === 'add-entity' && (
+                    <>
+                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-cyan-500 border border-cyan-500/20 px-2 py-0.5 rounded-full bg-cyan-500/5 flex items-center gap-1">
+                                <PlusSquare size={12} /> New Entity
+                            </span>
+                            <button onClick={() => setGraphMode('view')} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">Add Entity</h2>
+                        <p className="text-xs text-slate-500 mt-1">Create a new entity in the knowledge graph.</p>
+                    </div>
+                    <div className="flex-1 p-6 space-y-5 overflow-y-auto">
+                        {/* Type */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Type *</label>
+                            <select
+                                value={newEntity.type}
+                                onChange={(e) => setNewEntity({ type: e.target.value, name: '', description: '' })}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                            >
+                                {Object.entries(NODE_CONFIG).map(([key, cfg]) => (
+                                    <option key={key} value={key}>{cfg.label}</option>
+                                ))}
+                            </select>
+                            <div className="mt-2 flex items-center gap-2">
+                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: NODE_CONFIG[newEntity.type]?.color || '#64748b' }}></div>
+                                <span className="text-[10px] text-slate-400 font-mono">{newEntity.type}</span>
+                            </div>
+                        </div>
+                        {/* Name */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Name *</label>
+                            <input
+                                type="text"
+                                value={newEntity.name || ''}
+                                onChange={(e) => setNewEntity(prev => ({ ...prev, name: e.target.value }))}
+                                placeholder="Entity name"
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400"
+                            />
+                        </div>
+                        {/* Description */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Description</label>
+                            <textarea
+                                value={newEntity.description || ''}
+                                onChange={(e) => setNewEntity(prev => ({ ...prev, description: e.target.value }))}
+                                placeholder="Optional description"
+                                rows={3}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400 resize-none"
+                            />
+                        </div>
+                        {/* First Seen / Last Seen */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">First Seen</label>
+                                <input type="date" value={newEntity.first_seen || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, first_seen: e.target.value }))}
+                                    className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Last Seen</label>
+                                <input type="date" value={newEntity.last_seen || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, last_seen: e.target.value }))}
+                                    className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                            </div>
+                        </div>
+
+                        {/* Dynamic GSCI fields based on type */}
+                        <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Type-specific Attributes</label>
+
+                            {newEntity.type === 'x-geo-strategic-actor' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Alignment</label>
+                                        <select value={newEntity.strategic_alignment || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, strategic_alignment: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>Revisionist</option><option>Status-Quo</option><option>Non-Aligned</option><option>Other</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Revisionist Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.revisionist_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, revisionist_index: parseFloat(e.target.value) || undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Ambiguity Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.strategic_ambiguity_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, strategic_ambiguity_score: parseFloat(e.target.value) || undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {newEntity.type === 'x-strategic-objective' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Objective Type</label>
+                                        <select value={newEntity.objective_type || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, objective_type: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>political</option><option>military</option><option>economic</option><option>technological</option><option>informational</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Priority Level</label>
+                                        <select value={newEntity.priority_level || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, priority_level: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>critical</option><option>high</option><option>medium</option><option>low</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Time Horizon</label>
+                                        <select value={newEntity.time_horizon || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, time_horizon: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>short-term</option><option>medium-term</option><option>long-term</option><option>decadal</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {newEntity.type === 'x-hybrid-campaign' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Phase</label>
+                                        <select value={newEntity.phase || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, phase: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>planning</option><option>active</option><option>escalation</option><option>de-escalation</option><option>dormant</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Hybrid Pressure Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.hybrid_pressure_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, hybrid_pressure_index: parseFloat(e.target.value) || undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {newEntity.type === 'x-influence-vector' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Channel</label>
+                                        <input type="text" value={newEntity.channel || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, channel: e.target.value }))} placeholder="e.g. social-media"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Narrative</label>
+                                        <textarea value={newEntity.narrative || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, narrative: e.target.value }))} rows={2} placeholder="Key narrative"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400 resize-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Target Audience</label>
+                                        <input type="text" value={newEntity.target_audience || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, target_audience: e.target.value }))} placeholder="e.g. Baltic civilian population"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {newEntity.type === 'x-strategic-impact' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Political Destabilization Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.political_destabilization_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, political_destabilization_index: parseFloat(e.target.value) || undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Economic Disruption Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.economic_disruption_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, economic_disruption_index: parseFloat(e.target.value) || undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Confidence Score (0-100)</label>
+                                        <input type="number" min="0" max="100" value={newEntity.confidence_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, confidence_score: parseInt(e.target.value) || undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {(newEntity.type === 'intrusion-set' || newEntity.type === 'threat-actor') && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Resource Level</label>
+                                        <select value={newEntity.resource_level || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, resource_level: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>individual</option><option>club</option><option>contest</option><option>team</option><option>organization</option><option>government</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Primary Motivation</label>
+                                        <select value={newEntity.primary_motivation || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, primary_motivation: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>accidental</option><option>coercion</option><option>dominance</option><option>ideology</option><option>notoriety</option><option>organizational-gain</option><option>personal-gain</option><option>personal-satisfaction</option><option>revenge</option><option>unpredictable</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    {/* Save / Cancel footer */}
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-3 mt-auto shrink-0">
+                        <button onClick={() => setGraphMode('view')}
+                            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm text-sm font-semibold transition-colors text-slate-700 dark:text-slate-300">
+                            <ArrowLeft size={16} /> Cancel
+                        </button>
+                        <button
+                            disabled={!newEntity.name || saving}
+                            onClick={async () => {
+                                try {
+                                    setSaving(true);
+                                    const { type, name, description, first_seen, last_seen, ...gsciFields } = newEntity;
+                                    const payload: any = { type, name, description };
+                                    if (first_seen) payload.first_seen = first_seen + 'T00:00:00Z';
+                                    if (last_seen) payload.last_seen = last_seen + 'T00:00:00Z';
+                                    // GSCI attributes go into gsciAttributes for custom types
+                                    const cleanGsci = Object.fromEntries(Object.entries(gsciFields).filter(([_, v]) => v !== '' && v !== undefined));
+                                    if (Object.keys(cleanGsci).length > 0) {
+                                        payload.gsciAttributes = cleanGsci;
+                                        // Also put them at root for the backend processEntity
+                                        Object.assign(payload, cleanGsci);
+                                    }
+                                    await apiService.createEntity(payload);
+                                    // Refresh graph and all entities list
+                                    await fetchGraph(initialActorId);
+                                    await refreshAllEntities();
+                                    // Auto-switch to Add Relation so user can connect the new entity
+                                    setNewEntity({ type: 'x-strategic-objective', name: '', description: '' });
+                                    setNewRelation({
+                                        source_ref: '',
+                                        relationship_type: 'attributed-to',
+                                        target_ref: '',
+                                    });
+                                    setGraphMode('add-relation');
+                                } catch (err) {
+                                    console.error('Failed to create entity:', err);
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }}
+                            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            {saving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />} Save
+                        </button>
+                    </div>
+                    </>
+                )}
+
+                {/* ── ADD RELATION FORM ── */}
+                {graphMode === 'add-relation' && (
+                    <>
+                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-cyan-500 border border-cyan-500/20 px-2 py-0.5 rounded-full bg-cyan-500/5 flex items-center gap-1">
+                                <GitBranch size={12} /> New Relation
+                            </span>
+                            <button onClick={() => setGraphMode('view')} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">Add Relation</h2>
+                        <p className="text-xs text-slate-500 mt-1">Create a connection between two entities.</p>
+                    </div>
+                    <div className="flex-1 p-6 space-y-5 overflow-y-auto">
+                        {/* Source */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Source *</label>
+                            <select value={newRelation.source_ref} onChange={(e) => setNewRelation(prev => ({ ...prev, source_ref: e.target.value }))}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <option value="">Select source entity...</option>
+                                {allEntities.map((e) => (
+                                    <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Relation Type */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Relation Type *</label>
+                            <select value={newRelation.relationship_type} onChange={(e) => setNewRelation(prev => ({ ...prev, relationship_type: e.target.value }))}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                {['attributed-to', 'pursues', 'executes', 'uses', 'deploys', 'generates', 'evaluates', 'associated-with', 'targets', 'indicates', 'mitigates'].map(rt => (
+                                    <option key={rt} value={rt}>{rt}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Target */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Target *</label>
+                            <select value={newRelation.target_ref} onChange={(e) => setNewRelation(prev => ({ ...prev, target_ref: e.target.value }))}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <option value="">Select target entity...</option>
+                                {allEntities.filter(e => e.stixId !== newRelation.source_ref).map((e) => (
+                                    <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Visual preview */}
+                        {newRelation.source_ref && newRelation.target_ref && (
+                            <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Preview</p>
+                                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                                    <span className="font-semibold truncate max-w-[120px]">{allEntities.find(e => e.stixId === newRelation.source_ref)?.name}</span>
+                                    <span className="text-cyan-500 font-mono shrink-0">—{newRelation.relationship_type}→</span>
+                                    <span className="font-semibold truncate max-w-[120px]">{allEntities.find(e => e.stixId === newRelation.target_ref)?.name}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {/* Save / Cancel footer */}
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-3 mt-auto shrink-0">
+                        <button onClick={() => setGraphMode('view')}
+                            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm text-sm font-semibold transition-colors text-slate-700 dark:text-slate-300">
+                            <ArrowLeft size={16} /> Cancel
+                        </button>
+                        <button
+                            disabled={!newRelation.source_ref || !newRelation.target_ref || saving}
+                            onClick={async () => {
+                                try {
+                                    setSaving(true);
+                                    await apiService.createRelation({
+                                        source_ref: newRelation.source_ref,
+                                        target_ref: newRelation.target_ref,
+                                        relationship_type: newRelation.relationship_type,
+                                    });
+                                    setNewRelation({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
+                                    setGraphMode('view');
+                                    fetchGraph(initialActorId);
+                                } catch (err) {
+                                    console.error('Failed to create relation:', err);
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }}
+                            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            {saving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />} Save
+                        </button>
+                    </div>
+                    </>
+                )}
+
+                {/* ── VIEW MODE: Original panel ── */}
+                {graphMode === 'view' && rootActor && (
+                <>
                     {/* Header — always shows the root Geo-Strategic Actor */}
                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                         <div className="flex items-center justify-between mb-3">
@@ -1031,6 +1412,8 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             <Zap size={16} /> Analyze
                         </button>
                     </div>
+                </>
+                )}
                 </aside>
             )
             }
