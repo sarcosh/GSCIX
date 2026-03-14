@@ -1,0 +1,38 @@
+{
+    "type": "bundle",
+    "id": "bundle--target-actor-test-stix-001",
+    "objects": [
+        {
+            "type": "intrusion-set",
+            "id": "intrusion-set--link-stix-001",
+            "name": "Sandstorm Collective",
+            "description": "State-sponsored intrusion set specializing in critical infrastructure targeting across Eastern Europe.",
+            "aliases": ["SANDSTORM", "Dune Viper"],
+            "first_seen": "2023-03-10T00:00:00Z",
+            "last_seen": "2025-09-20T00:00:00Z",
+            "goals": ["Critical infrastructure disruption", "Intelligence collection"],
+            "resource_level": "government",
+            "primary_motivation": "dominance",
+            "x_opencti_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        },
+        {
+            "type": "threat-actor",
+            "id": "threat-actor--link-stix-001",
+            "name": "Operator Dune",
+            "description": "Individual operator within Sandstorm Collective responsible for initial access via spear-phishing campaigns.",
+            "first_seen": "2023-06-15T00:00:00Z",
+            "last_seen": "2025-08-10T00:00:00Z",
+            "threat_actor_types": ["nation-state"],
+            "resource_level": "government",
+            "primary_motivation": "ideology",
+            "x_opencti_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--stix-link-001",
+            "source_ref": "intrusion-set--link-stix-001",
+            "target_ref": "threat-actor--link-stix-001",
+            "relationship_type": "attributed-to"
+        }
+    ]
+}

@@ -9,11 +9,13 @@ import {
     Code,
     Copy,
     Info,
-    XCircle
+    XCircle,
+    Search,
+    Link
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import apiService from '../services/api';
-import type { ValidationResponse, IngestionJob } from '../types/api';
+import type { GscixEntity, ValidationResponse, IngestionJob } from '../types/api';
 
 interface IngestionStats {
     processing: boolean;
@@ -28,6 +30,8 @@ export const DataIngestionPanel: React.FC = () => {
     const [confidence, setConfidence] = useState(85);
     const [validating, setValidating] = useState(false);
     const [validationResult, setValidationResult] = useState<ValidationResponse | null>(null);
+    const [targetActorId, setTargetActorId] = useState<string>('');
+    const [actors, setActors] = useState<GscixEntity[]>([]);
     const [stats, setStats] = useState<IngestionStats>({
         processing: false,
         recentJobs: []
@@ -44,6 +48,7 @@ export const DataIngestionPanel: React.FC = () => {
 
     useEffect(() => {
         fetchHistory();
+        apiService.getActors().then(setActors).catch(() => {});
     }, [fetchHistory]);
 
     const validateJson = useCallback(async (content: string) => {
@@ -93,7 +98,7 @@ export const DataIngestionPanel: React.FC = () => {
             const data = JSON.parse(jsonContent);
 
             if (data.type === 'bundle') {
-                await apiService.ingestBundle(data, fileName);
+                await apiService.ingestBundle(data, fileName, targetActorId || undefined);
             } else {
                 await apiService.ingestData(data);
             }
@@ -197,6 +202,43 @@ export const DataIngestionPanel: React.FC = () => {
                                     <span className="text-sm font-bold text-primary font-mono w-10">{confidence}%</span>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Target Actor */}
+                    <div className="bg-surface-light dark:bg-surface-dark shadow-sm rounded-xl p-6 border border-border-light dark:border-border-dark">
+                        <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-2 flex items-center gap-2 uppercase tracking-wide">
+                            <Search className="text-primary" size={18} />
+                            Target Actor
+                        </h2>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
+                            Associate incoming entities with an existing strategic actor in the knowledge graph.
+                        </p>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Select Existing Actor</label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-2.5 text-slate-400 pointer-events-none" size={16} />
+                                    <select
+                                        value={targetActorId}
+                                        onChange={(e) => setTargetActorId(e.target.value)}
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none appearance-none"
+                                    >
+                                        <option value="">None (No linking)</option>
+                                        {actors.map(actor => (
+                                            <option key={actor.stixId} value={actor.stixId}>{actor.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            {targetActorId && (
+                                <div className="p-2.5 bg-blue-50 dark:bg-blue-500/10 rounded-lg border border-blue-100 dark:border-blue-500/20 flex items-center gap-2">
+                                    <Info className="text-primary shrink-0" size={14} />
+                                    <span className="text-[10px] text-blue-700 dark:text-blue-300 font-medium">
+                                        Linking will create 'attributed-to' relationships automatically.
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 

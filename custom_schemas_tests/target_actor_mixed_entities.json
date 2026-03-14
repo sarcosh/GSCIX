@@ -1,0 +1,86 @@
+{
+    "type": "bundle",
+    "id": "bundle--target-actor-test-mixed-001",
+    "objects": [
+        {
+            "type": "x-strategic-objective",
+            "id": "x-strategic-objective--mixed-001",
+            "name": "Energy Supply Chain Dominance",
+            "description": "Establish leverage over European energy markets through pipeline control and LNG export monopolization.",
+            "objective_type": "economic",
+            "priority_level": "high",
+            "time_horizon": "decade",
+            "first_seen": "2024-01-15T00:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "id": "x-hybrid-campaign--mixed-001",
+            "name": "Operation Pipeline Pressure",
+            "description": "Multi-vector campaign combining cyber sabotage of energy infrastructure with diplomatic coercion.",
+            "phase": "escalation",
+            "first_seen": "2024-04-01T00:00:00Z",
+            "last_seen": "2025-06-15T00:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo",
+                    "nature": ["cyber", "economic", "diplomatic"],
+                    "hybrid_pressure_index": 8.3,
+                    "confidence_score": 88
+                }
+            }
+        },
+        {
+            "type": "intrusion-set",
+            "id": "intrusion-set--mixed-001",
+            "name": "Energetic Bear Reloaded",
+            "description": "Evolved variant of the Energetic Bear APT group, now targeting European energy SCADA systems.",
+            "aliases": ["ENERGETIC BEAR 2.0", "Dragonfly III"],
+            "first_seen": "2024-02-20T00:00:00Z",
+            "last_seen": "2025-11-01T00:00:00Z",
+            "goals": ["SCADA disruption", "Energy sector espionage"],
+            "resource_level": "government",
+            "primary_motivation": "dominance",
+            "x_opencti_id": "d4e5f6a7-b8c9-0123-defa-234567890123"
+        },
+        {
+            "type": "x-strategic-impact",
+            "id": "x-strategic-impact--mixed-001",
+            "name": "European Energy Market Destabilization",
+            "description": "Measurable disruption to European gas spot prices and supply chain confidence.",
+            "first_seen": "2024-09-01T00:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo",
+                    "political_destabilization_index": 6.2,
+                    "economic_disruption_index": 8.7
+                }
+            }
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--mixed-obj-camp",
+            "source_ref": "x-strategic-objective--mixed-001",
+            "target_ref": "x-hybrid-campaign--mixed-001",
+            "relationship_type": "pursues"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--mixed-camp-is",
+            "source_ref": "x-hybrid-campaign--mixed-001",
+            "target_ref": "intrusion-set--mixed-001",
+            "relationship_type": "uses"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--mixed-camp-impact",
+            "source_ref": "x-hybrid-campaign--mixed-001",
+            "target_ref": "x-strategic-impact--mixed-001",
+            "relationship_type": "generates"
+        }
+    ]
+}

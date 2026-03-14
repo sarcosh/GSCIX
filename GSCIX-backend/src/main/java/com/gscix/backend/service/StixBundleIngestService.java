@@ -56,6 +56,10 @@ public class StixBundleIngestService {
     }
 
     public Map<String, Object> ingestBundle(Map<String, Object> bundle, String filename) {
+        return ingestBundle(bundle, filename, null);
+    }
+
+    public Map<String, Object> ingestBundle(Map<String, Object> bundle, String filename, String targetActorId) {
         List<Map<String, Object>> objects = (List<Map<String, Object>>) bundle.get("objects");
         if (objects == null) {
             trackingService.logJob(filename, "ERROR", "No objects found in bundle", 0, 0);
@@ -64,6 +68,7 @@ public class StixBundleIngestService {
 
         int entitiesCreated = 0;
         int relationsCreated = 0;
+        List<String> ingestedEntityIds = new ArrayList<>();
 
         for (Map<String, Object> obj : objects) {
             String type = (String) obj.get("type");
@@ -73,11 +78,25 @@ public class StixBundleIngestService {
                 processRelationship(obj);
                 relationsCreated++;
             } else if (type != null && !NON_ENTITY_TYPES.contains(type)) {
-                // Process both GSCIX custom SDOs (x-*) and standard STIX 2.1 SDOs
-                // (intrusion-set, threat-actor, malware, attack-pattern, etc.)
                 processEntity(obj);
                 entitiesCreated++;
+                if (id != null) {
+                    ingestedEntityIds.add(id);
+                }
             }
+        }
+
+        // If a target actor was specified, create 'attributed-to' relationships
+        // from the target actor to each ingested entity (excluding the actor itself).
+        if (targetActorId != null && !targetActorId.isBlank()) {
+            for (String entityId : ingestedEntityIds) {
+                if (!entityId.equals(targetActorId)) {
+                    createAttributedToRelation(targetActorId, entityId);
+                    relationsCreated++;
+                }
+            }
+            logger.info("Created {} 'attributed-to' relations linking actor {} to ingested entities.",
+                    ingestedEntityIds.size(), targetActorId);
         }
 
         Map<String, Object> result = Map.of(
@@ -171,6 +190,20 @@ public class StixBundleIngestService {
         entity.setGsciAttributes(gsciAttributes);
         entityRepository.save(entity);
         logger.info("Ingested Entity from Bundle: type={} name={} ({})", type, name, id);
+    }
+
+    private void createAttributedToRelation(String actorId, String entityId) {
+        GscixRelation relation = new GscixRelation();
+        relation.setId("relationship--" + java.util.UUID.randomUUID());
+        relation.setSourceRef(actorId);
+        relation.setTargetRef(entityId);
+        relation.setRelationshipType("attributed-to");
+        relation.setDescription("Auto-generated link from target actor to ingested entity.");
+        relation.setExtensions(Collections.singletonList(GSCI_EXTENSION_ID));
+        relation.setStartTime(Instant.now());
+        relation.setConfidence(85);
+        relationRepository.save(relation);
+        logger.info("Created attributed-to relation: {} -> {}", actorId, entityId);
     }
 
     private void processRelationship(Map<String, Object> obj) {

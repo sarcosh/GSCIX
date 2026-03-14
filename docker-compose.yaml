@@ -298,6 +298,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "5173:80"
+    environment:
+      - VITE_API_URL=http://localhost:8081/api/v1
     depends_on:
       - gscix-backend
     restart: always

@@ -1,7 +1,9 @@
 import axios from 'axios';
 import type { GscixEntity, ValidationResponse, GscixRelation, IngestionJob, HpiAnalytics, InfluenceGraphData } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+// __VITE_API_URL__ is replaced at container startup by entrypoint.sh
+// with the value of the VITE_API_URL environment variable.
+const API_BASE_URL: string = '__VITE_API_URL__';
 console.log('API Base URL:', API_BASE_URL);
 
 const apiClient = axios.create({
@@ -46,10 +48,11 @@ export const apiService = {
         return response.data;
     },
 
-    ingestBundle: async (data: any, filename?: string) => {
-        const response = await apiClient.post('/geopolitical/bundle', data, {
-            params: filename ? { filename } : {}
-        });
+    ingestBundle: async (data: any, filename?: string, targetActorId?: string) => {
+        const params: Record<string, string> = {};
+        if (filename) params.filename = filename;
+        if (targetActorId) params.targetActorId = targetActorId;
+        const response = await apiClient.post('/geopolitical/bundle', data, { params });
         return response.data;
     },
 

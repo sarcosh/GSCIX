@@ -64,8 +64,9 @@ public class GeopoliticalIngestController {
             + "and extracts GSCIX extensions.")
     public ResponseEntity<java.util.Map<String, Object>> ingestBundle(
             @RequestBody java.util.Map<String, Object> bundle,
-            @org.springframework.web.bind.annotation.RequestParam(required = false) String filename) {
-        java.util.Map<String, Object> response = bundleIngestService.ingestBundle(bundle, filename);
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String filename,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String targetActorId) {
+        java.util.Map<String, Object> response = bundleIngestService.ingestBundle(bundle, filename, targetActorId);
         if ("ERROR".equals(response.get("status"))) {
             return ResponseEntity.badRequest().body(response);
         }
