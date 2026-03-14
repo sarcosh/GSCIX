@@ -121,9 +121,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
             }, 50);
         }
 
-        if (graphRef.current) {
-            graphRef.current.centerAt(node.x, node.y, 500);
-        }
+
     }, [fetchAnalytics]);
 
     // Build visual graph data from the backend-provided entities/relations + client layer filters
@@ -178,8 +176,8 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         else if (node.type === 'x-strategic-impact') r = 10;
         else if (node.type === 'intrusion-set' || node.type === 'threat-actor') r = 10;
 
-        const isSelected = selectedNodeRef.current?.stixId === node.id;
         const isHighlighted = highlightedConnectionIdRef.current === node.id;
+        const isSelected = selectedNodeRef.current?.stixId === node.id && !highlightedConnectionIdRef.current;
 
         // Outer glow
         if (isSelected || isHighlighted) {
@@ -647,7 +645,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     {selectedNode.gsciAttributes?.hybrid_pressure_index !== undefined && (
                                         <div className="flex justify-between text-sm">
                                             <span className="text-slate-500">HPI</span>
-                                            <span className="font-mono font-semibold text-slate-700 dark:text-white">{selectedNode.gsciAttributes.hybrid_pressure_index.toFixed(1)}</span>
+                                            <span className="font-mono font-semibold text-slate-700 dark:text-white">{(selectedNode.gsciAttributes.hybrid_pressure_index ?? 0).toFixed(1)}</span>
                                         </div>
                                     )}
                                     {selectedNode.gsciAttributes?.confidence_score !== undefined && (
@@ -660,55 +658,112 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             </div>
                         )}
 
-                        {/* Connected entities */}
+                        {/* Graph Elements (All visible nodes except selected actor) */}
                         <div>
-                            <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                                🕸️ Connections
+                            <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                                <span>🕸️ Graph Elements</span>
+                                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">{graphData.nodes.length - 1}</span>
                             </h3>
                             <ul className="space-y-2">
-                                {relations
-                                    .filter(r => r.source_ref === selectedNode.stixId || r.target_ref === selectedNode.stixId)
-                                    .slice(0, 12)
-                                    .map((r, i) => {
-                                        const otherId = r.source_ref === selectedNode.stixId ? r.target_ref : r.source_ref;
-                                        const otherEntity = entities.find(e => e.stixId === otherId);
-                                        const isHighlighted = highlightedConnectionId === otherId;
+                                {graphData.nodes
+                                    .filter((n: any) => n.id !== selectedNode.stixId)
+                                    .map((n: any) => {
+                                        const nodeEntity = n.entity as GscixEntity;
+                                        const isHighlighted = highlightedConnectionId === n.id;
+                                        const nodeRelations = relations.filter(r => r.source_ref === n.id || r.target_ref === n.id);
+                                        const primaryRelation = nodeRelations.find(r => r.source_ref === selectedNode.stixId || r.target_ref === selectedNode.stixId);
+
                                         return (
-                                            <li key={i}
-                                                id={`conn-${otherId}`}
+                                            <li key={n.id}
+                                                id={`conn-${n.id}`}
                                                 className={cn(
-                                                    "flex items-center justify-between text-xs p-2.5 rounded-lg border transition-all duration-300 cursor-pointer",
+                                                    "flex flex-col rounded-lg border transition-all duration-300 cursor-pointer overflow-hidden",
                                                     isHighlighted
                                                         ? "bg-cyan-500/10 dark:bg-cyan-500/15 border-cyan-500 shadow-[0_0_12px_-3px_rgba(6,182,212,0.4)] ring-1 ring-cyan-500/30"
                                                         : "bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-cyan-500/50"
                                                 )}
                                                 onClick={() => {
-                                                    setHighlightedConnectionId(otherId);
-                                                    // Center graph on that node
-                                                    const gNode = graphData.nodes.find((n: any) => n.id === otherId);
-                                                    if (gNode && graphRef.current) {
-                                                        graphRef.current.centerAt((gNode as any).x, (gNode as any).y, 500);
-                                                    }
+                                                    setHighlightedConnectionId(isHighlighted ? null : n.id);
                                                 }}
                                             >
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    {/* Node shape representation in the list */}
-                                                    <div className="shrink-0 w-6 h-6 rounded flex items-center justify-center bg-slate-900 shadow-inner">
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                                            <path d={NODE_CONFIG[otherEntity?.type || '']?.path || ''} />
-                                                        </svg>
+                                                {/* Header / Pill */}
+                                                <div className="flex items-center justify-between text-xs p-2.5">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div className="shrink-0 w-6 h-6 rounded flex items-center justify-center bg-slate-900 shadow-inner">
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d={NODE_CONFIG[n.type]?.path || ''} />
+                                                            </svg>
+                                                        </div>
+                                                        <span className={cn(
+                                                            "font-medium truncate",
+                                                            isHighlighted ? "text-cyan-700 dark:text-cyan-300" : "text-slate-700 dark:text-slate-300"
+                                                        )}>{n.name}</span>
                                                     </div>
-                                                    <span className={cn(
-                                                        "font-medium truncate",
-                                                        isHighlighted ? "text-cyan-700 dark:text-cyan-300" : "text-slate-700 dark:text-slate-300"
-                                                    )}>{otherEntity?.name || otherId.substring(0, 20)}</span>
+                                                    {primaryRelation && (
+                                                        <span className={cn(
+                                                            "font-mono text-[10px] px-1.5 py-0.5 rounded shrink-0 ml-2",
+                                                            isHighlighted
+                                                                ? "text-cyan-700 dark:text-cyan-300 bg-cyan-500/20"
+                                                                : "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10"
+                                                        )}>{primaryRelation.relationship_type}</span>
+                                                    )}
                                                 </div>
-                                                <span className={cn(
-                                                    "font-mono text-[10px] px-1.5 py-0.5 rounded shrink-0 ml-2",
-                                                    isHighlighted
-                                                        ? "text-cyan-700 dark:text-cyan-300 bg-cyan-500/20"
-                                                        : "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10"
-                                                )}>{r.relationship_type}</span>
+
+                                                {/* Expanded Accordion Content */}
+                                                <div className={cn(
+                                                    "px-3 pb-3 transition-all duration-300 ease-in-out",
+                                                    isHighlighted ? "max-h-96 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+                                                )}>
+                                                    <div className="pt-2 border-t border-cyan-500/20 space-y-3">
+                                                        {nodeEntity.description && (
+                                                            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                                                                {nodeEntity.description}
+                                                            </p>
+                                                        )}
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            {nodeEntity.gsciAttributes?.phase && (
+                                                                <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                    <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Phase</span>
+                                                                    <span className="text-[10px] text-slate-300 font-mono">{nodeEntity.gsciAttributes.phase}</span>
+                                                                </div>
+                                                            )}
+                                                            {nodeEntity.gsciAttributes?.hybrid_pressure_index !== undefined && (
+                                                                <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                    <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">HPI Index</span>
+                                                                    <span className="text-[10px] text-cyan-400 font-bold font-mono">{(nodeEntity.gsciAttributes.hybrid_pressure_index ?? 0).toFixed(1)}</span>
+                                                                </div>
+                                                            )}
+                                                            {nodeEntity.gsciAttributes?.confidence_score !== undefined && (
+                                                                <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                    <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Confidence</span>
+                                                                    <span className="text-[10px] text-emerald-400 font-bold font-mono">{nodeEntity.gsciAttributes.confidence_score}%</span>
+                                                                </div>
+                                                            )}
+                                                            <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Type</span>
+                                                                <span className="text-[10px] text-amber-500 font-bold">{NODE_CONFIG[n.type]?.label || n.type}</span>
+                                                            </div>
+                                                        </div>
+                                                        {nodeEntity.gsciAttributes?.nature && nodeEntity.gsciAttributes.nature.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {nodeEntity.gsciAttributes.nature.map((nat, idx) => (
+                                                                    <span key={idx} className="text-[9px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">
+                                                                        {nat}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                // Future action: navigate deep
+                                                            }}
+                                                            className="w-full py-1.5 text-[10px] font-bold bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors uppercase tracking-wider shadow-sm"
+                                                        >
+                                                            Deep Analysis
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </li>
                                         );
                                     })}
