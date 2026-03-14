@@ -56,6 +56,11 @@ public class GscixController {
         return ResponseEntity.ok(entityRepository.findAll());
     }
 
+    @GetMapping("/entities/type/{type}")
+    public ResponseEntity<List<GscixEntity>> getEntitiesByType(@PathVariable String type) {
+        return ResponseEntity.ok(entityRepository.findByType(type));
+    }
+
     @GetMapping("/entities/{id}")
     public ResponseEntity<GscixEntity> getEntityById(@PathVariable String id) {
         return entityRepository.findById(id)

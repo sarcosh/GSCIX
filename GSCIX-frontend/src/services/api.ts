@@ -25,6 +25,11 @@ export const apiService = {
         return Array.isArray(data) ? data : [];
     },
 
+    getEntitiesByType: async (type: string): Promise<GscixEntity[]> => {
+        const response = await apiClient.get<GscixEntity[]>(`/gscix/entities/type/${type}`);
+        return response.data;
+    },
+
     getEntity: async (id: string): Promise<GscixEntity> => {
         const response = await apiClient.get<GscixEntity>(`/gscix/entities/${id}`);
         return response.data;
@@ -70,6 +75,10 @@ export const apiService = {
 
     async deleteEntity(id: string): Promise<void> {
         await apiClient.delete(`/geopolitical/entities/${id}`);
+    },
+
+    async deleteEntityCascade(id: string): Promise<void> {
+        await apiClient.delete(`/geopolitical/entities/${id}`, { params: { cascade: true } });
     },
 
     // Analytics

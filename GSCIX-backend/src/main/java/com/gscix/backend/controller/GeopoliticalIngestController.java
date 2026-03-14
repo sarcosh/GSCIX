@@ -94,9 +94,15 @@ public class GeopoliticalIngestController {
     }
 
     @DeleteMapping("/entities/{id}")
-    @Operation(summary = "Delete GSCIX entity", description = "Deletes an entity and all its associated relations.")
-    public ResponseEntity<Void> deleteEntity(@PathVariable String id) {
-        ingestService.deleteEntity(id);
+    @Operation(summary = "Delete GSCIX entity", description = "Deletes an entity and all its associated relations. With cascade=true, also deletes child entities that would become orphaned.")
+    public ResponseEntity<Void> deleteEntity(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "false") boolean cascade) {
+        if (cascade) {
+            ingestService.deleteEntityCascade(id);
+        } else {
+            ingestService.deleteEntity(id);
+        }
         return ResponseEntity.noContent().build();
     }
 }

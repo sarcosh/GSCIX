@@ -4,7 +4,7 @@ import {
     Globe, Flag, Megaphone, Bug, Plus, Minus,
     Maximize2, RefreshCw, AlertTriangle, ExternalLink,
     Share2, Activity, ChevronLeft, Layers, Users,
-    PlusSquare, GitBranch, Save, ArrowLeft
+    PlusSquare, GitBranch, Save, ArrowLeft, Trash2
 } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { cn } from '../lib/utils';
@@ -24,7 +24,6 @@ const NODE_CONFIG: Record<string, { color: string; border: string; path: string;
 };
 
 const LAYER_FILTERS = [
-    { key: 'x-geo-strategic-actor', label: 'Geo-Strategic Actors', icon: Globe, color: 'text-cyan-500 bg-cyan-500/10' },
     { key: 'x-strategic-objective', label: 'Strategic Objectives', icon: Flag, color: 'text-amber-500 bg-amber-500/10' },
     { key: 'x-hybrid-campaign', label: 'Hybrid Campaigns', icon: Megaphone, color: 'text-red-500 bg-red-500/10' },
     { key: 'x-influence-vector', label: 'Influence Vectors', icon: Share2, color: 'text-purple-500 bg-purple-500/10' },
@@ -49,7 +48,6 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     const [panelVisible, setPanelVisible] = useState(true);
     const [leftPanelVisible, setLeftPanelVisible] = useState(true);
     const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({
-        'x-geo-strategic-actor': true,
         'x-strategic-objective': true,
         'x-hybrid-campaign': true,
         'x-strategic-assessment': true,
@@ -64,6 +62,9 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     const [saving, setSaving] = useState(false);
     const [newEntity, setNewEntity] = useState<Record<string, any>>({ type: 'x-strategic-objective', name: '', description: '' });
     const [newRelation, setNewRelation] = useState({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
+    const [deleteTarget, setDeleteTarget] = useState<{ entity: GscixEntity; childCount: number; relationCount: number } | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [openctiEntities, setOpenctiEntities] = useState<GscixEntity[]>([]);
     const graphRef = useRef<any>(null);
     const initialZoomDone = useRef(false);
     const d3ForcesConfigured = useRef(false);
@@ -420,6 +421,42 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     const nodeCount = graphData.nodes.length;
     const edgeCount = graphData.links.length;
 
+    // Compute cascade impact: BFS from entityId following outgoing relations.
+    // A child is included in the deletion set only if all its incoming relations
+    // come from nodes already in the deletion set (i.e. it would be orphaned).
+    const computeCascadeImpact = useCallback((entityId: string) => {
+        const toDelete = new Set<string>([entityId]);
+        const queue = [entityId];
+        const affectedRelations = new Set<string>();
+
+        while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            // Outgoing relations from current node
+            const outgoing = relations.filter(r => r.source_ref === currentId);
+            for (const r of outgoing) {
+                affectedRelations.add(r.id || `${r.source_ref}-${r.target_ref}`);
+                const childId = r.target_ref;
+                if (toDelete.has(childId)) continue;
+
+                // Check if child has any incoming relations from outside the deletion set
+                const childIncoming = relations.filter(ir => ir.target_ref === childId);
+                const hasExternalParent = childIncoming.some(ir => !toDelete.has(ir.source_ref));
+
+                if (!hasExternalParent) {
+                    toDelete.add(childId);
+                    queue.push(childId);
+                }
+            }
+            // Also count incoming relations to current node (they'll be deleted too)
+            const incoming = relations.filter(r => r.target_ref === currentId);
+            for (const r of incoming) {
+                affectedRelations.add(r.id || `${r.source_ref}-${r.target_ref}`);
+            }
+        }
+
+        return { entityCount: toDelete.size, relationCount: affectedRelations.size };
+    }, [relations]);
+
     if (!initialActorId && entities.length === 0 && !loading) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center h-[calc(100vh-64px)] w-full bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
@@ -449,7 +486,6 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         <div className="flex items-center gap-2">
                         <button
                             onClick={() => setActiveLayers({
-                                'x-geo-strategic-actor': true,
                                 'x-strategic-objective': true,
                                 'x-hybrid-campaign': true,
                                 'x-strategic-assessment': true,
@@ -702,6 +738,76 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         </button>
                     </div>
                 )}
+
+                {/* ── Delete Confirmation Modal ── */}
+                {deleteTarget && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm z-50">
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-96 overflow-hidden animate-in fade-in zoom-in duration-200">
+                            <div className="p-6">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center shrink-0">
+                                        <Trash2 className="text-red-500" size={20} />
+                                    </div>
+                                    <button onClick={() => setDeleteTarget(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Delete Entity</h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                                    <span className="font-semibold text-slate-700 dark:text-slate-200">"{deleteTarget.entity.name}"</span>
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
+                                    This action cannot be undone. The following will be permanently deleted:
+                                </p>
+                                <div className="bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-500/20 rounded-lg p-3 space-y-1.5 mb-4">
+                                    <div className="flex items-center gap-2 text-xs text-red-700 dark:text-red-400">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
+                                        1 entity (this node)
+                                    </div>
+                                    {deleteTarget.childCount > 0 && (
+                                        <div className="flex items-center gap-2 text-xs text-red-700 dark:text-red-400">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
+                                            {deleteTarget.childCount} child {deleteTarget.childCount === 1 ? 'entity' : 'entities'} (orphaned after deletion)
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-2 text-xs text-red-700 dark:text-red-400">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
+                                        {deleteTarget.relationCount} {deleteTarget.relationCount === 1 ? 'relation' : 'relations'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="px-6 pb-6 grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => setDeleteTarget(null)}
+                                    className="py-2.5 px-4 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    disabled={deleting}
+                                    onClick={async () => {
+                                        try {
+                                            setDeleting(true);
+                                            await apiService.deleteEntityCascade(deleteTarget.entity.stixId);
+                                            setDeleteTarget(null);
+                                            setHighlightedConnectionId(null);
+                                            await fetchGraph(initialActorId);
+                                            await refreshAllEntities();
+                                        } catch (err) {
+                                            console.error('Failed to delete entity:', err);
+                                        } finally {
+                                            setDeleting(false);
+                                        }
+                                    }}
+                                    className="py-2.5 px-4 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-colors shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {deleting ? <RefreshCw className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* ── Right Detail Panel ── */}
@@ -729,10 +835,18 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Type *</label>
                             <select
                                 value={newEntity.type}
-                                onChange={(e) => setNewEntity({ type: e.target.value, name: '', description: '' })}
+                                onChange={(e) => {
+                                    const newType = e.target.value;
+                                    setNewEntity({ type: newType, name: '', description: '' });
+                                    if (newType === 'intrusion-set' || newType === 'threat-actor') {
+                                        apiService.getEntitiesByType(newType).then(setOpenctiEntities).catch(() => setOpenctiEntities([]));
+                                    } else {
+                                        setOpenctiEntities([]);
+                                    }
+                                }}
                                 className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
                             >
-                                {Object.entries(NODE_CONFIG).map(([key, cfg]) => (
+                                {Object.entries(NODE_CONFIG).filter(([key]) => key !== 'x-geo-strategic-actor').map(([key, cfg]) => (
                                     <option key={key} value={key}>{cfg.label}</option>
                                 ))}
                             </select>
@@ -741,16 +855,46 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 <span className="text-[10px] text-slate-400 font-mono">{newEntity.type}</span>
                             </div>
                         </div>
-                        {/* Name */}
+                        {/* Name — combo for intrusion-set/threat-actor, text input for others */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Name *</label>
-                            <input
-                                type="text"
-                                value={newEntity.name || ''}
-                                onChange={(e) => setNewEntity(prev => ({ ...prev, name: e.target.value }))}
-                                placeholder="Entity name"
-                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400"
-                            />
+                            {(newEntity.type === 'intrusion-set' || newEntity.type === 'threat-actor') ? (
+                                <select
+                                    value={newEntity._openctiStixId || ''}
+                                    onChange={(e) => {
+                                        const selected = openctiEntities.find(ent => ent.stixId === e.target.value);
+                                        if (selected) {
+                                            setNewEntity(prev => ({
+                                                ...prev,
+                                                name: selected.name,
+                                                description: selected.description || '',
+                                                first_seen: selected.first_seen ? selected.first_seen.split('T')[0] : '',
+                                                last_seen: selected.last_seen ? selected.last_seen.split('T')[0] : '',
+                                                resource_level: selected.resource_level || '',
+                                                primary_motivation: selected.primary_motivation || '',
+                                                _openctiStixId: selected.stixId,
+                                                _openctiInternalId: selected.metadata?.openctiInternalId || '',
+                                            }));
+                                        } else {
+                                            setNewEntity(prev => ({ ...prev, name: '', _openctiStixId: '', _openctiInternalId: '' }));
+                                        }
+                                    }}
+                                    className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                                >
+                                    <option value="">Select from OpenCTI...</option>
+                                    {openctiEntities.map(ent => (
+                                        <option key={ent.stixId} value={ent.stixId}>{ent.name}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <input
+                                    type="text"
+                                    value={newEntity.name || ''}
+                                    onChange={(e) => setNewEntity(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="Entity name"
+                                    className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400"
+                                />
+                            )}
                         </div>
                         {/* Description */}
                         <div>
@@ -780,29 +924,6 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         {/* Dynamic GSCI fields based on type */}
                         <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Type-specific Attributes</label>
-
-                            {newEntity.type === 'x-geo-strategic-actor' && (
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Alignment</label>
-                                        <select value={newEntity.strategic_alignment || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, strategic_alignment: e.target.value }))}
-                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-                                            <option value="">Select...</option>
-                                            <option>Revisionist</option><option>Status-Quo</option><option>Non-Aligned</option><option>Other</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Revisionist Index (0-10)</label>
-                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.revisionist_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, revisionist_index: parseFloat(e.target.value) || undefined }))}
-                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Ambiguity Score (0-10)</label>
-                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.strategic_ambiguity_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, strategic_ambiguity_score: parseFloat(e.target.value) || undefined }))}
-                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
-                                    </div>
-                                </div>
-                            )}
 
                             {newEntity.type === 'x-strategic-objective' && (
                                 <div className="space-y-4">
@@ -924,23 +1045,29 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             onClick={async () => {
                                 try {
                                     setSaving(true);
-                                    const { type, name, description, first_seen, last_seen, ...gsciFields } = newEntity;
-                                    const payload: any = { type, name, description };
-                                    if (first_seen) payload.first_seen = first_seen + 'T00:00:00Z';
-                                    if (last_seen) payload.last_seen = last_seen + 'T00:00:00Z';
-                                    // GSCI attributes go into gsciAttributes for custom types
-                                    const cleanGsci = Object.fromEntries(Object.entries(gsciFields).filter(([_, v]) => v !== '' && v !== undefined));
-                                    if (Object.keys(cleanGsci).length > 0) {
-                                        payload.gsciAttributes = cleanGsci;
-                                        // Also put them at root for the backend processEntity
-                                        Object.assign(payload, cleanGsci);
+                                    const isOpenctiEntity = newEntity._openctiStixId;
+
+                                    if (!isOpenctiEntity) {
+                                        // Create new entity (custom GSCIX types)
+                                        const { type, name, description, first_seen, last_seen, _openctiStixId, _openctiInternalId, ...gsciFields } = newEntity;
+                                        const payload: any = { type, name, description };
+                                        if (first_seen) payload.first_seen = first_seen + 'T00:00:00Z';
+                                        if (last_seen) payload.last_seen = last_seen + 'T00:00:00Z';
+                                        const cleanGsci = Object.fromEntries(Object.entries(gsciFields).filter(([_, v]) => v !== '' && v !== undefined));
+                                        if (Object.keys(cleanGsci).length > 0) {
+                                            payload.gsciAttributes = cleanGsci;
+                                            Object.assign(payload, cleanGsci);
+                                        }
+                                        await apiService.createEntity(payload);
                                     }
-                                    await apiService.createEntity(payload);
+                                    // For OpenCTI entities, they already exist in ES — just proceed to Add Relation
+
                                     // Refresh graph and all entities list
                                     await fetchGraph(initialActorId);
                                     await refreshAllEntities();
-                                    // Auto-switch to Add Relation so user can connect the new entity
+                                    // Auto-switch to Add Relation so user can connect the entity
                                     setNewEntity({ type: 'x-strategic-objective', name: '', description: '' });
+                                    setOpenctiEntities([]);
                                     setNewRelation({
                                         source_ref: '',
                                         relationship_type: 'attributed-to',
@@ -1259,7 +1386,23 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                             isHighlighted ? "text-cyan-700 dark:text-cyan-300" : "text-slate-700 dark:text-slate-300"
                                                         )}>{n.name}</span>
                                                     </div>
-
+                                                    {isHighlighted && nodeEntity.stixId !== rootActor?.stixId && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const impact = computeCascadeImpact(nodeEntity.stixId);
+                                                                setDeleteTarget({
+                                                                    entity: nodeEntity,
+                                                                    childCount: impact.entityCount - 1,
+                                                                    relationCount: impact.relationCount,
+                                                                });
+                                                            }}
+                                                            className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors ml-auto shrink-0"
+                                                            title="Delete entity"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    )}
                                                 </div>
 
                                                 {/* Expanded Accordion Content */}

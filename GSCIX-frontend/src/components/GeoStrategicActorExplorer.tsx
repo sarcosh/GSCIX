@@ -397,7 +397,7 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     <StatCard title="Active Revisionists" value={actors.length.toString()} subtext="Verified in database" icon={AlertCircle} colorClass="bg-risk-high" />
                     <StatCard title="Escalation Events" value={computedStats.escalationEvents.toString()} subtext="Actors with spike detected" icon={TrendingUp} colorClass="bg-secondary" />
-                    <StatCard title="Linked Cyber Units" value={computedStats.linkedCyberUnits.toString()} subtext="Attributed via OpenCTI" icon={Share2} colorClass="bg-primary" />
+                    <StatCard title="Hybrid Pressure Vectors" value={computedStats.linkedCyberUnits.toString()} subtext="Across all assessed campaigns" icon={Share2} colorClass="bg-primary" />
                     <StatCard title="Intelligence Confidence" value={computedStats.avgConfidence > 0 ? `${computedStats.avgConfidence.toFixed(0)}%` : '—'} subtext="Average confidence score" icon={ShieldCheck} colorClass="bg-emerald-500" />
                 </div>
 

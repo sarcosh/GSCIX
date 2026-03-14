@@ -320,6 +320,62 @@ public class GeopoliticalIngestService {
                 sourceRelations.size() + targetRelations.size());
     }
 
+    /**
+     * Delete an entity and cascade-delete all child entities that would become
+     * orphaned (unreachable) after the deletion. A child is considered orphaned
+     * if it has no incoming relations from entities outside the deletion set.
+     *
+     * The algorithm uses a BFS starting from the given entity, following
+     * outgoing relations (source_ref → target_ref). At each hop it checks
+     * whether the target node has any other incoming relations from nodes NOT
+     * in the current deletion set. If it does, it is kept; if not, it is added
+     * to the deletion set and the BFS continues from it.
+     */
+    public void deleteEntityCascade(String rootId) {
+        Set<String> toDelete = new LinkedHashSet<>();
+        toDelete.add(rootId);
+
+        Queue<String> queue = new LinkedList<>();
+        queue.add(rootId);
+
+        // Collect all relations that will be removed (for logging)
+        int relationsDeleted = 0;
+
+        while (!queue.isEmpty()) {
+            String currentId = queue.poll();
+
+            // Find children: nodes pointed to by outgoing relations from currentId
+            List<GscixRelation> outgoing = relationRepository.findBySourceRef(currentId);
+            for (GscixRelation r : outgoing) {
+                String childId = r.getTargetRef();
+                if (toDelete.contains(childId)) continue; // already scheduled for deletion
+
+                // Check if this child has any incoming relations from nodes OUTSIDE toDelete
+                List<GscixRelation> childIncoming = relationRepository.findByTargetRef(childId);
+                boolean hasExternalParent = childIncoming.stream()
+                        .anyMatch(ir -> !toDelete.contains(ir.getSourceRef()));
+
+                if (!hasExternalParent) {
+                    // Child would be orphaned → add to deletion set
+                    toDelete.add(childId);
+                    queue.add(childId);
+                }
+            }
+        }
+
+        // Delete all entities in the set and their relations
+        for (String entityId : toDelete) {
+            List<GscixRelation> src = relationRepository.findBySourceRef(entityId);
+            List<GscixRelation> tgt = relationRepository.findByTargetRef(entityId);
+            if (!src.isEmpty()) { relationRepository.deleteAll(src); relationsDeleted += src.size(); }
+            if (!tgt.isEmpty()) { relationRepository.deleteAll(tgt); relationsDeleted += tgt.size(); }
+            entityRepository.deleteById(entityId);
+        }
+
+        logger.info("Cascade-deleted {} entities and {} relations starting from {}",
+                toDelete.size(), relationsDeleted, rootId);
+    }
+
     public void clearAll() {
         entityRepository.deleteAll();
         relationRepository.deleteAll();
