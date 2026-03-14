@@ -1,0 +1,87 @@
+{
+    "type": "bundle",
+    "id": "bundle--divergence-warning-test-001",
+    "objects": [
+        {
+            "type": "x-geo-strategic-actor",
+            "id": "x-geo-strategic-actor--divergence-test-001",
+            "name": "Strategic Divergence Test Actor",
+            "strategic_alignment": "BRICS",
+            "geopolitical_doctrine": "Stability-Oriented Modernization",
+            "doctrine_type": "Stability-Oriented",
+            "technological_modernization_rate": 8.5,
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--divergence-ass-001",
+            "name": "Divergence Assessment - Expansion Detected",
+            "hybrid_pressure_index": 6.5,
+            "cyber_geopolitical_coupling_index": 5.0,
+            "confidence_score": 92,
+            "doctrine_capacity_divergence_score": 8.2,
+            "last_seen": "2026-02-15T10:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--divergence-ass-002",
+            "name": "Divergence Assessment - Historical Baseline",
+            "hybrid_pressure_index": 4.0,
+            "cyber_geopolitical_coupling_index": 3.5,
+            "confidence_score": 88,
+            "doctrine_capacity_divergence_score": 3.0,
+            "last_seen": "2024-06-10T10:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "id": "x-hybrid-campaign--divergence-camp-001",
+            "name": "Covert Expansion Campaign",
+            "phase": "pre-conflict",
+            "hybrid_intensity_score": 5.5,
+            "nature": [
+                "cyber",
+                "cognitive"
+            ],
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--div-eval-actor-1",
+            "source_ref": "x-strategic-assessment--divergence-ass-001",
+            "target_ref": "x-geo-strategic-actor--divergence-test-001",
+            "relationship_type": "evaluates"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--div-eval-actor-2",
+            "source_ref": "x-strategic-assessment--divergence-ass-002",
+            "target_ref": "x-geo-strategic-actor--divergence-test-001",
+            "relationship_type": "evaluates"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--div-eval-camp-1",
+            "source_ref": "x-strategic-assessment--divergence-ass-001",
+            "target_ref": "x-hybrid-campaign--divergence-camp-001",
+            "relationship_type": "evaluates"
+        }
+    ]
+}

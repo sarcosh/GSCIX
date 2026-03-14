@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GSCIX Actor Explorer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#06b6d4", // Cyan-500
+                        secondary: "#f59e0b", // Amber-500
+                        "background-light": "#f8fafc",
+                        "surface-light": "#ffffff",
+                        "border-light": "#e2e8f0",
+                        "text-light": "#0f172a",
+                        "muted-light": "#64748b",
+                        "background-dark": "#020617", // Slate-950
+                        "surface-dark": "#0f172a", // Slate-900
+                        "border-dark": "#1e293b", // Slate-800
+                        "text-dark": "#f8fafc", // Slate-50
+                        "muted-dark": "#94a3b8", // Slate-400
+                        "risk-high": "#ef4444", // Red-500
+                        "risk-med": "#f59e0b", // Amber-500
+                        "risk-low": "#10b981", // Emerald-500
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                    },
+                },
+            },
+        };
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-sans antialiased min-h-screen flex flex-col transition-colors duration-200">
+<nav class="border-b border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark sticky top-0 z-50">
+<div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex h-16 justify-between items-center">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/20">
+                            G
+                        </div>
+<span class="font-bold text-xl tracking-tight">GSCIX <span class="text-primary font-mono text-sm ml-1">v2.1</span></span>
+</div>
+<div class="hidden md:flex space-x-1">
+<a class="px-3 py-2 text-sm font-medium rounded-md bg-primary/10 text-primary dark:text-cyan-400" href="#">Actor Explorer</a>
+<a class="px-3 py-2 text-sm font-medium rounded-md text-muted-light dark:text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors" href="#">Campaigns</a>
+<a class="px-3 py-2 text-sm font-medium rounded-md text-muted-light dark:text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors" href="#">Strategic Impact</a>
+<a class="px-3 py-2 text-sm font-medium rounded-md text-muted-light dark:text-muted-dark hover:text-text-light dark:hover:text-text-dark hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors" href="#">Graph View</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden md:flex items-center text-xs text-muted-light dark:text-muted-dark border border-border-light dark:border-border-dark rounded-full px-3 py-1 bg-background-light dark:bg-background-dark">
+<span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+                        Elasticsearch Connected
+                    </div>
+<button class="p-2 text-muted-light dark:text-muted-dark hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+<span class="material-icons-outlined text-xl">notifications</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center text-xs font-medium text-white ring-2 ring-border-light dark:ring-border-dark cursor-pointer">
+                        SA
+                    </div>
+</div>
+</div>
+</div>
+</nav>
+<main class="flex-1 p-4 sm:p-6 lg:p-8 max-w-screen-2xl mx-auto w-full space-y-6">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<h1 class="text-2xl font-bold tracking-tight flex items-center gap-2">
+<span class="material-icons-outlined text-primary">public</span>
+                    Geo-Strategic Actor Explorer
+                </h1>
+<p class="text-sm text-muted-light dark:text-muted-dark mt-1 max-w-2xl">
+                    Analyze sovereign entities and non-state actors through the GSCI framework. Correlate strategic alignment with technical intrusion sets.
+                </p>
+</div>
+<div class="flex items-center gap-3">
+<button class="inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark rounded-md shadow-sm text-sm font-medium text-text-light dark:text-text-dark bg-surface-light dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-slate-800 focus:outline-none transition-colors">
+<span class="material-icons-outlined text-base mr-2">download</span>
+                    Export STIX 2.1
+                </button>
+<button class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-cyan-600 focus:outline-none transition-colors shadow-primary/25">
+<span class="material-icons-outlined text-base mr-2">add</span>
+                    New Actor
+                </button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 shadow-sm relative overflow-hidden group">
+<div class="absolute right-0 top-0 h-full w-1 bg-risk-high"></div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-sm font-medium text-muted-light dark:text-muted-dark">Active Revisionists</h3>
+<span class="material-icons-outlined text-risk-high text-lg">warning</span>
+</div>
+<div class="text-2xl font-bold">12</div>
+<p class="text-xs text-muted-light dark:text-muted-dark mt-1 flex items-center">
+<span class="text-risk-high flex items-center mr-1"><span class="material-icons-outlined text-xs">arrow_upward</span> +2</span> from last week
+                </p>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 shadow-sm relative overflow-hidden group">
+<div class="absolute right-0 top-0 h-full w-1 bg-secondary"></div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-sm font-medium text-muted-light dark:text-muted-dark">Escalation Events</h3>
+<span class="material-icons-outlined text-secondary text-lg">trending_up</span>
+</div>
+<div class="text-2xl font-bold">84</div>
+<p class="text-xs text-muted-light dark:text-muted-dark mt-1">High probability tactical shifts</p>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 shadow-sm relative overflow-hidden group">
+<div class="absolute right-0 top-0 h-full w-1 bg-primary"></div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-sm font-medium text-muted-light dark:text-muted-dark">Linked Cyber Units</h3>
+<span class="material-icons-outlined text-primary text-lg">hub</span>
+</div>
+<div class="text-2xl font-bold">156</div>
+<p class="text-xs text-muted-light dark:text-muted-dark mt-1">Attributed via OpenCTI</p>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-4 shadow-sm relative overflow-hidden group">
+<div class="absolute right-0 top-0 h-full w-1 bg-emerald-500"></div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-sm font-medium text-muted-light dark:text-muted-dark">Intelligence Confidence</h3>
+<span class="material-icons-outlined text-emerald-500 text-lg">verified_user</span>
+</div>
+<div class="text-2xl font-bold">92%</div>
+<p class="text-xs text-muted-light dark:text-muted-dark mt-1">Based on STIX correlation</p>
+</div>
+</div>
+<div class="flex flex-col sm:flex-row gap-4 justify-between items-center bg-surface-light dark:bg-surface-dark p-2 rounded-lg border border-border-light dark:border-border-dark shadow-sm">
+<div class="flex items-center gap-2 w-full sm:w-auto flex-1">
+<div class="relative w-full sm:max-w-md">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-icons-outlined text-muted-light dark:text-muted-dark text-lg">search</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-2 border-none rounded-md leading-5 bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark placeholder-muted-light dark:placeholder-muted-dark focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm" placeholder="Search actors by alias, region, or doctrine..." type="text"/>
+</div>
+<button class="p-2 text-muted-light dark:text-muted-dark hover:bg-background-light dark:hover:bg-border-dark rounded-md border border-transparent hover:border-border-light dark:hover:border-border-dark transition-all" title="Filter">
+<span class="material-icons-outlined text-lg">filter_list</span>
+</button>
+</div>
+<div class="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+<span class="text-xs font-semibold text-muted-light dark:text-muted-dark uppercase tracking-wider whitespace-nowrap px-2">Focus:</span>
+<button class="px-3 py-1.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 whitespace-nowrap">China (PRC)</button>
+<button class="px-3 py-1.5 rounded-full text-xs font-medium bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-muted-light dark:text-muted-dark hover:text-text-light dark:hover:text-text-dark whitespace-nowrap">Russia (RF)</button>
+<button class="px-3 py-1.5 rounded-full text-xs font-medium bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-muted-light dark:text-muted-dark hover:text-text-light dark:hover:text-text-dark whitespace-nowrap">Iran</button>
+<button class="px-3 py-1.5 rounded-full text-xs font-medium bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark text-muted-light dark:text-muted-dark hover:text-text-light dark:hover:text-text-dark whitespace-nowrap">DPRK</button>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-lg overflow-hidden">
+<div class="overflow-x-auto">
+<table class="min-w-full divide-y divide-border-light dark:divide-border-dark">
+<thead>
+<tr class="bg-gray-50 dark:bg-slate-800/50">
+<th class="px-6 py-4 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase tracking-wider" scope="col">
+<div class="flex items-center gap-1 cursor-pointer hover:text-text-light dark:hover:text-text-dark">
+                                    Actor Name
+                                    <span class="material-icons-outlined text-sm">unfold_more</span>
+</div>
+</th>
+<th class="px-6 py-4 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase tracking-wider" scope="col">
+                                Strategic Alignment
+                            </th>
+<th class="px-6 py-4 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase tracking-wider" scope="col">
+                                Doctrine Type
+                            </th>
+<th class="px-6 py-4 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase tracking-wider" scope="col">
+                                HPI Score
+                            </th>
+<th class="px-6 py-4 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase tracking-wider" scope="col">
+                                First Seen
+                            </th>
+<th class="px-6 py-4 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase tracking-wider" scope="col">
+                                Last Seen
+                            </th>
+<th class="px-6 py-4 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase tracking-wider" scope="col">
+                                Linked Unit
+                            </th>
+<th class="relative px-6 py-4" scope="col">
+<span class="sr-only">Actions</span>
+</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-light dark:divide-border-dark bg-surface-light dark:bg-surface-dark">
+<tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="flex-shrink-0 h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center text-risk-high">
+<span class="font-bold text-sm">CN</span>
+</div>
+<div class="ml-4">
+<div class="text-sm font-medium text-text-light dark:text-text-dark group-hover:text-primary transition-colors">Volt Typhoon</div>
+<div class="text-xs text-muted-light dark:text-muted-dark font-mono">x-geo-strategic-actor--8f3...</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
+                                    Revisionist
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="text-sm text-text-light dark:text-text-dark">Unrestricted Warfare</div>
+<div class="text-xs text-muted-light dark:text-muted-dark">Technological Modernization</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="w-16 bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mr-2">
+<div class="bg-secondary h-1.5 rounded-full" style="width: 85%"></div>
+</div>
+<span class="text-sm font-bold text-secondary">8.5</span>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-muted-light dark:text-muted-dark font-mono">
+                                2021-05-12
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-text-light dark:text-text-dark font-mono font-medium">
+<span class="flex items-center gap-1.5">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+                                    Just now
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-muted-light dark:text-muted-dark border border-border-light dark:border-border-dark font-mono">
+                                    APT41
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+<button class="text-muted-light dark:text-muted-dark hover:text-primary transition-colors">
+<span class="material-icons-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="flex-shrink-0 h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center text-risk-high">
+<span class="font-bold text-sm">CN</span>
+</div>
+<div class="ml-4">
+<div class="text-sm font-medium text-text-light dark:text-text-dark group-hover:text-primary transition-colors">Mustang Panda</div>
+<div class="text-xs text-muted-light dark:text-muted-dark font-mono">x-geo-strategic-actor--2a4...</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
+                                    Expansionist
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="text-sm text-text-light dark:text-text-dark">Belt &amp; Road Support</div>
+<div class="text-xs text-muted-light dark:text-muted-dark">Diplomatic Coercion</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="w-16 bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mr-2">
+<div class="bg-secondary h-1.5 rounded-full" style="width: 62%"></div>
+</div>
+<span class="text-sm font-bold text-muted-light dark:text-muted-dark">6.2</span>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-muted-light dark:text-muted-dark font-mono">
+                                2018-09-01
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-muted-light dark:text-muted-dark font-mono">
+                                2023-10-22
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-muted-light dark:text-muted-dark border border-border-light dark:border-border-dark font-mono">
+                                    Bronze President
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+<button class="text-muted-light dark:text-muted-dark hover:text-primary transition-colors">
+<span class="material-icons-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="flex-shrink-0 h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+<span class="font-bold text-sm">RU</span>
+</div>
+<div class="ml-4">
+<div class="text-sm font-medium text-text-light dark:text-text-dark group-hover:text-primary transition-colors">Sandworm Team</div>
+<div class="text-xs text-muted-light dark:text-muted-dark font-mono">x-geo-strategic-actor--9c1...</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
+                                    Revisionist
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="text-sm text-text-light dark:text-text-dark">Hybrid Warfare</div>
+<div class="text-xs text-muted-light dark:text-muted-dark">Infrastructure Disruption</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="w-16 bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mr-2">
+<div class="bg-risk-high h-1.5 rounded-full" style="width: 94%"></div>
+</div>
+<span class="text-sm font-bold text-risk-high">9.4</span>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-muted-light dark:text-muted-dark font-mono">
+                                2014-02-15
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-text-light dark:text-text-dark font-mono">
+                                2 days ago
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-muted-light dark:text-muted-dark border border-border-light dark:border-border-dark font-mono">
+                                    Unit 74455
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+<button class="text-muted-light dark:text-muted-dark hover:text-primary transition-colors">
+<span class="material-icons-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="flex-shrink-0 h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center text-risk-high">
+<span class="font-bold text-sm">CN</span>
+</div>
+<div class="ml-4">
+<div class="text-sm font-medium text-text-light dark:text-text-dark group-hover:text-primary transition-colors">Storm-0558</div>
+<div class="text-xs text-muted-light dark:text-muted-dark font-mono">x-geo-strategic-actor--5d2...</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                    Status Quo
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="text-sm text-text-light dark:text-text-dark">Espionage</div>
+<div class="text-xs text-muted-light dark:text-muted-dark">IP Theft</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="w-16 bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mr-2">
+<div class="bg-risk-low h-1.5 rounded-full" style="width: 45%"></div>
+</div>
+<span class="text-sm font-bold text-muted-light dark:text-muted-dark">4.5</span>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-muted-light dark:text-muted-dark font-mono">
+                                2023-05-10
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-muted-light dark:text-muted-dark font-mono">
+                                2023-07-12
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-muted-light dark:text-muted-dark border border-border-light dark:border-border-dark font-mono">
+                                    Unknown
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+<button class="text-muted-light dark:text-muted-dark hover:text-primary transition-colors">
+<span class="material-icons-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="flex-shrink-0 h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/20 flex items-center justify-center text-green-600 dark:text-green-400">
+<span class="font-bold text-sm">IR</span>
+</div>
+<div class="ml-4">
+<div class="text-sm font-medium text-text-light dark:text-text-dark group-hover:text-primary transition-colors">Charming Kitten</div>
+<div class="text-xs text-muted-light dark:text-muted-dark font-mono">x-geo-strategic-actor--1b9...</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
+                                    Revisionist
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="text-sm text-text-light dark:text-text-dark">Asymmetric Warfare</div>
+<div class="text-xs text-muted-light dark:text-muted-dark">Dissident Targeting</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center">
+<div class="w-16 bg-gray-200 dark:bg-slate-700 rounded-full h-1.5 mr-2">
+<div class="bg-secondary h-1.5 rounded-full" style="width: 71%"></div>
+</div>
+<span class="text-sm font-bold text-secondary">7.1</span>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-muted-light dark:text-muted-dark font-mono">
+                                2017-01-20
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-text-light dark:text-text-dark font-mono">
+                                1 hour ago
+                            </td>
+<td class="px-6 py-4 whitespace-nowrap">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-muted-light dark:text-muted-dark border border-border-light dark:border-border-dark font-mono">
+                                    APT35
+                                </span>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+<button class="text-muted-light dark:text-muted-dark hover:text-primary transition-colors">
+<span class="material-icons-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 flex items-center justify-between border-t border-border-light dark:border-border-dark bg-gray-50 dark:bg-slate-800/30">
+<div class="flex-1 flex justify-between sm:hidden">
+<a class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark text-sm font-medium rounded-md text-text-light dark:text-text-dark bg-surface-light dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-slate-800" href="#">
+                        Previous
+                    </a>
+<a class="ml-3 relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark text-sm font-medium rounded-md text-text-light dark:text-text-dark bg-surface-light dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-slate-800" href="#">
+                        Next
+                    </a>
+</div>
+<div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+<div>
+<p class="text-sm text-muted-light dark:text-muted-dark">
+                            Showing <span class="font-medium text-text-light dark:text-text-dark">1</span> to <span class="font-medium text-text-light dark:text-text-dark">5</span> of <span class="font-medium text-text-light dark:text-text-dark">128</span> results
+                        </p>
+</div>
+<div>
+<nav aria-label="Pagination" class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+<a class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-sm font-medium text-muted-light dark:text-muted-dark hover:bg-gray-50 dark:hover:bg-slate-800" href="#">
+<span class="sr-only">Previous</span>
+<span class="material-icons-outlined text-sm">chevron_left</span>
+</a>
+<a aria-current="page" class="z-10 bg-primary/10 border-primary text-primary relative inline-flex items-center px-4 py-2 border text-sm font-medium" href="#">
+                                1
+                            </a>
+<a class="bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark text-muted-light dark:text-muted-dark hover:bg-gray-50 dark:hover:bg-slate-800 relative inline-flex items-center px-4 py-2 border text-sm font-medium" href="#">
+                                2
+                            </a>
+<a class="bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark text-muted-light dark:text-muted-dark hover:bg-gray-50 dark:hover:bg-slate-800 relative inline-flex items-center px-4 py-2 border text-sm font-medium" href="#">
+                                3
+                            </a>
+<span class="relative inline-flex items-center px-4 py-2 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-sm font-medium text-muted-light dark:text-muted-dark">
+                                ...
+                            </span>
+<a class="bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark text-muted-light dark:text-muted-dark hover:bg-gray-50 dark:hover:bg-slate-800 relative inline-flex items-center px-4 py-2 border text-sm font-medium" href="#">
+                                12
+                            </a>
+<a class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-sm font-medium text-muted-light dark:text-muted-dark hover:bg-gray-50 dark:hover:bg-slate-800" href="#">
+<span class="sr-only">Next</span>
+<span class="material-icons-outlined text-sm">chevron_right</span>
+</a>
+</nav>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-6 border border-border-light dark:border-border-dark rounded-xl bg-surface-light dark:bg-surface-dark shadow-lg overflow-hidden flex flex-col md:flex-row">
+<div class="p-6 md:w-1/3 border-b md:border-b-0 md:border-r border-border-light dark:border-border-dark bg-gray-50/50 dark:bg-slate-900/50">
+<div class="flex items-center gap-3 mb-4">
+<div class="h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center text-risk-high text-xl font-bold">CN</div>
+<div>
+<h2 class="text-lg font-bold">Volt Typhoon</h2>
+<div class="text-xs text-muted-light dark:text-muted-dark font-mono uppercase">State Actor • PRC</div>
+</div>
+</div>
+<div class="space-y-4">
+<div>
+<label class="text-xs uppercase text-muted-light dark:text-muted-dark font-semibold tracking-wider">Strategic Objective</label>
+<p class="text-sm mt-1">Critical Infrastructure Pre-positioning</p>
+</div>
+<div>
+<label class="text-xs uppercase text-muted-light dark:text-muted-dark font-semibold tracking-wider">Civil-Military Fusion</label>
+<div class="mt-1 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+<span class="material-icons-outlined text-[10px] mr-1">check</span> Confirmed Dual-Use
+                         </div>
+</div>
+<div>
+<label class="text-xs uppercase text-muted-light dark:text-muted-dark font-semibold tracking-wider">Description</label>
+<p class="text-sm mt-1 text-muted-light dark:text-muted-dark leading-relaxed">
+                             Volt Typhoon is a state-sponsored actor based in China that typically focuses on espionage and information gathering. Recent activity indicates a shift towards pre-positioning within critical infrastructure sectors.
+                         </p>
+</div>
+</div>
+</div>
+<div class="p-6 md:w-2/3">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-semibold text-sm uppercase tracking-wider text-muted-light dark:text-muted-dark">Recent Technical Activity (STIX 2.1)</h3>
+<button class="text-primary hover:underline text-xs">View Full Graph</button>
+</div>
+<div class="space-y-3">
+<div class="flex items-start gap-3 p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+<div class="mt-0.5">
+<span class="material-icons-outlined text-secondary text-sm">bug_report</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between">
+<span class="text-sm font-medium text-text-light dark:text-text-dark">Living-off-the-land binaries</span>
+<span class="text-xs text-muted-light dark:text-muted-dark font-mono">2h ago</span>
+</div>
+<p class="text-xs text-muted-light dark:text-muted-dark mt-0.5">PowerShell execution detected in Guam sector.</p>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+<div class="mt-0.5">
+<span class="material-icons-outlined text-primary text-sm">domain</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between">
+<span class="text-sm font-medium text-text-light dark:text-text-dark">New Infrastructure Registered</span>
+<span class="text-xs text-muted-light dark:text-muted-dark font-mono">1d ago</span>
+</div>
+<p class="text-xs text-muted-light dark:text-muted-dark mt-0.5">Domains correlating with SOHO router exploitation campaign.</p>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 rounded-lg border border-border-light dark:border-border-dark hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors opacity-70">
+<div class="mt-0.5">
+<span class="material-icons-outlined text-muted-light dark:text-muted-dark text-sm">history</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between">
+<span class="text-sm font-medium text-text-light dark:text-text-dark">Credential Access</span>
+<span class="text-xs text-muted-light dark:text-muted-dark font-mono">5d ago</span>
+</div>
+<p class="text-xs text-muted-light dark:text-muted-dark mt-0.5">LSASS memory dump attempt blocked.</p>
+</div>
+</div>
+</div>
+<div class="mt-6 pt-4 border-t border-border-light dark:border-border-dark flex justify-end gap-3">
+<button class="px-3 py-1.5 text-xs font-medium text-muted-light dark:text-muted-dark hover:text-text-light dark:hover:text-text-dark transition-colors">Dismiss</button>
+<button class="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded shadow-sm hover:bg-cyan-600 transition-colors">Investigate in Graph</button>
+</div>
+</div>
+</div>
+</main>
+
+</body></html>

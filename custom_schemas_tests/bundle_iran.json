@@ -1,0 +1,122 @@
+{
+  "type": "bundle",
+  "id": "bundle--9d5e6f1a-8c2b-4d3e-9f0a-1b2c3d4e5f6g",
+  "objects": [
+    {
+      "type": "x-geo-strategic-actor",
+      "id": "x-geo-strategic-actor--7a9b8c7d-6e5f-4d3c-2b1a-0f9e8d7c6b5a",
+      "name": "Islamic Republic of Iran",
+      "description": "Global geo-strategic actor of high revisionist intensity that operates across multi-domain conflict zones to challenge the rules-based international order. Its national strategy is shaped by a profound sense of 'strategic loneliness' and a historical distrust of the United States and Israel, whom it identifies as primary existential threats. The regime implements a 'Forward Defense' doctrine (also known as 'offensive defense') to confront adversaries far from its own borders and build strategic depth through the Axis of Resistance.",
+      "strategic_alignment": "Other",
+      "geopolitical_doctrine": "Forward Defense",
+      "revisionist_index": 8.5,
+      "strategic_ambiguity_score": 7.5,
+      "doctrine_type": "revisionist",
+      "technological_modernization_rate": 6.8,
+      "first_seen": "2024-06-13T00:00:00Z",
+      "extensions": {
+        "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "x-strategic-objective",
+      "id": "x-strategic-objective--1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p",
+      "name": "Regime Survival (S3)",
+      "objective_type": "political",
+      "priority_level": "critical",
+      "time_horizon": "decadal",
+      "civil_military_fusion": true,
+      "extensions": {
+        "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "x-hybrid-campaign",
+      "id": "x-hybrid-campaign--a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6",
+      "name": "Axis of Resistance Operations",
+      "phase": "escalation",
+      "nature": [
+        "kinetic",
+        "cyber",
+        "cognitive",
+        "technological"
+      ],
+      "velocity": "slow-drift",
+      "escalation_risk_score": 9.2,
+      "extensions": {
+        "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "x-influence-vector",
+      "id": "x-influence-vector--z9y8x7w6-v5u4-t3s2-r1q0-p9o8n7m6l5k4",
+      "name": "Soft War (Guerra-ye Narm)",
+      "narrative": "Cultural and psychological defense against Western subversion while promoting revolutionary Islamic values",
+      "channel": "State Media, IRGC Telegram Units, Basij Cyber Commandos",
+      "target_audience": "Domestic population and Muslim world",
+      "extensions": {
+        "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "x-strategic-assessment",
+      "id": "x-strategic-assessment--3e4r5t6y-7u8i-9o0p-q1w2-e3r4t5y6u7i8",
+      "name": "Post-Operation Rising Lion Strategic Audit",
+      "description": "Evaluation of the Islamic Republic's vulnerabilities and doctrinal shifts following the June 2025 conflict. Analysis highlights the breakdown of traditional proxy deterrence and a surge in cyber-geopolitical coupling as the regime signals its nuclear and missile capabilities.",
+      "hybrid_pressure_index": 8.7,
+      "escalation_probability_score": 0.85,
+      "strategic_signaling_score": 9.5,
+      "cyber_geopolitical_coupling_index": 8.2,
+      "narrative_penetration_score": 6.8,
+      "doctrine_capacity_divergence_score": 7.4,
+      "first_seen": "2025-06-13T00:00:00Z",
+      "last_seen": "2025-12-31T23:59:59Z",
+      "external_references": [
+        {
+          "source_name": "INSS Memorandum 252",
+          "description": "The Second Imposed War: Operation Rising Lion and Its Implications",
+          "url": "https://www.inss.org.il/publication/rising-lion-audit"
+        },
+        {
+          "source_name": "NATO Azubalis Report",
+          "description": "NATO and the Coalescing Bloc of Authoritarian Countries (CRINK)",
+          "url": "https://www.nato-pa.int/document/2025-crink-report"
+        }
+      ],
+      "extensions": {
+        "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+          "extension_type": "new-sdo"
+        }
+      }
+    },
+    {
+      "type": "relationship",
+      "id": "relationship--f1e2d3c4-b5a6-9z8y-7x6w-5v4u3t2s1r0q",
+      "source_ref": "x-geo-strategic-actor--7a9b8c7d-6e5f-4d3c-2b1a-0f9e8d7c6b5a",
+      "relationship_type": "pursues",
+      "target_ref": "x-strategic-objective--1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p"
+    },
+    {
+      "type": "relationship",
+      "id": "relationship--9a8b7c6d-5e4f-3g2h-1i0j-k1l2m3n4o5p6",
+      "source_ref": "x-geo-strategic-actor--7a9b8c7d-6e5f-4d3c-2b1a-0f9e8d7c6b5a",
+      "relationship_type": "executes",
+      "target_ref": "x-hybrid-campaign--a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6"
+    },
+    {
+      "type": "relationship",
+      "id": "relationship--b2v3n4m5-6k7j-8h9g-0f1d-2s3a4p5o6i7u",
+      "source_ref": "x-strategic-assessment--3e4r5t6y-7u8i-9o0p-q1w2-e3r4t5y6u7i8",
+      "relationship_type": "evaluates",
+      "target_ref": "x-geo-strategic-actor--7a9b8c7d-6e5f-4d3c-2b1a-0f9e8d7c6b5a"
+    }
+  ]
+}

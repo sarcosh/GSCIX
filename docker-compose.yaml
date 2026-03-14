@@ -278,11 +278,28 @@ services:
       - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - GSCIX_SCHEMAS_PATH=/custom_schemas
     depends_on:
       elasticsearch:
         condition: service_healthy
       opencti:
         condition: service_healthy
+    volumes:
+      - ./custom_schemas:/custom_schemas
+    restart: always
+
+  ###########################
+  # GSCIX FRONTEND          #
+  ###########################
+
+  gscix-frontend:
+    build:
+      context: ./GSCIX-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - gscix-backend
     restart: always
 
 volumes:

@@ -1,9 +1,11 @@
 package com.gscix.backend.controller;
 
+import com.gscix.backend.dto.InfluenceGraphResponse;
 import com.gscix.backend.model.GscixEntity;
 import com.gscix.backend.model.GscixRelation;
 import com.gscix.backend.repository.GscixEntityRepository;
 import com.gscix.backend.repository.GscixRelationRepository;
+import com.gscix.backend.service.InfluenceGraphService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,10 +19,14 @@ public class GscixController {
 
     private final GscixEntityRepository entityRepository;
     private final GscixRelationRepository relationRepository;
+    private final InfluenceGraphService influenceGraphService;
 
-    public GscixController(GscixEntityRepository entityRepository, GscixRelationRepository relationRepository) {
+    public GscixController(GscixEntityRepository entityRepository,
+            GscixRelationRepository relationRepository,
+            InfluenceGraphService influenceGraphService) {
         this.entityRepository = entityRepository;
         this.relationRepository = relationRepository;
+        this.influenceGraphService = influenceGraphService;
     }
 
     @PostMapping("/entities")
@@ -34,7 +40,7 @@ public class GscixController {
         }
         entity.getMetadata().setUpdatedAt(Instant.now());
         entity.setSource("GSCIX");
-        
+
         GscixEntity saved = entityRepository.save(entity);
         return ResponseEntity.ok(saved);
     }
@@ -56,17 +62,39 @@ public class GscixController {
         if (relation.getId() == null) {
             relation.setId("relationship--" + UUID.randomUUID());
         }
-        
-        if (!entityRepository.existsById(relation.getSourceRef()) || !entityRepository.existsById(relation.getTargetRef())) {
+
+        if (!entityRepository.existsById(relation.getSourceRef())
+                || !entityRepository.existsById(relation.getTargetRef())) {
             return ResponseEntity.badRequest().build();
         }
-        
+
         GscixRelation saved = relationRepository.save(relation);
         return ResponseEntity.ok(saved);
+    }
+
+    @GetMapping("/relations")
+    public ResponseEntity<Iterable<GscixRelation>> getAllRelations() {
+        return ResponseEntity.ok(relationRepository.findAll());
     }
 
     @GetMapping("/relations/source/{sourceRef}")
     public ResponseEntity<List<GscixRelation>> getRelationsBySource(@PathVariable String sourceRef) {
         return ResponseEntity.ok(relationRepository.findBySourceRef(sourceRef));
+    }
+
+    // --- Influence Graph endpoints ---
+
+    @GetMapping("/graph/{rootId}")
+    public ResponseEntity<InfluenceGraphResponse> getInfluenceSubgraph(
+            @PathVariable String rootId,
+            @RequestParam(defaultValue = "2") int depth) {
+        InfluenceGraphResponse response = influenceGraphService.buildSubgraph(rootId, Math.min(depth, 4));
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/graph")
+    public ResponseEntity<InfluenceGraphResponse> getActorsOverview() {
+        InfluenceGraphResponse response = influenceGraphService.buildActorsOverview();
+        return ResponseEntity.ok(response);
     }
 }

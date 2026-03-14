@@ -38,15 +38,21 @@ public class GeopoliticalIngestService {
 
     private final GscixEntityRepository entityRepository;
     private final GscixRelationRepository relationRepository;
+    private final JsonSchemaValidationService validationService;
+    private final IngestionTrackingService trackingService;
     private final WebClient webClient;
 
     public GeopoliticalIngestService(
             GscixEntityRepository entityRepository,
             GscixRelationRepository relationRepository,
+            JsonSchemaValidationService validationService,
+            IngestionTrackingService trackingService,
             @Value("${opencti.url}") String openctiUrl,
             @Value("${opencti.token}") String openctiToken) {
         this.entityRepository = entityRepository;
         this.relationRepository = relationRepository;
+        this.validationService = validationService;
+        this.trackingService = trackingService;
         this.webClient = WebClient.builder()
                 .baseUrl(openctiUrl)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + openctiToken)
@@ -56,6 +62,11 @@ public class GeopoliticalIngestService {
 
     public GeopoliticalIngestResponse ingest(GeopoliticalIngestRequest request) {
         logger.info("Starting geopolitical ingestion for actor: {}", request.getActorName());
+
+        // =====================================================================
+        // DATA VALIDATION
+        // =====================================================================
+        validateRequest(request);
 
         int entitiesCreated = 0;
         int relationsCreated = 0;
@@ -274,17 +285,45 @@ public class GeopoliticalIngestService {
         // =====================================================================
         GeopoliticalIngestResponse response = new GeopoliticalIngestResponse();
         response.setStatus("OK");
-        response.setMessage(String.format(
-                "Ingested actor '%s' with %d entities and %d relations. Found %d OpenCTI matches.",
-                request.getActorName(), entitiesCreated, relationsCreated, matches.size()));
+        response.setMessage(
+                String.format("Geopolitical data for actor '%s' ingested: %d entities and %d relations produced.",
+                        actor.getName(), entitiesCreated, relationsCreated));
         response.setActorEntityId(actor.getStixId());
         response.setEntitiesCreated(entitiesCreated);
         response.setRelationsCreated(relationsCreated);
         response.setOpenctiMatches(matches);
 
+        trackingService.logJob("Manual_Ingestion", "OK", response.getMessage(), entitiesCreated, relationsCreated);
+
         logger.info("Ingestion complete: {} entities, {} relations, {} OpenCTI matches",
                 entitiesCreated, relationsCreated, matches.size());
         return response;
+    }
+
+    public void deleteEntity(String id) {
+        // 1. Find all relations where this id is source or target
+        List<GscixRelation> sourceRelations = relationRepository.findBySourceRef(id);
+        List<GscixRelation> targetRelations = relationRepository.findByTargetRef(id);
+
+        // 2. Delete these relations
+        if (!sourceRelations.isEmpty()) {
+            relationRepository.deleteAll(sourceRelations);
+        }
+        if (!targetRelations.isEmpty()) {
+            relationRepository.deleteAll(targetRelations);
+        }
+
+        // 3. Delete the entity itself
+        entityRepository.deleteById(id);
+
+        logger.info("Deleted entity {} and its {} associated relations", id,
+                sourceRelations.size() + targetRelations.size());
+    }
+
+    public void clearAll() {
+        entityRepository.deleteAll();
+        relationRepository.deleteAll();
+        logger.info("Cleared all GSCIX entities and relations from database.");
     }
 
     // =========================================================================
@@ -383,5 +422,39 @@ public class GeopoliticalIngestService {
         }
 
         return matches;
+    }
+
+    private void validateRequest(GeopoliticalIngestRequest request) {
+        // Validate Actor (always present)
+        validationService.validate("x-geo-strategic-actor", request);
+
+        // Validate Objectives
+        if (request.getObjectives() != null) {
+            for (GeopoliticalIngestRequest.ObjectiveDTO obj : request.getObjectives()) {
+                validationService.validate("x-strategic-objective", obj);
+            }
+        }
+
+        // Validate Campaign
+        if (request.getCampaign() != null) {
+            validationService.validate("x-hybrid-campaign", request.getCampaign());
+        }
+
+        // Validate Influence Vectors
+        if (request.getInfluenceVectors() != null) {
+            for (GeopoliticalIngestRequest.InfluenceVectorDTO iv : request.getInfluenceVectors()) {
+                validationService.validate("x-influence-vector", iv);
+            }
+        }
+
+        // Validate Impact
+        if (request.getImpact() != null) {
+            validationService.validate("x-strategic-impact", request.getImpact());
+        }
+
+        // Validate Assessment
+        if (request.getAssessment() != null) {
+            validationService.validate("x-strategic-assessment", request.getAssessment());
+        }
     }
 }

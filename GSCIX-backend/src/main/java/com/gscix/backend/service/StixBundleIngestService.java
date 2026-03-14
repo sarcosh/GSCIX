@@ -26,19 +26,26 @@ public class StixBundleIngestService {
 
     private final GscixEntityRepository entityRepository;
     private final GscixRelationRepository relationRepository;
+    private final JsonSchemaValidationService validationService;
+    private final IngestionTrackingService trackingService;
     private final ObjectMapper objectMapper;
 
     public StixBundleIngestService(GscixEntityRepository entityRepository,
             GscixRelationRepository relationRepository,
+            JsonSchemaValidationService validationService,
+            IngestionTrackingService trackingService,
             ObjectMapper objectMapper) {
         this.entityRepository = entityRepository;
         this.relationRepository = relationRepository;
+        this.validationService = validationService;
+        this.trackingService = trackingService;
         this.objectMapper = objectMapper;
     }
 
-    public Map<String, Object> ingestBundle(Map<String, Object> bundle) {
+    public Map<String, Object> ingestBundle(Map<String, Object> bundle, String filename) {
         List<Map<String, Object>> objects = (List<Map<String, Object>>) bundle.get("objects");
         if (objects == null) {
+            trackingService.logJob(filename, "ERROR", "No objects found in bundle", 0, 0);
             return Map.of("status", "ERROR", "message", "No objects found in bundle");
         }
 
@@ -58,13 +65,16 @@ public class StixBundleIngestService {
             }
         }
 
-        return Map.of(
+        Map<String, Object> result = Map.of(
                 "status", "OK",
                 "message",
                 String.format("Ingested STIX Bundle: %d entities and %d relations created.", entitiesCreated,
                         relationsCreated),
                 "entities_created", entitiesCreated,
                 "relations_created", relationsCreated);
+
+        trackingService.logJob(filename, "OK", (String) result.get("message"), entitiesCreated, relationsCreated);
+        return result;
     }
 
     private void processGscixEntity(Map<String, Object> obj) {
@@ -86,13 +96,30 @@ public class StixBundleIngestService {
         metadata.setUpdatedAt(Instant.now());
         entity.setMetadata(metadata);
 
-        // Extract GSCIX Attributes from extensions
+        // Extract GSCIX Attributes
+        // 1. From root (handles custom properties at object level)
+        GscixEntity.GsciAttributes gsciAttributes = objectMapper.convertValue(obj, GscixEntity.GsciAttributes.class);
+
+        // 2. From extensions (standard STIX 2.1 extension pattern)
         Map<String, Object> extensions = (Map<String, Object>) obj.get("extensions");
         if (extensions != null && extensions.containsKey(GSCI_EXTENSION_ID)) {
             Map<String, Object> gsciData = (Map<String, Object>) extensions.get(GSCI_EXTENSION_ID);
-            entity.setGsciAttributes(objectMapper.convertValue(gsciData, GscixEntity.GsciAttributes.class));
+
+            // Validate against schema if applicable
+            if (type != null && type.startsWith("x-")) {
+                validationService.validate(type, gsciData);
+            }
+
+            // Merge extension data into root attributes
+            GscixEntity.GsciAttributes extAttrs = objectMapper.convertValue(gsciData, GscixEntity.GsciAttributes.class);
+            if (extAttrs != null) {
+                // We could do a deep merge, but usually it's either root OR extension.
+                // Here we'll prefer extension data if it overlaps.
+                copyNonNullProperties(extAttrs, gsciAttributes);
+            }
         }
 
+        entity.setGsciAttributes(gsciAttributes);
         entityRepository.save(entity);
         logger.info("Ingested GSCIX Entity from Bundle: {} ({})", name, id);
     }
@@ -110,5 +137,80 @@ public class StixBundleIngestService {
 
         relationRepository.save(relation);
         logger.info("Ingested Relationship from Bundle: {}", relation.getId());
+    }
+
+    private void copyNonNullProperties(GscixEntity.GsciAttributes source, GscixEntity.GsciAttributes target) {
+        if (source == null || target == null)
+            return;
+        // Simple manual copy for key fields, as we want to avoid complex reflection or
+        // extra dependencies
+        if (source.getStrategicAlignment() != null)
+            target.setStrategicAlignment(source.getStrategicAlignment());
+        if (source.getGeopoliticalDoctrine() != null)
+            target.setGeopoliticalDoctrine(source.getGeopoliticalDoctrine());
+        if (source.getRevisionistIndex() != null)
+            target.setRevisionistIndex(source.getRevisionistIndex());
+        if (source.getStrategicAmbiguityScore() != null)
+            target.setStrategicAmbiguityScore(source.getStrategicAmbiguityScore());
+        if (source.getDoctrineType() != null)
+            target.setDoctrineType(source.getDoctrineType());
+        if (source.getTechnologicalModernizationRate() != null)
+            target.setTechnologicalModernizationRate(source.getTechnologicalModernizationRate());
+        if (source.getPowerProjection() != null)
+            target.setPowerProjection(source.getPowerProjection());
+        if (source.getAssociatedAgencies() != null)
+            target.setAssociatedAgencies(source.getAssociatedAgencies());
+        if (source.getObjectiveType() != null)
+            target.setObjectiveType(source.getObjectiveType());
+        if (source.getPriorityLevel() != null)
+            target.setPriorityLevel(source.getPriorityLevel());
+        if (source.getTimeHorizon() != null)
+            target.setTimeHorizon(source.getTimeHorizon());
+        if (source.getCivilMilitaryFusion() != null)
+            target.setCivilMilitaryFusion(source.getCivilMilitaryFusion());
+        if (source.getPhase() != null)
+            target.setPhase(source.getPhase());
+        if (source.getIntegrationLevel() != null)
+            target.setIntegrationLevel(source.getIntegrationLevel());
+        if (source.getGeographicScope() != null)
+            target.setGeographicScope(source.getGeographicScope());
+        if (source.getEscalationRiskScore() != null)
+            target.setEscalationRiskScore(source.getEscalationRiskScore());
+        if (source.getVelocity() != null)
+            target.setVelocity(source.getVelocity());
+        if (source.getNature() != null)
+            target.setNature(source.getNature());
+        if (source.getPoliticalDestabilizationIndex() != null)
+            target.setPoliticalDestabilizationIndex(source.getPoliticalDestabilizationIndex());
+        if (source.getEconomicDisruptionIndex() != null)
+            target.setEconomicDisruptionIndex(source.getEconomicDisruptionIndex());
+        if (source.getAllianceFragmentationScore() != null)
+            target.setAllianceFragmentationScore(source.getAllianceFragmentationScore());
+        if (source.getDeterrenceSignalStrength() != null)
+            target.setDeterrenceSignalStrength(source.getDeterrenceSignalStrength());
+        if (source.getConfidenceScore() != null)
+            target.setConfidenceScore(source.getConfidenceScore());
+        if (source.getNarrative() != null)
+            target.setNarrative(source.getNarrative());
+        if (source.getChannel() != null)
+            target.setChannel(source.getChannel());
+        if (source.getTargetAudience() != null)
+            target.setTargetAudience(source.getTargetAudience());
+        if (source.getHybridPressureIndex() != null)
+            target.setHybridPressureIndex(source.getHybridPressureIndex());
+        if (source.getEscalationProbabilityScore() != null)
+            target.setEscalationProbabilityScore(source.getEscalationProbabilityScore());
+        if (source.getStrategicSignalingScore() != null)
+            target.setStrategicSignalingScore(source.getStrategicSignalingScore());
+        if (source.getCyberGeopoliticalCouplingIndex() != null)
+            target.setCyberGeopoliticalCouplingIndex(source.getCyberGeopoliticalCouplingIndex());
+        if (source.getNarrativePenetrationScore() != null)
+            target.setNarrativePenetrationScore(source.getNarrativePenetrationScore());
+        if (source.getDoctrineCapacityDivergenceScore() != null)
+            target.setDoctrineCapacityDivergenceScore(source.getDoctrineCapacityDivergenceScore());
+        if (source.getFirstSeen() != null)
+            target.setFirstSeen(source.getFirstSeen());
+        if (source.getLastSeen() != null)
+            target.setLastSeen(source.getLastSeen());
     }
 }

@@ -1,5 +1,12 @@
 server:
   port: 8081
+  tomcat:
+    accesslog:
+      enabled: true
+      directory: /tmp
+      prefix: access_log
+      suffix: .log
+      pattern: '%h %l %u %t "%r" %s %b %D'
 
 spring:
   application:

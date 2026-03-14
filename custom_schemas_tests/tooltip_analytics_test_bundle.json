@@ -1,0 +1,128 @@
+{
+    "type": "bundle",
+    "id": "bundle--tooltip-override-test-001",
+    "objects": [
+        {
+            "type": "x-geo-strategic-actor",
+            "id": "x-geo-strategic-actor--actor-override-001",
+            "name": "Tooltip Override Test Actor",
+            "strategic_alignment": "Other",
+            "geopolitical_doctrine": "Defensive",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--override-ass-001",
+            "name": "Override Assessment",
+            "hybrid_pressure_index": 8.5,
+            "cyber_geopolitical_coupling_index": 9.5,
+            "confidence_score": 90,
+            "last_seen": "2026-03-01T10:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "id": "x-hybrid-campaign--kinetic-1",
+            "name": "Kinetic Operation Alpha",
+            "phase": "escalation",
+            "hybrid_intensity_score": 7.0,
+            "nature": [
+                "kinetic"
+            ],
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "id": "x-hybrid-campaign--kinetic-2",
+            "name": "Kinetic Operation Beta",
+            "phase": "escalation",
+            "hybrid_intensity_score": 7.5,
+            "nature": [
+                "kinetic"
+            ],
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "id": "x-hybrid-campaign--kinetic-3",
+            "name": "Kinetic Operation Gamma",
+            "phase": "sustained-pressure",
+            "hybrid_intensity_score": 8.0,
+            "nature": [
+                "kinetic",
+                "infrastructural"
+            ],
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "id": "x-hybrid-campaign--cognitive-1",
+            "name": "Cognitive Operation Echo",
+            "phase": "pre-conflict",
+            "hybrid_intensity_score": 6.5,
+            "nature": [
+                "cognitive"
+            ],
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--eval-actor",
+            "source_ref": "x-strategic-assessment--override-ass-001",
+            "target_ref": "x-geo-strategic-actor--actor-override-001",
+            "relationship_type": "evaluates"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--eval-c1",
+            "source_ref": "x-strategic-assessment--override-ass-001",
+            "target_ref": "x-hybrid-campaign--kinetic-1",
+            "relationship_type": "evaluates"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--eval-c2",
+            "source_ref": "x-strategic-assessment--override-ass-001",
+            "target_ref": "x-hybrid-campaign--kinetic-2",
+            "relationship_type": "evaluates"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--eval-c3",
+            "source_ref": "x-strategic-assessment--override-ass-001",
+            "target_ref": "x-hybrid-campaign--kinetic-3",
+            "relationship_type": "evaluates"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--eval-c4",
+            "source_ref": "x-strategic-assessment--override-ass-001",
+            "target_ref": "x-hybrid-campaign--cognitive-1",
+            "relationship_type": "evaluates"
+        }
+    ]
+}
