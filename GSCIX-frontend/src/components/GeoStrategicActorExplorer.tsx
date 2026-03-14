@@ -33,7 +33,7 @@ const StatCard = ({ title, value, subtext, icon: Icon, colorClass }: any) => (
     </div>
 );
 
-const CommandCenterHPI = ({ actor, analytics, loading }: { actor: GscixEntity; analytics?: import('../types/api').HpiAnalytics; loading: boolean }) => {
+const CommandCenterHPI = ({ actor, analytics, loading, divergenceAlert }: { actor: GscixEntity; analytics?: import('../types/api').HpiAnalytics; loading: boolean; divergenceAlert?: { detected: boolean; score: number } }) => {
     if (loading) {
         return (
             <div className="w-full flex flex-col justify-center">
@@ -109,8 +109,8 @@ const CommandCenterHPI = ({ actor, analytics, loading }: { actor: GscixEntity; a
                     </div>
                 </div>
 
-                {/* Historical Data & Spike (Keep existing style) */}
-                <div className="flex flex-col gap-4 justify-center">
+                {/* Historical Data & Alert Status */}
+                <div className="flex flex-col gap-4 justify-center min-h-0">
                     <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-4 border border-border-light dark:border-border-dark flex justify-between items-center transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
                         <div>
                             <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Historical Avg (10y)</div>
@@ -121,8 +121,25 @@ const CommandCenterHPI = ({ actor, analytics, loading }: { actor: GscixEntity; a
                         <History className="text-slate-300 dark:text-slate-600" size={32} />
                     </div>
 
-                    {analytics?.spike_detected ? (
-                        <div className="bg-risk-high/10 rounded-xl p-4 border border-risk-high/30 flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                    {divergenceAlert?.detected ? (
+                        <div className="h-[88px] bg-amber-500/10 rounded-xl p-4 border border-amber-500/40 flex items-start gap-3 shadow-sm relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-red-500/5 to-transparent rounded-xl"></div>
+                            <AlertTriangle className="text-amber-500 shrink-0 mt-0.5 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)] z-10" size={24} />
+                            <div className="z-10 min-w-0">
+                                <div className="text-sm font-bold text-amber-500 uppercase flex items-center gap-2">
+                                    <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                                    Strategic Divergence
+                                </div>
+                                <div className="text-xs text-amber-400/80 mt-1 leading-relaxed">
+                                    Operational expansion under stability narrative.
+                                    <span className="ml-1 font-mono text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                        Score: {divergenceAlert.score.toFixed(1)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : analytics?.spike_detected ? (
+                        <div className="h-[88px] bg-risk-high/10 rounded-xl p-4 border border-risk-high/30 flex items-start gap-3 shadow-sm">
                             <AlertCircle className="text-risk-high shrink-0 mt-0.5" size={24} />
                             <div>
                                 <div className="text-sm font-bold text-risk-high uppercase">Escalation Spike Detected</div>
@@ -130,7 +147,7 @@ const CommandCenterHPI = ({ actor, analytics, loading }: { actor: GscixEntity; a
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20 flex items-start gap-3 shadow-sm">
+                        <div className="h-[88px] bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20 flex items-start gap-3 shadow-sm">
                             <ShieldCheck className="text-emerald-500 shrink-0 mt-0.5" size={24} />
                             <div>
                                 <div className="text-sm font-bold text-emerald-500 uppercase">Stable Baseline</div>
@@ -402,7 +419,7 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                         </div>
 
                         {/* Table */}
-                        <div className="glass-panel rounded-xl overflow-hidden min-h-[400px]">
+                        <div className="glass-panel rounded-xl min-h-[400px]">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center h-[400px] text-slate-500">
                                     <Loader2 className="animate-spin mb-2" size={32} />
@@ -517,7 +534,7 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                                                         </button>
 
                                                         {openMenuId === actor.stixId && (
-                                                            <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-border-light dark:border-border-dark z-50 overflow-hidden animate-in fade-in zoom-in duration-150 py-1">
+                                                            <div className="absolute right-0 bottom-full mb-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-border-light dark:border-border-dark z-50 overflow-hidden animate-in fade-in zoom-in duration-150 py-1">
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
@@ -574,7 +591,9 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                                         <div>
                                             <h2 className="text-lg font-bold">{selectedActor.name}</h2>
                                             <div className="text-xs text-slate-500 dark:text-slate-400 font-mono uppercase">
-                                                {selectedActor.gsciAttributes?.strategic_alignment || 'Unknown'} Actor
+                                                {selectedActor.gsciAttributes?.strategic_alignment === 'Other'
+                                                    ? 'NOT ALIGNED ACTOR'
+                                                    : `${selectedActor.gsciAttributes?.strategic_alignment || 'Unknown'} Actor`}
                                             </div>
                                         </div>
                                     </div>
@@ -602,27 +621,13 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                                         actor={selectedActor}
                                         analytics={actorAnalytics[selectedActor.stixId]}
                                         loading={loadingAnalytics}
+                                        divergenceAlert={
+                                            selectedActor.gsciAttributes?.doctrine_type?.toLowerCase().includes('stability') &&
+                                            actorAnalytics[selectedActor.stixId]?.max_divergence_score > 7.0
+                                                ? { detected: true, score: actorAnalytics[selectedActor.stixId].max_divergence_score }
+                                                : undefined
+                                        }
                                     />
-                                    {/* Strategic Divergence Warning */}
-                                    {selectedActor.gsciAttributes?.doctrine_type?.toLowerCase().includes('stability') &&
-                                        actorAnalytics[selectedActor.stixId]?.max_divergence_score > 7.0 && (
-                                            <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-4 flex items-start gap-3 shadow-lg animate-in fade-in slide-in-from-top-2 relative">
-                                                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-red-500/5 to-transparent rounded-xl"></div>
-                                                <AlertTriangle className="text-amber-500 shrink-0 mt-0.5 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]" size={24} />
-                                                <div className="z-10 min-w-0">
-                                                    <div className="text-sm font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2">
-                                                        <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
-                                                        WARNING: Strategic Divergence Detected
-                                                    </div>
-                                                    <div className="text-xs text-amber-400/80 mt-1.5 leading-relaxed">
-                                                        Operational expansion detected under stability narrative.
-                                                        <span className="ml-1 font-mono text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded inline-block mt-1">
-                                                            Divergence Score: {actorAnalytics[selectedActor.stixId]?.max_divergence_score.toFixed(1)}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
                                     <div className="min-h-[280px]">
                                         <HPITrendChart
                                             analytics={actorAnalytics[selectedActor.stixId]}

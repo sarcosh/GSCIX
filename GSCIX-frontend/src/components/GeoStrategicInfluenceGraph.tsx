@@ -97,12 +97,8 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                     const today = new Date().toISOString().split('T')[0];
                     const firstSeen = actor.first_seen || actor.gsciAttributes?.first_seen;
                     
-                    if (firstSeen) {
-                        const dateOnly = firstSeen.split('T')[0];
-                        setDateRange({ from: dateOnly, to: today });
-                    } else {
-                        setDateRange((prev: any) => ({ ...prev, to: today }));
-                    }
+                    const fromDate = firstSeen ? firstSeen.split('T')[0] : today;
+                    setDateRange({ from: fromDate, to: today });
                 }
             }
         } catch (err) {
@@ -245,12 +241,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
         const cfg = NODE_CONFIG[node.type] || { color: '#64748b', border: '#475569', path: '', label: 'Unknown' };
 
-        let r = 8;
-        if (node.type === 'x-geo-strategic-actor') r = 16;
-        else if (node.type === 'x-strategic-objective') r = 12;
-        else if (node.type === 'x-hybrid-campaign') r = 11;
-        else if (node.type === 'x-strategic-impact') r = 10;
-        else if (node.type === 'intrusion-set' || node.type === 'threat-actor') r = 10;
+        const r = 12;
 
         const isHighlighted = highlightedConnectionIdRef.current === node.id;
         const isSelected = rootActorRef.current?.stixId === node.id;
@@ -288,7 +279,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
         // Draw Icon Path (centered)
         if (cfg.path) {
-            const boxSize = r * 1.35; // Size of the icon bounding box inside circle
+            const boxSize = r * 1.1; // Size of the icon bounding box inside circle
             const scale = boxSize / 24; // Lucide icons are 24x24
 
             ctx.save();
@@ -471,7 +462,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Temporal Filters</h3>
                     <div className="space-y-4">
                         <div>
-                            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 block">Desde</label>
+                            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 block">From</label>
                             <input
                                 type="date"
                                 value={dateRange.from}
@@ -480,7 +471,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             />
                         </div>
                         <div>
-                            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 block">Hasta</label>
+                            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 block">To</label>
                             <input
                                 type="date"
                                 value={dateRange.to}
@@ -492,7 +483,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             onClick={() => {
                                 const today = new Date().toISOString().split('T')[0];
                                 const firstSeen = rootActor?.first_seen || rootActor?.gsciAttributes?.first_seen;
-                                const from = firstSeen ? firstSeen.split('T')[0] : '';
+                                const from = firstSeen ? firstSeen.split('T')[0] : today;
                                 setDateRange({ from, to: today });
                             }}
                             className="text-[10px] text-cyan-500 hover:underline font-medium w-full text-center"
