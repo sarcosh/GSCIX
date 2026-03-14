@@ -1,0 +1,49 @@
+{
+    "type": "bundle",
+    "id": "bundle--intrusion-set-test-001",
+    "objects": [
+        {
+            "type": "x-geo-strategic-actor",
+            "id": "x-geo-strategic-actor--actor-001",
+            "name": "Intrusion Test Actor",
+            "description": "An actor to test intrusion-set visibility.",
+            "strategic_alignment": "Non-Aligned",
+            "revisionist_index": 8.5,
+            "first_seen": "2024-01-01T00:00:00Z",
+            "extensions": {
+                "extension-definition--7b77c6a9-8396-4172-8812-42173160a0f9": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "intrusion-set",
+            "id": "intrusion-set--set-001",
+            "name": "Advanced Persistent Set 01",
+            "description": "A set of malicious infrastructure and tactics.",
+            "first_seen": "2024-02-01T00:00:00Z"
+        },
+        {
+            "type": "threat-actor",
+            "id": "threat-actor--actor-001",
+            "name": "Operator Alpha",
+            "description": "An individual operator within the set.",
+            "first_seen": "2024-02-15T00:00:00Z",
+            "threat_actor_types": ["malicious-insider"]
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--rel-001",
+            "source_ref": "x-geo-strategic-actor--actor-001",
+            "target_ref": "intrusion-set--set-001",
+            "relationship_type": "attributed-to"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--rel-002",
+            "source_ref": "intrusion-set--set-001",
+            "target_ref": "threat-actor--actor-001",
+            "relationship_type": "associated-with"
+        }
+    ]
+}

@@ -3,7 +3,7 @@ import {
     X, Download, Zap,
     Globe, Flag, Megaphone, Bug, Plus, Minus,
     Maximize2, RefreshCw, AlertTriangle, ExternalLink,
-    Share2, Shield, Activity
+    Share2, Shield, Activity, ChevronLeft, Layers, Users
 } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { cn } from '../lib/utils';
@@ -18,8 +18,8 @@ const NODE_CONFIG: Record<string, { color: string; border: string; path: string;
     'x-influence-vector': { color: '#8b5cf6', border: '#7c3aed', path: 'M4.9 19.1C1 15.2 1 8.8 4.9 4.9 M19.1 4.9c3.9 3.9 3.9 10.2 0 14.1 M8.5 15.5c-1.9-1.9-1.9-5.1 0-7 M15.5 8.5c1.9 1.9 1.9 5.1 0 7 M12 12h.01', label: 'Influence Vector' },
     'x-strategic-impact': { color: '#6366f1', border: '#4f46e5', path: 'M12 3v18 M3 7h18 M3 7l-2 9a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2z M15 7l-2 9a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2z', label: 'Strategic Impact' },
     'x-strategic-assessment': { color: '#10b981', border: '#059669', path: 'M3 3v18h18 M18 17V9 M13 17V5 M8 17v-3', label: 'Strategic Assessment' },
-    'intrusion-set': { color: '#64748b', border: '#475569', path: 'M8 2v4 M16 2v4 M11.9 7v4 M8 9h8 M8 13h8 M12 13c-2.4 0-4.3 2-4.3 4.5S9.6 22 12 22s4.3-2 4.3-4.5S14.4 13 12 13z', label: 'Intrusion Set' },
-    'threat-actor': { color: '#64748b', border: '#475569', path: 'M8 2v4 M16 2v4 M11.9 7v4 M8 9h8 M8 13h8 M12 13c-2.4 0-4.3 2-4.3 4.5S9.6 22 12 22s4.3-2 4.3-4.5S14.4 13 12 13z', label: 'Threat Actor' },
+    'intrusion-set': { color: '#64748b', border: '#475569', path: 'M12 2 2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5', label: 'Intrusion Set' },
+    'threat-actor': { color: '#94a3b8', border: '#64748b', path: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 3a4 4 0 1 0 0 8 4 4 0 1 0 0-8z', label: 'Threat Actor' },
 };
 
 const LAYER_FILTERS = [
@@ -29,7 +29,8 @@ const LAYER_FILTERS = [
     { key: 'x-influence-vector', label: 'Influence Vectors', icon: Share2, color: 'text-purple-500 bg-purple-500/10' },
     { key: 'x-strategic-impact', label: 'Strategic Impacts', icon: Activity, color: 'text-indigo-500 bg-indigo-500/10' },
     { key: 'x-strategic-assessment', label: 'Assessments', icon: Zap, color: 'text-emerald-500 bg-emerald-500/10' },
-    { key: 'intrusion-set', label: 'Intrusion Sets', icon: Shield, color: 'text-slate-500 bg-slate-500/10' },
+    { key: 'intrusion-set', label: 'Intrusion Sets', icon: Layers, color: 'text-slate-500 bg-slate-500/10' },
+    { key: 'threat-actor', label: 'Threat Actors', icon: Users, color: 'text-slate-400 bg-slate-400/10' },
 ];
 
 interface InfluenceGraphProps {
@@ -53,7 +54,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         'intrusion-set': true,
         'threat-actor': true,
     });
-    const [revisionistFilter, setRevisionistFilter] = useState(0);
+    const [dateRange, setDateRange] = useState({ from: '', to: '' });
     const graphRef = useRef<any>(null);
 
     // Fetch subgraph from backend
@@ -75,12 +76,21 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
             setEntities(data.entities);
             setRelations(data.relations);
 
-            // Auto-select root actor
+            // Auto-select root actor and init date range
             if (rootId) {
                 const actor = data.entities.find(e => e.stixId === rootId);
                 if (actor) {
                     setSelectedNode(actor);
                     fetchAnalytics(actor);
+                    
+                    // Initialize date range: From = actor's first_seen, To = Today
+                    const today = new Date().toISOString().split('T')[0];
+                    if (actor.gsciAttributes?.first_seen) {
+                        const dateOnly = actor.gsciAttributes.first_seen.split('T')[0];
+                        setDateRange({ from: dateOnly, to: today });
+                    } else {
+                        setDateRange((prev: any) => ({ ...prev, to: today }));
+                    }
                 }
             }
         } catch (err) {
@@ -112,35 +122,73 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         if (!node.entity) return;
         const entity = node.entity as GscixEntity;
 
+        // Always show the sidebar on node selection
+        setSelectedNode(entity);
+
         if (entity.type === 'x-geo-strategic-actor') {
-            // Clicking an actor: select it as the main node
-            setSelectedNode(entity);
             setHighlightedConnectionId(null);
             fetchAnalytics(entity);
         } else {
-            // Clicking a non-actor: highlight it in the Connections list of the current actor
+            // Highlight it in the list
             setHighlightedConnectionId(entity.stixId);
             setTimeout(() => {
                 document.getElementById(`conn-${entity.stixId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 50);
+            }, 100);
         }
-
-
     }, [fetchAnalytics]);
 
     // Build visual graph data from the backend-provided entities/relations + client layer filters
     const graphData = useMemo(() => {
-        const filteredEntities = entities.filter(e => {
+        // Step 1: Preliminary filter (Layers + Dates). Root actor is NEVER filtered locally.
+        const candidateEntities = entities.filter(e => {
+            if (e.stixId === initialActorId) return true;
             if (!activeLayers[e.type]) return false;
-            if (revisionistFilter > 0 && e.type === 'x-geo-strategic-actor') {
-                return (e.gsciAttributes?.revisionist_index || 0) >= revisionistFilter;
+
+            if (dateRange.from || dateRange.to) {
+                const fsStr = e.first_seen || e.gsciAttributes?.first_seen;
+                const lsStr = e.last_seen || e.gsciAttributes?.last_seen;
+
+                const firstSeen = fsStr ? new Date(fsStr) : null;
+                const lastSeen = lsStr ? new Date(lsStr) : (firstSeen || null);
+
+                if (dateRange.from) {
+                    const fromDate = new Date(dateRange.from);
+                    if (lastSeen && lastSeen < fromDate) return false;
+                }
+                if (dateRange.to) {
+                    const toDate = new Date(dateRange.to);
+                    if (firstSeen && firstSeen > toDate) return false;
+                }
             }
             return true;
         });
 
-        const entityIds = new Set(filteredEntities.map(e => e.stixId));
+        const candidateIds = new Set(candidateEntities.map(e => e.stixId));
+        const reachableIds = new Set<string>();
+        if (initialActorId && candidateIds.has(initialActorId)) {
+            reachableIds.add(initialActorId);
 
-        const nodes = filteredEntities.map(e => ({
+            // Step 2: Recursive Connectivity (BFS)
+            // We only show items that have a connection path to the root
+            let changed = true;
+            while (changed) {
+                changed = false;
+                for (const rel of relations) {
+                    if (reachableIds.has(rel.source_ref) && candidateIds.has(rel.target_ref) && !reachableIds.has(rel.target_ref)) {
+                        reachableIds.add(rel.target_ref);
+                        changed = true;
+                    }
+                    if (reachableIds.has(rel.target_ref) && candidateIds.has(rel.source_ref) && !reachableIds.has(rel.source_ref)) {
+                        reachableIds.add(rel.source_ref);
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        // Step 3: Final assembly
+        const finalEntities = entities.filter(e => reachableIds.has(e.stixId));
+        const nodes = finalEntities.map(e => ({
             id: e.stixId,
             name: e.name,
             type: e.type,
@@ -149,7 +197,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         }));
 
         const links = relations
-            .filter(r => entityIds.has(r.source_ref) && entityIds.has(r.target_ref))
+            .filter(r => reachableIds.has(r.source_ref) && reachableIds.has(r.target_ref))
             .map(r => ({
                 source: r.source_ref,
                 target: r.target_ref,
@@ -157,7 +205,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
             }));
 
         return { nodes, links };
-    }, [entities, relations, activeLayers, revisionistFilter]);
+    }, [entities, relations, activeLayers, dateRange, initialActorId]);
 
     // Use a ref so paintNode doesn't need selectedNode in its dependency array (avoids graph re-init)
     const selectedNodeRef = useRef<GscixEntity | null>(null);
@@ -336,32 +384,36 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         ))}
                     </div>
                 </div>
-
-                {/* Analytical Filters */}
+                {/* Temporal Filters */}
                 <div className="p-5 border-b border-slate-100 dark:border-slate-800">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Analytical Filters</h3>
-                    <div className="space-y-5">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Temporal Filters</h3>
+                    <div className="space-y-4">
                         <div>
-                            <div className="flex justify-between mb-2">
-                                <label className="text-xs font-medium text-slate-600 dark:text-slate-400">Revisionist Index</label>
-                                <span className="text-xs text-cyan-500 font-mono font-bold bg-cyan-500/10 px-1.5 rounded">
-                                    {revisionistFilter > 0 ? `> ${revisionistFilter.toFixed(1)}` : 'All'}
-                                </span>
-                            </div>
+                            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 block">Desde</label>
                             <input
-                                type="range"
-                                min="0"
-                                max="10"
-                                step="0.5"
-                                value={revisionistFilter}
-                                onChange={(e) => setRevisionistFilter(parseFloat(e.target.value))}
-                                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                                type="date"
+                                value={dateRange.from}
+                                onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-cyan-500 outline-none"
                             />
-                            <div className="flex justify-between mt-1 text-[10px] text-slate-400">
-                                <span>Low</span>
-                                <span>Critical</span>
-                            </div>
                         </div>
+                        <div>
+                            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 block">Hasta</label>
+                            <input
+                                type="date"
+                                value={dateRange.to}
+                                onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-cyan-500 outline-none"
+                            />
+                        </div>
+                        {(dateRange.from || dateRange.to) && (
+                            <button
+                                onClick={() => setDateRange({ from: '', to: '' })}
+                                className="text-[10px] text-cyan-500 hover:underline font-medium w-full text-center"
+                            >
+                                Clear Dates
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -430,6 +482,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             linkDirectionalArrowColor={() => 'rgba(148,163,184,0.6)'}
                             linkLineDash={[4, 2]}
                             enableNodeDrag={true}
+                            enableZoomInteraction={false}
                             cooldownTicks={200}
                             warmupTicks={50}
                             onEngineStop={handleEngineStop}
@@ -458,6 +511,23 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         </span>
                     </div>
                 </div>
+
+                {/* Sidebar Recovery Button (visible when sidebar is closed) */}
+                {!selectedNode && (
+                    <div className="absolute top-1/2 -right-1 -translate-y-1/2 z-10">
+                        <button
+                            onClick={() => {
+                                // Recover last selected or default to root
+                                const rootActor = entities.find(e => e.stixId === initialActorId);
+                                if (rootActor) setSelectedNode(rootActor);
+                            }}
+                            className="flex items-center justify-center w-8 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-l-xl shadow-lg text-slate-400 hover:text-cyan-500 transition-all group"
+                            title="Restore Details Panel"
+                        >
+                            <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* ── Right Detail Panel ── */}
@@ -696,6 +766,9 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                 )}
                                                 onClick={() => {
                                                     setHighlightedConnectionId(isHighlighted ? null : n.id);
+                                                    if (!isHighlighted) {
+                                                        setSelectedNode(nodeEntity);
+                                                    }
                                                 }}
                                             >
                                                 {/* Header / Pill */}

@@ -46,6 +46,8 @@ export interface GscixEntity {
     type: string;
     name: string;
     description?: string;
+    first_seen?: string;
+    last_seen?: string;
     gsciAttributes?: GsciAttributes;
     metadata?: EntityMetadata;
 }
