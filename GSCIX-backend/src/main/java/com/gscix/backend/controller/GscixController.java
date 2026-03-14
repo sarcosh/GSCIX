@@ -9,8 +9,11 @@ import com.gscix.backend.service.InfluenceGraphService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -20,13 +23,16 @@ public class GscixController {
     private final GscixEntityRepository entityRepository;
     private final GscixRelationRepository relationRepository;
     private final InfluenceGraphService influenceGraphService;
+    private final String openctiExternalUrl;
 
     public GscixController(GscixEntityRepository entityRepository,
             GscixRelationRepository relationRepository,
-            InfluenceGraphService influenceGraphService) {
+            InfluenceGraphService influenceGraphService,
+            @Value("${opencti.external-url:http://localhost:8080}") String openctiExternalUrl) {
         this.entityRepository = entityRepository;
         this.relationRepository = relationRepository;
         this.influenceGraphService = influenceGraphService;
+        this.openctiExternalUrl = openctiExternalUrl;
     }
 
     @PostMapping("/entities")
@@ -96,5 +102,12 @@ public class GscixController {
     public ResponseEntity<InfluenceGraphResponse> getActorsOverview() {
         InfluenceGraphResponse response = influenceGraphService.buildActorsOverview();
         return ResponseEntity.ok(response);
+    }
+
+    // --- Config endpoint ---
+
+    @GetMapping("/config/opencti-url")
+    public ResponseEntity<Map<String, String>> getOpenctiUrl() {
+        return ResponseEntity.ok(Map.of("url", openctiExternalUrl));
     }
 }

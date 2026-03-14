@@ -48,6 +48,11 @@ export interface GscixEntity {
     description?: string;
     first_seen?: string;
     last_seen?: string;
+    aliases?: string[];
+    goals?: string[];
+    resource_level?: string;
+    primary_motivation?: string;
+    threat_actor_types?: string[];
     gsciAttributes?: GsciAttributes;
     metadata?: EntityMetadata;
 }

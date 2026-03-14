@@ -20,16 +20,26 @@
             "type": "intrusion-set",
             "id": "intrusion-set--set-001",
             "name": "Advanced Persistent Set 01",
-            "description": "A set of malicious infrastructure and tactics.",
-            "first_seen": "2024-02-01T00:00:00Z"
+            "description": "A set of malicious infrastructure and tactics used for cyber espionage.",
+            "aliases": ["APT-S01", "Shadow Collective"],
+            "first_seen": "2024-02-01T00:00:00Z",
+            "last_seen": "2025-11-15T00:00:00Z",
+            "goals": ["Espionage", "Data Exfiltration"],
+            "resource_level": "government",
+            "primary_motivation": "dominance",
+            "x_opencti_id": "6e909616-fd31-4d4c-b865-dae72ffff29e"
         },
         {
             "type": "threat-actor",
             "id": "threat-actor--actor-001",
             "name": "Operator Alpha",
-            "description": "An individual operator within the set.",
+            "description": "An individual operator within the set, specializing in spear-phishing.",
             "first_seen": "2024-02-15T00:00:00Z",
-            "threat_actor_types": ["malicious-insider"]
+            "last_seen": "2025-10-20T00:00:00Z",
+            "threat_actor_types": ["malicious-insider"],
+            "resource_level": "organization",
+            "primary_motivation": "personal-gain",
+            "x_opencti_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         },
         {
             "type": "relationship",

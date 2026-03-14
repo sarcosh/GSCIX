@@ -17,12 +17,25 @@ import java.util.*;
  * It iterates over objects, extracts GSCIX attributes from the 'extensions'
  * field,
  * and persists both entities and relationships (SROs).
+ *
+ * Supports both GSCIX custom SDOs (x-*) and standard STIX 2.1 SDOs
+ * (intrusion-set, threat-actor, malware, attack-pattern, etc.) so that
+ * the influence graph can render the full topology of a bundle.
  */
 @Service
 public class StixBundleIngestService {
 
     private static final Logger logger = LoggerFactory.getLogger(StixBundleIngestService.class);
     private static final String GSCI_EXTENSION_ID = "extension-definition--6b53a3e2-8947-414b-876a-7d499edec5b8";
+
+    /**
+     * STIX 2.1 meta-object types that are NOT domain objects and should not be
+     * persisted as entities. Everything else (custom x-* or standard SDOs) is
+     * treated as an entity.
+     */
+    private static final Set<String> NON_ENTITY_TYPES = Set.of(
+            "relationship", "sighting", "marking-definition",
+            "extension-definition", "language-content", "bundle");
 
     private final GscixEntityRepository entityRepository;
     private final GscixRelationRepository relationRepository;
@@ -59,8 +72,10 @@ public class StixBundleIngestService {
             if ("relationship".equals(type)) {
                 processRelationship(obj);
                 relationsCreated++;
-            } else if (type != null && (type.startsWith("x-") || type.startsWith("x-gscix-"))) {
-                processGscixEntity(obj);
+            } else if (type != null && !NON_ENTITY_TYPES.contains(type)) {
+                // Process both GSCIX custom SDOs (x-*) and standard STIX 2.1 SDOs
+                // (intrusion-set, threat-actor, malware, attack-pattern, etc.)
+                processEntity(obj);
                 entitiesCreated++;
             }
         }
@@ -77,7 +92,13 @@ public class StixBundleIngestService {
         return result;
     }
 
-    private void processGscixEntity(Map<String, Object> obj) {
+    /**
+     * Process any STIX 2.1 domain object (both custom x-* and standard types).
+     * Custom types may carry GSCIX extension attributes; standard types are
+     * persisted with basic fields (name, description, first_seen, etc.) so they
+     * can participate in graph traversal.
+     */
+    private void processEntity(Map<String, Object> obj) {
         String type = (String) obj.get("type");
         String id = (String) obj.get("id");
         String name = (String) obj.get("name");
@@ -86,14 +107,44 @@ public class StixBundleIngestService {
         GscixEntity entity = new GscixEntity();
         entity.setStixId(id);
         entity.setType(type);
-        entity.setName(name);
+        entity.setName(name != null ? name : type); // Fallback: use type as name
         entity.setDescription(description);
         entity.setSource("STIX-BUNDLE-INGEST");
         entity.setExtensions(Collections.singletonList(GSCI_EXTENSION_ID));
 
+        // Standard STIX 2.1 temporal fields
+        String firstSeenStr = (String) obj.get("first_seen");
+        String lastSeenStr = (String) obj.get("last_seen");
+        if (firstSeenStr != null) {
+            entity.setFirstSeen(Instant.parse(firstSeenStr));
+        }
+        if (lastSeenStr != null) {
+            entity.setLastSeen(Instant.parse(lastSeenStr));
+        }
+
+        // Standard STIX 2.1 fields for intrusion-set / threat-actor
+        if (obj.get("aliases") instanceof List) {
+            entity.setAliases((List<String>) obj.get("aliases"));
+        }
+        if (obj.get("goals") instanceof List) {
+            entity.setGoals((List<String>) obj.get("goals"));
+        }
+        entity.setResourceLevel((String) obj.get("resource_level"));
+        entity.setPrimaryMotivation((String) obj.get("primary_motivation"));
+        if (obj.get("threat_actor_types") instanceof List) {
+            entity.setThreatActorTypes((List<String>) obj.get("threat_actor_types"));
+        }
+
         GscixEntity.EntityMetadata metadata = new GscixEntity.EntityMetadata();
         metadata.setCreatedAt(Instant.now());
         metadata.setUpdatedAt(Instant.now());
+
+        // Extract OpenCTI internal ID if present (custom property added by OpenCTI exports)
+        String openctiId = (String) obj.get("x_opencti_id");
+        if (openctiId != null) {
+            metadata.setOpenctiInternalId(openctiId);
+        }
+
         entity.setMetadata(metadata);
 
         // Extract GSCIX Attributes
@@ -105,7 +156,7 @@ public class StixBundleIngestService {
         if (extensions != null && extensions.containsKey(GSCI_EXTENSION_ID)) {
             Map<String, Object> gsciData = (Map<String, Object>) extensions.get(GSCI_EXTENSION_ID);
 
-            // Validate against schema if applicable
+            // Validate against schema if applicable (only for custom types)
             if (type != null && type.startsWith("x-")) {
                 validationService.validate(type, gsciData);
             }
@@ -113,15 +164,13 @@ public class StixBundleIngestService {
             // Merge extension data into root attributes
             GscixEntity.GsciAttributes extAttrs = objectMapper.convertValue(gsciData, GscixEntity.GsciAttributes.class);
             if (extAttrs != null) {
-                // We could do a deep merge, but usually it's either root OR extension.
-                // Here we'll prefer extension data if it overlaps.
                 copyNonNullProperties(extAttrs, gsciAttributes);
             }
         }
 
         entity.setGsciAttributes(gsciAttributes);
         entityRepository.save(entity);
-        logger.info("Ingested GSCIX Entity from Bundle: {} ({})", name, id);
+        logger.info("Ingested Entity from Bundle: type={} name={} ({})", type, name, id);
     }
 
     private void processRelationship(Map<String, Object> obj) {

@@ -3,7 +3,7 @@ import {
     X, Download, Zap,
     Globe, Flag, Megaphone, Bug, Plus, Minus,
     Maximize2, RefreshCw, AlertTriangle, ExternalLink,
-    Share2, Shield, Activity, ChevronLeft, Layers, Users
+    Share2, Activity, ChevronLeft, Layers, Users
 } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { cn } from '../lib/utils';
@@ -18,8 +18,8 @@ const NODE_CONFIG: Record<string, { color: string; border: string; path: string;
     'x-influence-vector': { color: '#8b5cf6', border: '#7c3aed', path: 'M4.9 19.1C1 15.2 1 8.8 4.9 4.9 M19.1 4.9c3.9 3.9 3.9 10.2 0 14.1 M8.5 15.5c-1.9-1.9-1.9-5.1 0-7 M15.5 8.5c1.9 1.9 1.9 5.1 0 7 M12 12h.01', label: 'Influence Vector' },
     'x-strategic-impact': { color: '#6366f1', border: '#4f46e5', path: 'M12 3v18 M3 7h18 M3 7l-2 9a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2z M15 7l-2 9a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2z', label: 'Strategic Impact' },
     'x-strategic-assessment': { color: '#10b981', border: '#059669', path: 'M3 3v18h18 M18 17V9 M13 17V5 M8 17v-3', label: 'Strategic Assessment' },
-    'intrusion-set': { color: '#64748b', border: '#475569', path: 'M12 2 2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5', label: 'Intrusion Set' },
-    'threat-actor': { color: '#94a3b8', border: '#64748b', path: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 3a4 4 0 1 0 0 8 4 4 0 1 0 0-8z', label: 'Threat Actor' },
+    'intrusion-set': { color: '#64748b', border: '#475569', path: 'M12 2L2 7l10 5l10-5L12 2z M2 17l10 5l10-5 M2 12l10 5l10-5', label: 'Intrusion Set' },
+    'threat-actor': { color: '#94a3b8', border: '#64748b', path: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 7a4 4 0 1 0 0-8a4 4 0 0 0 0 8z', label: 'Threat Actor' },
 };
 
 const LAYER_FILTERS = [
@@ -41,9 +41,10 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     const [entities, setEntities] = useState<GscixEntity[]>([]);
     const [relations, setRelations] = useState<GscixRelation[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedNode, setSelectedNode] = useState<GscixEntity | null>(null);
+    const [rootActor, setRootActor] = useState<GscixEntity | null>(null);
     const [selectedAnalytics, setSelectedAnalytics] = useState<HpiAnalytics | null>(null);
     const [highlightedConnectionId, setHighlightedConnectionId] = useState<string | null>(null);
+    const [panelVisible, setPanelVisible] = useState(true);
     const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({
         'x-geo-strategic-actor': true,
         'x-strategic-objective': true,
@@ -55,15 +56,19 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         'threat-actor': true,
     });
     const [dateRange, setDateRange] = useState({ from: '', to: '' });
+    const [openctiBaseUrl, setOpenctiBaseUrl] = useState<string>('');
     const graphRef = useRef<any>(null);
+    const initialZoomDone = useRef(false);
+    const d3ForcesConfigured = useRef(false);
 
     // Fetch subgraph from backend
     const fetchGraph = useCallback(async (rootId?: string) => {
         if (!rootId) {
             setEntities([]);
             setRelations([]);
-            setSelectedNode(null);
+            setRootActor(null);
             setHighlightedConnectionId(null);
+            setPanelVisible(true);
             setLoading(false);
             return;
         }
@@ -80,13 +85,20 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
             if (rootId) {
                 const actor = data.entities.find(e => e.stixId === rootId);
                 if (actor) {
-                    setSelectedNode(actor);
+                    setRootActor(actor);
+                    setPanelVisible(true);
                     fetchAnalytics(actor);
                     
-                    // Initialize date range: From = actor's first_seen, To = Today
+                    // Reset flags for new actor so initial zoomToFit + force config run once
+                    initialZoomDone.current = false;
+                    d3ForcesConfigured.current = false;
+
+                    // Initialize date range: From = actor's first_seen (root or gsci), To = Today
                     const today = new Date().toISOString().split('T')[0];
-                    if (actor.gsciAttributes?.first_seen) {
-                        const dateOnly = actor.gsciAttributes.first_seen.split('T')[0];
+                    const firstSeen = actor.first_seen || actor.gsciAttributes?.first_seen;
+                    
+                    if (firstSeen) {
+                        const dateOnly = firstSeen.split('T')[0];
                         setDateRange({ from: dateOnly, to: today });
                     } else {
                         setDateRange((prev: any) => ({ ...prev, to: today }));
@@ -104,6 +116,13 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         fetchGraph(initialActorId);
     }, [initialActorId, fetchGraph]);
 
+    // Fetch OpenCTI base URL once on mount
+    useEffect(() => {
+        apiService.getOpenctiUrl()
+            .then(url => setOpenctiBaseUrl(url.replace(/\/$/, '')))
+            .catch(() => setOpenctiBaseUrl(''));
+    }, []);
+
     const fetchAnalytics = async (entity: GscixEntity) => {
         if (entity.type !== 'x-geo-strategic-actor') {
             setSelectedAnalytics(null);
@@ -117,32 +136,33 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         }
     };
 
-    // When clicking a node: actors → select & show detail; non-actors → highlight in Connections list
+    // When clicking a node: toggle highlight on its pill in the sidebar.
+    // The root actor header + Strategic Metrics always stay visible.
     const handleNodeClick = useCallback((node: any) => {
         if (!node.entity) return;
         const entity = node.entity as GscixEntity;
 
-        // Always show the sidebar on node selection
-        setSelectedNode(entity);
+        // Ensure the panel is visible
+        setPanelVisible(true);
 
-        if (entity.type === 'x-geo-strategic-actor') {
-            setHighlightedConnectionId(null);
-            fetchAnalytics(entity);
-        } else {
-            // Highlight it in the list
-            setHighlightedConnectionId(entity.stixId);
+        // Toggle highlight: click same node again → deselect
+        const newId = highlightedConnectionId === entity.stixId ? null : entity.stixId;
+        setHighlightedConnectionId(newId);
+
+        if (newId) {
             setTimeout(() => {
                 document.getElementById(`conn-${entity.stixId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }, 100);
         }
-    }, [fetchAnalytics]);
+    }, [highlightedConnectionId]);
 
     // Build visual graph data from the backend-provided entities/relations + client layer filters
     const graphData = useMemo(() => {
         // Step 1: Preliminary filter (Layers + Dates). Root actor is NEVER filtered locally.
         const candidateEntities = entities.filter(e => {
             if (e.stixId === initialActorId) return true;
-            if (!activeLayers[e.type]) return false;
+            // If the type has an explicit toggle, respect it; unknown types default to visible
+            if (activeLayers[e.type] !== undefined && !activeLayers[e.type]) return false;
 
             if (dateRange.from || dateRange.to) {
                 const fsStr = e.first_seen || e.gsciAttributes?.first_seen;
@@ -170,19 +190,23 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
             // Step 2: Recursive Connectivity (BFS)
             // We only show items that have a connection path to the root
-            let changed = true;
-            while (changed) {
-                changed = false;
-                for (const rel of relations) {
-                    if (reachableIds.has(rel.source_ref) && candidateIds.has(rel.target_ref) && !reachableIds.has(rel.target_ref)) {
-                        reachableIds.add(rel.target_ref);
-                        changed = true;
-                    }
-                    if (reachableIds.has(rel.target_ref) && candidateIds.has(rel.source_ref) && !reachableIds.has(rel.source_ref)) {
-                        reachableIds.add(rel.source_ref);
-                        changed = true;
+            let currentNodes = [initialActorId];
+            
+            while (currentNodes.length > 0) {
+                const nextNodes: string[] = [];
+                for (const nodeId of currentNodes) {
+                    const neighbors = relations
+                        .filter(r => r.source_ref === nodeId || r.target_ref === nodeId)
+                        .map(r => r.source_ref === nodeId ? r.target_ref : r.source_ref);
+                    
+                    for (const neighborId of neighbors) {
+                        if (candidateIds.has(neighborId) && !reachableIds.has(neighborId)) {
+                            reachableIds.add(neighborId);
+                            nextNodes.push(neighborId);
+                        }
                     }
                 }
+                currentNodes = nextNodes;
             }
         }
 
@@ -207,14 +231,14 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         return { nodes, links };
     }, [entities, relations, activeLayers, dateRange, initialActorId]);
 
-    // Use a ref so paintNode doesn't need selectedNode in its dependency array (avoids graph re-init)
-    const selectedNodeRef = useRef<GscixEntity | null>(null);
-    useEffect(() => { selectedNodeRef.current = selectedNode; }, [selectedNode]);
+    // Use a ref so paintNode doesn't need rootActor in its dependency array (avoids graph re-init)
+    const rootActorRef = useRef<GscixEntity | null>(null);
+    useEffect(() => { rootActorRef.current = rootActor; }, [rootActor]);
 
     const highlightedConnectionIdRef = useRef<string | null>(null);
     useEffect(() => { highlightedConnectionIdRef.current = highlightedConnectionId; }, [highlightedConnectionId]);
 
-    // Canvas node renderer — stable callback (no selectedNode dependency)
+    // Canvas node renderer — stable callback (no rootActor dependency, uses refs)
     const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
         // Defensive check for non-finite coordinates (avoids createRadialGradient crash)
         if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
@@ -229,7 +253,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         else if (node.type === 'intrusion-set' || node.type === 'threat-actor') r = 10;
 
         const isHighlighted = highlightedConnectionIdRef.current === node.id;
-        const isSelected = selectedNodeRef.current?.stixId === node.id && !highlightedConnectionIdRef.current;
+        const isSelected = rootActorRef.current?.stixId === node.id;
 
         // Outer glow
         if (isSelected || isHighlighted) {
@@ -304,17 +328,75 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         }
     }, []);
 
-    // Configure d3 forces after the graph mounts to increase spacing
+    // zoomToFit only on the very first simulation stop after a new actor is loaded
     const handleEngineStop = useCallback(() => {
-        graphRef.current?.zoomToFit(400, 80);
+        if (!initialZoomDone.current && graphRef.current) {
+            graphRef.current.zoomToFit(400, 80);
+            initialZoomDone.current = true;
+        }
     }, []);
 
+    // Configure d3 forces ONCE per actor load.
+    // When graphData changes due to layer/date filters the graph should NOT
+    // re-run the full simulation — we restore zoom/pan after the reheat.
     useEffect(() => {
-        if (graphRef.current) {
+        if (graphRef.current && !d3ForcesConfigured.current) {
             graphRef.current.d3Force('link')?.distance(120);
             graphRef.current.d3Force('charge')?.strength(-350).distanceMax(500);
             graphRef.current.d3Force('center')?.strength(0.05);
+            d3ForcesConfigured.current = true;
         }
+    }, [graphData]);
+
+    // When graphData changes due to filters (not a new actor load), preserve the
+    // current zoom & pan so the user sees no visual jump.
+    // We detect "filter change" vs "new actor" by checking initialZoomDone:
+    //   - false → new actor, let the initial zoomToFit happen naturally
+    //   - true  → filter change, snapshot and restore the transform
+    const prevGraphDataRef = useRef(graphData);
+
+    useEffect(() => {
+        const fg = graphRef.current;
+        if (!fg || !initialZoomDone.current) {
+            prevGraphDataRef.current = graphData;
+            return;
+        }
+
+        // Snapshot current zoom + center before the library processes new graphData
+        const prevZoom = fg.zoom();
+        const prevCenter = fg.centerAt();
+
+        // After react-force-graph has ingested the new graphData and re-heated,
+        // immediately freeze the simulation and restore the camera.
+        const raf = requestAnimationFrame(() => {
+            if (!graphRef.current) return;
+
+            // Pin all existing nodes to their current positions so the reheat
+            // doesn't scatter them. New nodes (no x/y yet) are left free.
+            graphData.nodes.forEach((n: any) => {
+                if (Number.isFinite(n.x) && Number.isFinite(n.y)) {
+                    n.fx = n.x;
+                    n.fy = n.y;
+                }
+            });
+
+            // Restore zoom & center (duration=0 → instant, no animation)
+            if (prevZoom && prevCenter) {
+                graphRef.current.zoom(prevZoom, 0);
+                graphRef.current.centerAt(prevCenter.x, prevCenter.y, 0);
+            }
+
+            // Unpin after a tick so future node-dragging still works
+            requestAnimationFrame(() => {
+                graphData.nodes.forEach((n: any) => {
+                    n.fx = undefined;
+                    n.fy = undefined;
+                });
+            });
+        });
+
+        prevGraphDataRef.current = graphData;
+        return () => cancelAnimationFrame(raf);
     }, [graphData]);
 
     const toggleLayer = (key: string) => {
@@ -406,20 +488,23 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-cyan-500 outline-none"
                             />
                         </div>
-                        {(dateRange.from || dateRange.to) && (
-                            <button
-                                onClick={() => setDateRange({ from: '', to: '' })}
-                                className="text-[10px] text-cyan-500 hover:underline font-medium w-full text-center"
-                            >
-                                Clear Dates
-                            </button>
-                        )}
+                        <button
+                            onClick={() => {
+                                const today = new Date().toISOString().split('T')[0];
+                                const firstSeen = rootActor?.first_seen || rootActor?.gsciAttributes?.first_seen;
+                                const from = firstSeen ? firstSeen.split('T')[0] : '';
+                                setDateRange({ from, to: today });
+                            }}
+                            className="text-[10px] text-cyan-500 hover:underline font-medium w-full text-center"
+                        >
+                            Clear Dates
+                        </button>
                     </div>
                 </div>
 
                 {/* HPI Alert (bottom) */}
                 <div className="p-4 mt-auto">
-                    {selectedNode && selectedAnalytics && selectedAnalytics.spike_detected && (
+                    {rootActor && selectedAnalytics && selectedAnalytics.spike_detected && (
                         <div className="bg-amber-50 dark:bg-amber-500/10 p-4 rounded-lg border border-amber-200 dark:border-amber-500/30 shadow-sm">
                             <div className="flex items-start gap-3">
                                 <div className="bg-white dark:bg-slate-800 p-1 rounded-full shadow-sm">
@@ -428,7 +513,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 <div>
                                     <p className="text-xs font-bold text-amber-800 dark:text-amber-400 mb-1">HPI Alert: High</p>
                                     <p className="text-[11px] text-amber-700 dark:text-amber-500/80 leading-snug">
-                                        Hybrid Pressure Index spike detected for <span className="font-bold underline decoration-amber-400/50">{selectedNode.name}</span>.
+                                        Hybrid Pressure Index spike detected for <span className="font-bold underline decoration-amber-400/50">{rootActor.name}</span>.
                                     </p>
                                 </div>
                             </div>
@@ -461,36 +546,37 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                     </div>
                 </div>
 
-                {loading ? (
+                <div className="absolute inset-0 z-0">
+                    <ForceGraph2D
+                        ref={graphRef}
+                        graphData={graphData}
+                        nodeCanvasObject={paintNode}
+                        onNodeClick={handleNodeClick}
+                        linkColor={() => 'rgba(148,163,184,0.4)'}
+                        linkWidth={1.8}
+                        linkDirectionalArrowLength={7}
+                        linkDirectionalArrowRelPos={0.85}
+                        linkDirectionalArrowColor={() => 'rgba(148,163,184,0.6)'}
+                        linkLineDash={[4, 2]}
+                        enableNodeDrag={true}
+                        enableZoomInteraction={false}
+                        enablePanInteraction={true}
+                        cooldownTicks={200}
+                        warmupTicks={50}
+                        onEngineStop={handleEngineStop}
+                        backgroundColor="rgba(0,0,0,0)"
+                        nodeRelSize={6}
+                        d3AlphaDecay={0.02}
+                        d3VelocityDecay={0.3}
+                    />
+                </div>
+
+                {loading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-50/50 dark:bg-slate-950/50 backdrop-blur-sm z-10 transition-all">
                         <div className="text-center">
                             <RefreshCw className="animate-spin text-cyan-500 mx-auto mb-3" size={32} />
                             <p className="text-sm text-slate-500 font-medium">Loading influence graph...</p>
                         </div>
-                    </div>
-                ) : (
-                    <div className="absolute inset-0 z-0">
-                        <ForceGraph2D
-                            ref={graphRef}
-                            graphData={graphData}
-                            nodeCanvasObject={paintNode}
-                            onNodeClick={handleNodeClick}
-                            linkColor={() => 'rgba(148,163,184,0.4)'}
-                            linkWidth={1.8}
-                            linkDirectionalArrowLength={7}
-                            linkDirectionalArrowRelPos={0.85}
-                            linkDirectionalArrowColor={() => 'rgba(148,163,184,0.6)'}
-                            linkLineDash={[4, 2]}
-                            enableNodeDrag={true}
-                            enableZoomInteraction={false}
-                            cooldownTicks={200}
-                            warmupTicks={50}
-                            onEngineStop={handleEngineStop}
-                            backgroundColor="rgba(0,0,0,0)"
-                            nodeRelSize={6}
-                            d3AlphaDecay={0.02}
-                            d3VelocityDecay={0.3}
-                        />
                     </div>
                 )}
 
@@ -512,15 +598,11 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                     </div>
                 </div>
 
-                {/* Sidebar Recovery Button (visible when sidebar is closed) */}
-                {!selectedNode && (
+                {/* Sidebar Recovery Button (visible when panel is hidden) */}
+                {!panelVisible && rootActor && (
                     <div className="absolute top-1/2 -right-1 -translate-y-1/2 z-10">
                         <button
-                            onClick={() => {
-                                // Recover last selected or default to root
-                                const rootActor = entities.find(e => e.stixId === initialActorId);
-                                if (rootActor) setSelectedNode(rootActor);
-                            }}
+                            onClick={() => setPanelVisible(true)}
                             className="flex items-center justify-center w-8 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-l-xl shadow-lg text-slate-400 hover:text-cyan-500 transition-all group"
                             title="Restore Details Panel"
                         >
@@ -531,158 +613,154 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
             </div>
 
             {/* ── Right Detail Panel ── */}
-            {selectedNode && (
+            {panelVisible && rootActor && (
                 <aside className="w-96 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col z-20 shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.08)] overflow-y-auto shrink-0">
-                    {/* Header */}
+                    {/* Header — always shows the root Geo-Strategic Actor */}
                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-[10px] uppercase tracking-wider font-bold text-cyan-500 border border-cyan-500/20 px-2 py-0.5 rounded-full bg-cyan-500/5">
-                                {NODE_CONFIG[selectedNode.type]?.label || selectedNode.type}
+                                {NODE_CONFIG[rootActor.type]?.label || rootActor.type}
                             </span>
-                            <button onClick={() => setSelectedNode(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                            <button onClick={() => setPanelVisible(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
                                 <X size={18} />
                             </button>
                         </div>
                         <div className="flex items-center gap-3 mb-2">
                             <div className="w-10 h-10 rounded-full bg-slate-900 shadow-sm border border-slate-700 flex items-center justify-center">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d={NODE_CONFIG[selectedNode.type]?.path || 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0'} />
+                                    <path d={NODE_CONFIG[rootActor.type]?.path || 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0'} />
                                 </svg>
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{selectedNode.name}</h2>
-                                <p className="text-xs text-slate-500 font-mono">{selectedNode.stixId?.substring(0, 24)}...</p>
+                                <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{rootActor.name}</h2>
+                                <p className="text-xs text-slate-500 font-mono">{rootActor.stixId?.substring(0, 24)}...</p>
                             </div>
                         </div>
-                        {selectedNode.type === 'x-geo-strategic-actor' && (
-                            <div className="flex gap-2 mt-3 flex-wrap">
-                                {selectedNode.gsciAttributes?.revisionist_index !== undefined && (selectedNode.gsciAttributes.revisionist_index > 7) && (
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-100 dark:border-red-500/20">
-                                        High Revisionist
-                                    </span>
-                                )}
-                                {selectedNode.gsciAttributes?.strategic_alignment && (
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20">
-                                        {selectedNode.gsciAttributes.strategic_alignment}
-                                    </span>
-                                )}
-                            </div>
-                        )}
+                        <div className="flex gap-2 mt-3 flex-wrap">
+                            {rootActor.gsciAttributes?.revisionist_index !== undefined && (rootActor.gsciAttributes.revisionist_index > 7) && (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-100 dark:border-red-500/20">
+                                    High Revisionist
+                                </span>
+                            )}
+                            {rootActor.gsciAttributes?.strategic_alignment && (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20">
+                                    {rootActor.gsciAttributes.strategic_alignment}
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     {/* Body Content */}
                     <div className="flex-1 p-6 space-y-8">
-                        {/* Strategic Metrics (actors only) */}
-                        {selectedNode.type === 'x-geo-strategic-actor' && (
-                            <div>
-                                <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                                    📊 Strategic Metrics
-                                </h3>
-                                <div className="space-y-5">
-                                    {/* Revisionist Index */}
+                        {/* Strategic Metrics — always visible for the root actor */}
+                        <div>
+                            <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                                Strategic Metrics
+                            </h3>
+                            <div className="space-y-5">
+                                {/* Revisionist Index */}
+                                <div>
+                                    <div className="flex justify-between items-end mb-1.5">
+                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Revisionist Index</span>
+                                        <span className={cn(
+                                            "text-sm font-mono font-bold px-1.5 rounded",
+                                            (rootActor.gsciAttributes?.revisionist_index || 0) > 7 ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10" :
+                                                (rootActor.gsciAttributes?.revisionist_index || 0) > 4 ? "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10" :
+                                                    "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10"
+                                        )}>
+                                            {(rootActor.gsciAttributes?.revisionist_index || 0).toFixed(1)}/10
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                                        <div
+                                            className="bg-gradient-to-r from-orange-400 to-red-500 h-full rounded-full transition-all duration-500"
+                                            style={{ width: `${Math.min(100, (rootActor.gsciAttributes?.revisionist_index || 0) * 10)}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+
+                                {/* Doctrine-Capacity Divergence */}
+                                {selectedAnalytics && (
                                     <div>
                                         <div className="flex justify-between items-end mb-1.5">
-                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Revisionist Index</span>
+                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Doctrine-Capacity Divergence</span>
+                                            <span className="text-sm font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-1.5 rounded">
+                                                {selectedAnalytics.max_divergence_score?.toFixed(1) || '0.0'}
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                                            <div className="bg-amber-400 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (selectedAnalytics.max_divergence_score || 0) * 10)}%` }}></div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Strategic Ambiguity */}
+                                <div>
+                                    <div className="flex justify-between items-end mb-1.5">
+                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Strategic Ambiguity</span>
+                                        <span className={cn(
+                                            "text-sm font-mono font-bold px-1.5 rounded",
+                                            (rootActor.gsciAttributes?.strategic_ambiguity_score || 0) > 7 ? "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10" :
+                                                (rootActor.gsciAttributes?.strategic_ambiguity_score || 0) > 4 ? "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10" :
+                                                    "text-cyan-600 bg-cyan-50 dark:text-cyan-400 dark:bg-cyan-500/10"
+                                        )}>
+                                            {(rootActor.gsciAttributes?.strategic_ambiguity_score || 0) > 7 ? 'High' :
+                                                (rootActor.gsciAttributes?.strategic_ambiguity_score || 0) > 4 ? 'Medium' : 'Low'}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-1 mt-1">
+                                        <div className={cn("h-2 w-full rounded-sm", (rootActor.gsciAttributes?.strategic_ambiguity_score || 0) >= 1 ? "bg-cyan-500" : "bg-slate-200 dark:bg-slate-700")}></div>
+                                        <div className={cn("h-2 w-full rounded-sm", (rootActor.gsciAttributes?.strategic_ambiguity_score || 0) >= 4 ? "bg-cyan-500" : "bg-slate-200 dark:bg-slate-700")}></div>
+                                        <div className={cn("h-2 w-full rounded-sm", (rootActor.gsciAttributes?.strategic_ambiguity_score || 0) >= 7 ? "bg-cyan-500" : "bg-slate-200 dark:bg-slate-700")}></div>
+                                    </div>
+                                </div>
+
+                                {/* HPI */}
+                                {selectedAnalytics && selectedAnalytics.current_hpi !== undefined && (
+                                    <div>
+                                        <div className="flex justify-between items-end mb-1.5">
+                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Hybrid Pressure Index</span>
                                             <span className={cn(
                                                 "text-sm font-mono font-bold px-1.5 rounded",
-                                                (selectedNode.gsciAttributes?.revisionist_index || 0) > 7 ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10" :
-                                                    (selectedNode.gsciAttributes?.revisionist_index || 0) > 4 ? "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10" :
-                                                        "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10"
+                                                selectedAnalytics.current_hpi > 7 ? "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10" :
+                                                    selectedAnalytics.current_hpi > 4 ? "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10" :
+                                                        "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10"
                                             )}>
-                                                {(selectedNode.gsciAttributes?.revisionist_index || 0).toFixed(1)}/10
+                                                {(selectedAnalytics.current_hpi || 0).toFixed(1)}
                                             </span>
                                         </div>
                                         <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
                                             <div
-                                                className="bg-gradient-to-r from-orange-400 to-red-500 h-full rounded-full transition-all duration-500"
-                                                style={{ width: `${Math.min(100, (selectedNode.gsciAttributes?.revisionist_index || 0) * 10)}%` }}
+                                                className={cn(
+                                                    "h-full rounded-full transition-all duration-500",
+                                                    selectedAnalytics.current_hpi > 7 ? "bg-gradient-to-r from-orange-400 to-red-500" :
+                                                        selectedAnalytics.current_hpi > 4 ? "bg-gradient-to-r from-yellow-400 to-amber-500" :
+                                                            "bg-gradient-to-r from-emerald-400 to-cyan-500"
+                                                )}
+                                                style={{ width: `${Math.min(100, (selectedAnalytics.current_hpi || 0) * 10)}%` }}
                                             ></div>
                                         </div>
                                     </div>
-
-                                    {/* Doctrine-Capacity Divergence */}
-                                    {selectedAnalytics && (
-                                        <div>
-                                            <div className="flex justify-between items-end mb-1.5">
-                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Doctrine-Capacity Divergence</span>
-                                                <span className="text-sm font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-1.5 rounded">
-                                                    {selectedAnalytics.max_divergence_score?.toFixed(1) || '0.0'}
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                                                <div className="bg-amber-400 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (selectedAnalytics.max_divergence_score || 0) * 10)}%` }}></div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Strategic Ambiguity */}
-                                    <div>
-                                        <div className="flex justify-between items-end mb-1.5">
-                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Strategic Ambiguity</span>
-                                            <span className={cn(
-                                                "text-sm font-mono font-bold px-1.5 rounded",
-                                                (selectedNode.gsciAttributes?.strategic_ambiguity_score || 0) > 7 ? "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10" :
-                                                    (selectedNode.gsciAttributes?.strategic_ambiguity_score || 0) > 4 ? "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10" :
-                                                        "text-cyan-600 bg-cyan-50 dark:text-cyan-400 dark:bg-cyan-500/10"
-                                            )}>
-                                                {(selectedNode.gsciAttributes?.strategic_ambiguity_score || 0) > 7 ? 'High' :
-                                                    (selectedNode.gsciAttributes?.strategic_ambiguity_score || 0) > 4 ? 'Medium' : 'Low'}
-                                            </span>
-                                        </div>
-                                        <div className="flex gap-1 mt-1">
-                                            <div className={cn("h-2 w-full rounded-sm", (selectedNode.gsciAttributes?.strategic_ambiguity_score || 0) >= 1 ? "bg-cyan-500" : "bg-slate-200 dark:bg-slate-700")}></div>
-                                            <div className={cn("h-2 w-full rounded-sm", (selectedNode.gsciAttributes?.strategic_ambiguity_score || 0) >= 4 ? "bg-cyan-500" : "bg-slate-200 dark:bg-slate-700")}></div>
-                                            <div className={cn("h-2 w-full rounded-sm", (selectedNode.gsciAttributes?.strategic_ambiguity_score || 0) >= 7 ? "bg-cyan-500" : "bg-slate-200 dark:bg-slate-700")}></div>
-                                        </div>
-                                    </div>
-
-                                    {/* HPI */}
-                                    {selectedAnalytics && selectedAnalytics.current_hpi !== undefined && (
-                                        <div>
-                                            <div className="flex justify-between items-end mb-1.5">
-                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Hybrid Pressure Index</span>
-                                                <span className={cn(
-                                                    "text-sm font-mono font-bold px-1.5 rounded",
-                                                    selectedAnalytics.current_hpi > 7 ? "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10" :
-                                                        selectedAnalytics.current_hpi > 4 ? "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10" :
-                                                            "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10"
-                                                )}>
-                                                    {(selectedAnalytics.current_hpi || 0).toFixed(1)}
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                                                <div
-                                                    className={cn(
-                                                        "h-full rounded-full transition-all duration-500",
-                                                        selectedAnalytics.current_hpi > 7 ? "bg-gradient-to-r from-orange-400 to-red-500" :
-                                                            selectedAnalytics.current_hpi > 4 ? "bg-gradient-to-r from-yellow-400 to-amber-500" :
-                                                                "bg-gradient-to-r from-emerald-400 to-cyan-500"
-                                                    )}
-                                                    style={{ width: `${Math.min(100, (selectedAnalytics.current_hpi || 0) * 10)}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                                )}
                             </div>
-                        )}
+                        </div>
 
-                        {/* Tactical Linkage (OpenCTI) - for actors */}
-                        {selectedNode.type === 'x-geo-strategic-actor' && selectedNode.metadata?.openctiInternalId && (
+                        {/* Tactical Linkage (OpenCTI) */}
+                        {rootActor.metadata?.openctiInternalId && (
                             <div>
                                 <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                                    🔗 Tactical Linkage (OpenCTI)
+                                    Tactical Linkage (OpenCTI)
                                 </h3>
                                 <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-sm border border-slate-200 dark:border-slate-700 shadow-sm">
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="flex items-center gap-2">
                                             <Bug className="text-slate-400" size={16} />
-                                            <span className="font-bold text-slate-800 dark:text-white">{selectedNode.name}</span>
+                                            <span className="font-bold text-slate-800 dark:text-white">{rootActor.name}</span>
                                         </div>
                                         <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded font-mono">Linked</span>
                                     </div>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-                                        {selectedNode.description || 'Linked threat actor from OpenCTI platform.'}
+                                        {rootActor.description || 'Linked threat actor from OpenCTI platform.'}
                                     </p>
                                     <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                                         <div className="bg-slate-50 dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-700">
@@ -692,7 +770,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                         <div className="bg-slate-50 dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-700">
                                             <span className="block text-[10px] text-slate-400 mb-0.5">Last Seen</span>
                                             <span className="font-mono text-slate-700 dark:text-slate-300">
-                                                {selectedNode.gsciAttributes?.last_seen ? new Date(selectedNode.gsciAttributes.last_seen).toLocaleDateString() : 'N/A'}
+                                                {rootActor.gsciAttributes?.last_seen ? new Date(rootActor.gsciAttributes.last_seen).toLocaleDateString() : 'N/A'}
                                             </span>
                                         </div>
                                     </div>
@@ -703,48 +781,10 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             </div>
                         )}
 
-                        {/* Entity description / details for non-actors */}
-                        {selectedNode.type !== 'x-geo-strategic-actor' && (
-                            <div>
-                                <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                                    📄 Details
-                                </h3>
-                                <div className="space-y-3">
-                                    {selectedNode.description && (
-                                        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{selectedNode.description}</p>
-                                    )}
-                                    {selectedNode.gsciAttributes?.phase && (
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500">Phase</span>
-                                            <span className="font-mono font-semibold text-slate-700 dark:text-white">{selectedNode.gsciAttributes.phase}</span>
-                                        </div>
-                                    )}
-                                    {selectedNode.gsciAttributes?.nature && Array.isArray(selectedNode.gsciAttributes.nature) && (
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500">Nature</span>
-                                            <span className="font-mono font-semibold text-slate-700 dark:text-white">{selectedNode.gsciAttributes.nature.join(', ')}</span>
-                                        </div>
-                                    )}
-                                    {selectedNode.gsciAttributes?.hybrid_pressure_index !== undefined && (
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500">HPI</span>
-                                            <span className="font-mono font-semibold text-slate-700 dark:text-white">{(selectedNode.gsciAttributes.hybrid_pressure_index ?? 0).toFixed(1)}</span>
-                                        </div>
-                                    )}
-                                    {selectedNode.gsciAttributes?.confidence_score !== undefined && (
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500">Confidence</span>
-                                            <span className="font-mono font-semibold text-slate-700 dark:text-white">{(selectedNode.gsciAttributes.confidence_score ?? 0)}%</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Graph Elements (All visible nodes except selected actor) */}
+                        {/* Graph Elements — pills with expandable details for each entity */}
                         <div>
                             <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                                <span>🕸️ Graph Elements</span>
+                                <span>Graph Elements</span>
                                 <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">{graphData.nodes.length}</span>
                             </h3>
                             <ul className="space-y-2">
@@ -753,7 +793,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                         const nodeEntity = n.entity as GscixEntity;
                                         const isHighlighted = highlightedConnectionId === n.id;
                                         const nodeRelations = relations.filter(r => r.source_ref === n.id || r.target_ref === n.id);
-                                        const primaryRelation = nodeRelations.find(r => r.source_ref === selectedNode.stixId || r.target_ref === selectedNode.stixId);
+                                        const primaryRelation = nodeRelations.find(r => r.source_ref === rootActor.stixId || r.target_ref === rootActor.stixId);
 
                                         return (
                                             <li key={n.id}
@@ -766,9 +806,6 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                 )}
                                                 onClick={() => {
                                                     setHighlightedConnectionId(isHighlighted ? null : n.id);
-                                                    if (!isHighlighted) {
-                                                        setSelectedNode(nodeEntity);
-                                                    }
                                                 }}
                                             >
                                                 {/* Header / Pill */}
@@ -796,8 +833,8 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
                                                 {/* Expanded Accordion Content */}
                                                 <div className={cn(
-                                                    "px-3 pb-3 transition-all duration-300 ease-in-out",
-                                                    isHighlighted ? "max-h-96 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+                                                    "px-3 transition-all duration-300 ease-in-out overflow-hidden",
+                                                    isHighlighted ? "pb-3 max-h-[1000px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
                                                 )}>
                                                     <div className="pt-2 border-t border-cyan-500/20 space-y-3">
                                                         {nodeEntity.description && (
@@ -824,10 +861,58 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                                     <span className="text-[10px] text-emerald-400 font-bold font-mono">{(nodeEntity.gsciAttributes?.confidence_score ?? 0)}%</span>
                                                                 </div>
                                                             )}
+                                                            {(nodeEntity.first_seen || nodeEntity.gsciAttributes?.first_seen) && (
+                                                                <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                    <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">First Seen</span>
+                                                                    <span className="text-[10px] text-slate-300 font-mono">{(nodeEntity.first_seen || nodeEntity.gsciAttributes?.first_seen || '').split('T')[0]}</span>
+                                                                </div>
+                                                            )}
+                                                            {nodeEntity.threat_actor_types && nodeEntity.threat_actor_types.length > 0 && (
+                                                                <div className="col-span-2 bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                    <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Actor Types</span>
+                                                                    <span className="text-[10px] text-indigo-400 font-bold">{nodeEntity.threat_actor_types.join(', ')}</span>
+                                                                </div>
+                                                            )}
                                                             <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
                                                                 <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Type</span>
                                                                 <span className="text-[10px] text-amber-500 font-bold">{NODE_CONFIG[n.type]?.label || n.type}</span>
                                                             </div>
+
+                                                            {/* Intrusion Set specific fields */}
+                                                            {nodeEntity.type === 'intrusion-set' && (
+                                                                <>
+                                                                    {nodeEntity.aliases && nodeEntity.aliases.length > 0 && (
+                                                                        <div className="col-span-2 bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Aliases</span>
+                                                                            <span className="text-[10px] text-slate-300">{nodeEntity.aliases.join(', ')}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {nodeEntity.goals && nodeEntity.goals.length > 0 && (
+                                                                        <div className="col-span-2 bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Goals</span>
+                                                                            <span className="text-[10px] text-slate-300">{nodeEntity.goals.join(', ')}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {nodeEntity.resource_level && (
+                                                                        <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Resource Level</span>
+                                                                            <span className="text-[10px] text-orange-400 font-bold">{nodeEntity.resource_level}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {nodeEntity.primary_motivation && (
+                                                                        <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Motivation</span>
+                                                                            <span className="text-[10px] text-rose-400 font-bold">{nodeEntity.primary_motivation}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {nodeEntity.last_seen && (
+                                                                        <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Last Seen</span>
+                                                                            <span className="text-[10px] text-slate-300 font-mono">{nodeEntity.last_seen.split('T')[0]}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            )}
 
                                                             {/* Custom Attributes for Influence Vector */}
                                                             {nodeEntity.type === 'x-influence-vector' && (
@@ -880,15 +965,25 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                                 ))}
                                                             </div>
                                                         )}
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                // Future action: navigate deep
-                                                            }}
-                                                            className="w-full py-1.5 text-[10px] font-bold bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors uppercase tracking-wider shadow-sm"
-                                                        >
-                                                            Deep Analysis
-                                                        </button>
+                                                        {(nodeEntity.type === 'intrusion-set' || nodeEntity.type === 'threat-actor') && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const base = openctiBaseUrl || 'http://localhost:8080';
+                                                                    const openctiId = nodeEntity.metadata?.openctiInternalId;
+                                                                    const dashPath = nodeEntity.type === 'intrusion-set'
+                                                                        ? 'threats/intrusion_sets'
+                                                                        : 'threats/threat_actors_individual';
+                                                                    const url = openctiId
+                                                                        ? `${base}/dashboard/${dashPath}/${openctiId}`
+                                                                        : `${base}/dashboard/search/${encodeURIComponent(nodeEntity.name)}`;
+                                                                    window.open(url, '_blank', 'noopener,noreferrer');
+                                                                }}
+                                                                className="w-full py-1.5 text-[10px] font-bold bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5"
+                                                            >
+                                                                <ExternalLink size={11} /> View in OpenCTI
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </li>

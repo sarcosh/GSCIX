@@ -31,6 +31,36 @@ public class GscixEntity {
     @Field(type = FieldType.Text)
     private String description;
 
+    // --- Standard STIX 2.1 SDO fields (intrusion-set, threat-actor, etc.) ---
+
+    @JsonProperty("first_seen")
+    @Field(type = FieldType.Date)
+    private Instant firstSeen;
+
+    @JsonProperty("last_seen")
+    @Field(type = FieldType.Date)
+    private Instant lastSeen;
+
+    @JsonProperty("aliases")
+    @Field(type = FieldType.Keyword)
+    private List<String> aliases;
+
+    @JsonProperty("goals")
+    @Field(type = FieldType.Text)
+    private List<String> goals;
+
+    @JsonProperty("resource_level")
+    @Field(type = FieldType.Keyword)
+    private String resourceLevel;
+
+    @JsonProperty("primary_motivation")
+    @Field(type = FieldType.Keyword)
+    private String primaryMotivation;
+
+    @JsonProperty("threat_actor_types")
+    @Field(type = FieldType.Keyword)
+    private List<String> threatActorTypes;
+
     @Field(type = FieldType.Object)
     private GsciAttributes gsciAttributes;
 

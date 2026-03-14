@@ -101,6 +101,11 @@ export const apiService = {
     getActorsOverview: async (): Promise<InfluenceGraphData> => {
         const response = await apiClient.get<InfluenceGraphData>('/gscix/graph');
         return response.data;
+    },
+
+    getOpenctiUrl: async (): Promise<string> => {
+        const response = await apiClient.get<{ url: string }>('/gscix/config/opencti-url');
+        return response.data.url;
     }
 };
 

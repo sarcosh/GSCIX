@@ -17,3 +17,4 @@ spring:
 opencti:
   url: ${OPENCTI_URL:http://opencti:8080}
   token: ${OPENCTI_TOKEN:default_token}
+  external-url: ${OPENCTI_EXTERNAL_URL:${OPENCTI_EXTERNAL_SCHEME:http}://${OPENCTI_HOST:localhost}:${OPENCTI_PORT:8080}}
