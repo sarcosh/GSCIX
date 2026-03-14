@@ -346,8 +346,24 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
         actor.gsciAttributes?.geopolitical_doctrine?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Compute stats from real analytics data
+    const computedStats = useMemo(() => {
+        const analyticsValues = Object.values(actorAnalytics);
+        const escalationEvents = analyticsValues.filter(a => a.spike_detected).length;
+        const linkedCyberUnits = analyticsValues.reduce((sum, a) => {
+            return sum + Object.values(a.pressure_breakdown || {}).reduce((s, v) => s + v, 0);
+        }, 0);
+        const confidenceScores = analyticsValues
+            .map(a => a.avg_confidence_score)
+            .filter(c => c !== undefined && c !== null);
+        const avgConfidence = confidenceScores.length > 0
+            ? confidenceScores.reduce((s, c) => s + c, 0) / confidenceScores.length
+            : 0;
+        return { escalationEvents, linkedCyberUnits, avgConfidence };
+    }, [actorAnalytics]);
+
     const formatDate = (dateString?: string) => {
-        if (!dateString) return 'Just now';
+        if (!dateString) return '—';
         try {
             return new Date(dateString).toISOString().split('T')[0];
         } catch {
@@ -380,9 +396,9 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     <StatCard title="Active Revisionists" value={actors.length.toString()} subtext="Verified in database" icon={AlertCircle} colorClass="bg-risk-high" />
-                    <StatCard title="Escalation Events" value="84" subtext="High probability shifts" icon={TrendingUp} colorClass="bg-secondary" />
-                    <StatCard title="Linked Cyber Units" value="156" subtext="Attributed via OpenCTI" icon={Share2} colorClass="bg-primary" />
-                    <StatCard title="Intelligence Confidence" value="92%" subtext="STIX Correlation" icon={ShieldCheck} colorClass="bg-emerald-500" />
+                    <StatCard title="Escalation Events" value={computedStats.escalationEvents.toString()} subtext="Actors with spike detected" icon={TrendingUp} colorClass="bg-secondary" />
+                    <StatCard title="Linked Cyber Units" value={computedStats.linkedCyberUnits.toString()} subtext="Attributed via OpenCTI" icon={Share2} colorClass="bg-primary" />
+                    <StatCard title="Intelligence Confidence" value={computedStats.avgConfidence > 0 ? `${computedStats.avgConfidence.toFixed(0)}%` : '—'} subtext="Average confidence score" icon={ShieldCheck} colorClass="bg-emerald-500" />
                 </div>
 
                 {/* Main Content Area */}
@@ -600,18 +616,18 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                                     <div className="space-y-4">
                                         <div>
                                             <label className="text-xs uppercase text-slate-500 dark:text-slate-400 font-semibold tracking-wider">Strategic Objective</label>
-                                            <p className="text-sm mt-1 dark:text-slate-300">{selectedActor.gsciAttributes?.objective_type || 'General Objectives'}</p>
+                                            <p className="text-sm mt-1 dark:text-slate-300">{selectedActor.gsciAttributes?.objective_type || '—'}</p>
                                         </div>
                                         <div className="mb-2">
                                             <label className="text-xs uppercase text-slate-500 dark:text-slate-400 font-semibold tracking-wider">Revisionist Index</label>
-                                            <div className="mt-2 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-risk-high/10 text-risk-high border border-risk-high/20">
-                                                {selectedActor.gsciAttributes?.revisionist_index || '0.0'}
+                                            <div className="mt-6 inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-risk-high/10 text-risk-high border border-risk-high/20">
+                                                {selectedActor.gsciAttributes?.revisionist_index ?? '—'}
                                             </div>
                                         </div>
                                         <div>
                                             <label className="text-xs uppercase text-slate-500 dark:text-slate-400 font-semibold tracking-wider">Description</label>
                                             <p className="text-sm mt-1 text-slate-500 dark:text-slate-400 leading-relaxed">
-                                                {selectedActor.description || 'Global strategic threat actor operating in multi-domain conflict zones.'}
+                                                {selectedActor.description || 'No description available.'}
                                             </p>
                                         </div>
                                     </div>

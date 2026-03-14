@@ -26,6 +26,9 @@
 }
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50 font-sans antialiased transition-colors duration-200;
   }

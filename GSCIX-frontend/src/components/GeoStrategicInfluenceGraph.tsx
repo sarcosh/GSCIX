@@ -248,7 +248,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
         // Outer glow
         if (isSelected || isHighlighted) {
-            const glowColor = isSelected ? cfg.color : '#06b6d4'; // Cyan for highlights
+            const glowColor = cfg.color;
             ctx.beginPath();
             ctx.arc(node.x, node.y, r + 8, 0, 2 * Math.PI);
             ctx.fillStyle = glowColor + '30';
@@ -272,9 +272,9 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         ctx.fillStyle = gradient;
         ctx.fill();
 
-        // Outline stroke
-        ctx.strokeStyle = isHighlighted && !isSelected ? '#06b6d4' : cfg.color;
-        ctx.lineWidth = isSelected || isHighlighted ? 2.5 : 1.5;
+        // Outline stroke — always uses the node's own color
+        ctx.strokeStyle = cfg.color;
+        ctx.lineWidth = 1.5;
         ctx.stroke();
 
         // Draw Icon Path (centered)
@@ -319,17 +319,27 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         }
     }, []);
 
-    // zoomToFit only on the very first simulation stop after a new actor is loaded
-    const handleEngineStop = useCallback(() => {
-        if (!initialZoomDone.current && graphRef.current) {
-            graphRef.current.zoomToFit(400, 80);
-            initialZoomDone.current = true;
+    // One-time zoomToFit after initial actor load.
+    // Uses a timeout to let the simulation settle, then fits once.
+    const initialZoomTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        if (!initialZoomDone.current && graphData.nodes.length > 0 && graphRef.current) {
+            // Clear any pending timer (e.g. if graphData updated rapidly)
+            if (initialZoomTimer.current) clearTimeout(initialZoomTimer.current);
+            initialZoomTimer.current = setTimeout(() => {
+                if (graphRef.current && !initialZoomDone.current) {
+                    graphRef.current.zoomToFit(400, 80);
+                    initialZoomDone.current = true;
+                }
+            }, 800); // Wait for simulation to settle
         }
-    }, []);
+        return () => {
+            if (initialZoomTimer.current) clearTimeout(initialZoomTimer.current);
+        };
+    }, [graphData]);
 
     // Configure d3 forces ONCE per actor load.
-    // When graphData changes due to layer/date filters the graph should NOT
-    // re-run the full simulation — we restore zoom/pan after the reheat.
     useEffect(() => {
         if (graphRef.current && !d3ForcesConfigured.current) {
             graphRef.current.d3Force('link')?.distance(120);
@@ -341,53 +351,47 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
     // When graphData changes due to filters (not a new actor load), preserve the
     // current zoom & pan so the user sees no visual jump.
-    // We detect "filter change" vs "new actor" by checking initialZoomDone:
-    //   - false → new actor, let the initial zoomToFit happen naturally
-    //   - true  → filter change, snapshot and restore the transform
-    const prevGraphDataRef = useRef(graphData);
+    const savedZoom = useRef<number | null>(null);
+    const savedCenter = useRef<{ x: number; y: number } | null>(null);
 
+    // Snapshot zoom/center BEFORE the graphData useMemo runs (i.e. when filters change).
+    // We capture this on every render where initialZoomDone is true.
     useEffect(() => {
-        const fg = graphRef.current;
-        if (!fg || !initialZoomDone.current) {
-            prevGraphDataRef.current = graphData;
-            return;
+        if (initialZoomDone.current && graphRef.current) {
+            savedZoom.current = graphRef.current.zoom();
+            savedCenter.current = graphRef.current.centerAt();
         }
+    });
 
-        // Snapshot current zoom + center before the library processes new graphData
-        const prevZoom = fg.zoom();
-        const prevCenter = fg.centerAt();
+    // After graphData changes from a filter, restore saved zoom/center and pin nodes.
+    useEffect(() => {
+        if (!initialZoomDone.current || !graphRef.current) return;
+        if (savedZoom.current === null || savedCenter.current === null) return;
 
-        // After react-force-graph has ingested the new graphData and re-heated,
-        // immediately freeze the simulation and restore the camera.
-        const raf = requestAnimationFrame(() => {
-            if (!graphRef.current) return;
+        const z = savedZoom.current;
+        const c = savedCenter.current;
 
-            // Pin all existing nodes to their current positions so the reheat
-            // doesn't scatter them. New nodes (no x/y yet) are left free.
-            graphData.nodes.forEach((n: any) => {
-                if (Number.isFinite(n.x) && Number.isFinite(n.y)) {
-                    n.fx = n.x;
-                    n.fy = n.y;
-                }
-            });
-
-            // Restore zoom & center (duration=0 → instant, no animation)
-            if (prevZoom && prevCenter) {
-                graphRef.current.zoom(prevZoom, 0);
-                graphRef.current.centerAt(prevCenter.x, prevCenter.y, 0);
+        // Pin nodes to their current positions so reheat doesn't scatter them
+        graphData.nodes.forEach((n: any) => {
+            if (Number.isFinite(n.x) && Number.isFinite(n.y)) {
+                n.fx = n.x;
+                n.fy = n.y;
             }
-
-            // Unpin after a tick so future node-dragging still works
-            requestAnimationFrame(() => {
-                graphData.nodes.forEach((n: any) => {
-                    n.fx = undefined;
-                    n.fy = undefined;
-                });
-            });
         });
 
-        prevGraphDataRef.current = graphData;
-        return () => cancelAnimationFrame(raf);
+        // Restore zoom & center instantly
+        graphRef.current.zoom(z, 0);
+        graphRef.current.centerAt(c.x, c.y, 0);
+
+        // Unpin nodes after the simulation has processed the change
+        const timer = setTimeout(() => {
+            graphData.nodes.forEach((n: any) => {
+                n.fx = undefined;
+                n.fy = undefined;
+            });
+        }, 100);
+
+        return () => clearTimeout(timer);
     }, [graphData]);
 
     const toggleLayer = (key: string) => {
@@ -549,12 +553,53 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         linkDirectionalArrowRelPos={0.85}
                         linkDirectionalArrowColor={() => 'rgba(148,163,184,0.6)'}
                         linkLineDash={[4, 2]}
+                        linkCanvasObjectMode={() => 'after'}
+                        linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+                            if (globalScale < 0.4) return; // Same threshold as node labels
+                            const label = link.relType;
+                            if (!label) return;
+
+                            const source = link.source;
+                            const target = link.target;
+                            if (!source || !target) return;
+                            if (!Number.isFinite(source.x) || !Number.isFinite(target.x)) return;
+
+                            const midX = (source.x + target.x) / 2;
+                            const midY = (source.y + target.y) / 2;
+
+                            // Same font size as node labels
+                            const fontSize = Math.max(4, 11 / globalScale);
+                            ctx.font = `500 ${fontSize}px Inter, sans-serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+
+                            const textWidth = ctx.measureText(label).width;
+                            const padX = 4 / globalScale;
+                            const padY = 2.5 / globalScale;
+                            const boxX = midX - textWidth / 2 - padX;
+                            const boxY = midY - fontSize / 2 - padY;
+                            const boxW = textWidth + padX * 2;
+                            const boxH = fontSize + padY * 2;
+                            const borderRadius = 3 / globalScale;
+
+                            // Rounded rectangle background
+                            ctx.beginPath();
+                            ctx.roundRect(boxX, boxY, boxW, boxH, borderRadius);
+                            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                            ctx.fill();
+                            ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+                            ctx.lineWidth = 1 / globalScale;
+                            ctx.stroke();
+
+                            // Text
+                            ctx.fillStyle = 'rgba(203, 213, 225, 0.95)';
+                            ctx.fillText(label, midX, midY);
+                        }}
                         enableNodeDrag={true}
                         enableZoomInteraction={false}
                         enablePanInteraction={true}
                         cooldownTicks={200}
                         warmupTicks={50}
-                        onEngineStop={handleEngineStop}
                         backgroundColor="rgba(0,0,0,0)"
                         nodeRelSize={6}
                         d3AlphaDecay={0.02}
@@ -605,7 +650,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
             {/* ── Right Detail Panel ── */}
             {panelVisible && rootActor && (
-                <aside className="w-96 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col z-20 shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.08)] overflow-y-auto shrink-0">
+                <aside className="w-96 border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col z-20 shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.08)] overflow-y-auto shrink-0 [scrollbar-gutter:stable]">
                     {/* Header — always shows the root Geo-Strategic Actor */}
                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                         <div className="flex items-center justify-between mb-3">
@@ -783,8 +828,6 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     .map((n: any) => {
                                         const nodeEntity = n.entity as GscixEntity;
                                         const isHighlighted = highlightedConnectionId === n.id;
-                                        const nodeRelations = relations.filter(r => r.source_ref === n.id || r.target_ref === n.id);
-                                        const primaryRelation = nodeRelations.find(r => r.source_ref === rootActor.stixId || r.target_ref === rootActor.stixId);
 
                                         return (
                                             <li key={n.id}
@@ -812,14 +855,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                             isHighlighted ? "text-cyan-700 dark:text-cyan-300" : "text-slate-700 dark:text-slate-300"
                                                         )}>{n.name}</span>
                                                     </div>
-                                                    {primaryRelation && (
-                                                        <span className={cn(
-                                                            "font-mono text-[10px] px-1.5 py-0.5 rounded shrink-0 ml-2",
-                                                            isHighlighted
-                                                                ? "text-cyan-700 dark:text-cyan-300 bg-cyan-500/20"
-                                                                : "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10"
-                                                        )}>{primaryRelation.relationship_type}</span>
-                                                    )}
+
                                                 </div>
 
                                                 {/* Expanded Accordion Content */}
