@@ -389,8 +389,6 @@ public class StixBundleIngestService {
             target.setAllianceFragmentationScore(source.getAllianceFragmentationScore());
         if (source.getDeterrenceSignalStrength() != null)
             target.setDeterrenceSignalStrength(source.getDeterrenceSignalStrength());
-        if (source.getConfidenceScore() != null)
-            target.setConfidenceScore(source.getConfidenceScore());
         if (source.getNarrative() != null)
             target.setNarrative(source.getNarrative());
         if (source.getChannel() != null)

@@ -207,10 +207,13 @@ public class GeopoliticalIngestService {
             impAttrs.setEconomicDisruptionIndex(imp.getEconomicDisruptionIndex());
             impAttrs.setAllianceFragmentationScore(imp.getAllianceFragmentationScore());
             impAttrs.setDeterrenceSignalStrength(imp.getDeterrenceSignalStrength());
-            impAttrs.setConfidenceScore(imp.getConfidenceScore());
             impAttrs.setFirstSeen(imp.getFirstSeen());
             impAttrs.setLastSeen(imp.getLastSeen());
             impact.setGsciAttributes(impAttrs);
+            // Confidence: map from DTO Double to entity Integer (STIX 2.1 standard 0-100)
+            if (imp.getConfidenceScore() != null) {
+                impact.setConfidence(imp.getConfidenceScore().intValue());
+            }
             entityRepository.save(impact);
             entitiesCreated++;
 

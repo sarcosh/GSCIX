@@ -53,8 +53,8 @@ class RiskAnalyticsEngineTest {
         GscixEntity assessment = new GscixEntity();
         assessment.setStixId(assessmentId);
         assessment.setType("x-strategic-assessment");
+        assessment.setConfidence(85);
         GsciAttributes assessmentAttrs = new GsciAttributes();
-        assessmentAttrs.setConfidenceScore(85.0);
         assessmentAttrs.setHybridPressureIndex(5.0);
         assessmentAttrs.setCyberGeopoliticalCouplingIndex(3.0); // No override
         assessmentAttrs.setLastSeen(Instant.now().minus(10, ChronoUnit.DAYS));
@@ -123,8 +123,8 @@ class RiskAnalyticsEngineTest {
         GscixEntity assessment = new GscixEntity();
         assessment.setStixId(assessmentId);
         assessment.setType("x-strategic-assessment");
+        assessment.setConfidence(90);
         GsciAttributes assessmentAttrs = new GsciAttributes();
-        assessmentAttrs.setConfidenceScore(90.0);
         assessmentAttrs.setHybridPressureIndex(8.0);
         assessmentAttrs.setCyberGeopoliticalCouplingIndex(9.5); // OVERRIDE! > 8.0
         assessmentAttrs.setLastSeen(Instant.now());

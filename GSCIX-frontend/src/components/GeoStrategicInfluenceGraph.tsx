@@ -4,7 +4,7 @@ import {
     Globe, Flag, Megaphone, Bug, Plus, Minus,
     Maximize2, RefreshCw, AlertTriangle, ExternalLink,
     Radio, Scale, BarChart3, ChevronLeft, Layers, Users,
-    PlusSquare, GitBranch, Save, ArrowLeft, Trash2, ToggleLeft, ToggleRight
+    PlusSquare, GitBranch, Save, ArrowLeft, Trash2, ToggleLeft, ToggleRight, Pencil
 } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { cn } from '../lib/utils';
@@ -58,12 +58,13 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     });
     const [dateRange, setDateRange] = useState({ from: '', to: '' });
     const [openctiBaseUrl, setOpenctiBaseUrl] = useState<string>('');
-    const [graphMode, setGraphMode] = useState<'view' | 'add-entity' | 'add-relation'>('view');
+    const [graphMode, setGraphMode] = useState<'view' | 'add-entity' | 'add-relation' | 'edit-relation'>('view');
     const [saving, setSaving] = useState(false);
     const [newEntity, setNewEntity] = useState<Record<string, any>>({ type: 'x-strategic-objective', name: '', description: '' });
     const [newRelation, setNewRelation] = useState({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
     const [deleteTarget, setDeleteTarget] = useState<{ entity: GscixEntity; childCount: number; relationCount: number } | null>(null);
     const [deleteRelationTarget, setDeleteRelationTarget] = useState<GscixRelation | null>(null);
+    const [editingRelation, setEditingRelation] = useState<GscixRelation | null>(null);
     const [highlightedRelationId, setHighlightedRelationId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [openctiEntities, setOpenctiEntities] = useState<GscixEntity[]>([]);
@@ -1113,11 +1114,6 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                         <input type="number" step="0.1" min="0" max="10" value={newEntity.economic_disruption_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, economic_disruption_index: parseFloat(e.target.value) || undefined }))}
                                             className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
                                     </div>
-                                    <div>
-                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Confidence Score (0-100)</label>
-                                        <input type="number" min="0" max="100" value={newEntity.confidence_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, confidence_score: parseInt(e.target.value) || undefined }))}
-                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
-                                    </div>
                                 </div>
                             )}
 
@@ -1310,6 +1306,110 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             }}
                             className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
                             {saving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />} Save
+                        </button>
+                    </div>
+                    </>
+                )}
+
+                {/* ── EDIT RELATION FORM ── */}
+                {graphMode === 'edit-relation' && editingRelation && (
+                    <>
+                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-full bg-amber-500/5 flex items-center gap-1">
+                                <Pencil size={12} /> Editing
+                            </span>
+                            <button onClick={() => { setGraphMode('view'); setEditingRelation(null); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">Edit Relation</h2>
+                        <p className="text-xs text-slate-500 mt-1">Modify the connection between entities.</p>
+                    </div>
+                    <div className="flex-1 p-6 space-y-5 overflow-y-auto">
+                        {/* Source */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Source *</label>
+                            <select value={newRelation.source_ref} onChange={(e) => setNewRelation(prev => ({ ...prev, source_ref: e.target.value }))}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                <option value="">Select source entity...</option>
+                                {allEntities.map((e) => (
+                                    <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Relation Type */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Relation Type *</label>
+                            <select value={newRelation.relationship_type} onChange={(e) => setNewRelation(prev => ({ ...prev, relationship_type: e.target.value }))}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                {['attributed-to', 'pursues', 'executes', 'uses', 'deploys', 'generates', 'evaluates', 'associated-with', 'targets', 'indicates', 'mitigates', 'controls', 'sponsors', 'integrates'].map(rt => (
+                                    <option key={rt} value={rt}>{rt}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Target */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Target *</label>
+                            <select value={newRelation.target_ref} onChange={(e) => setNewRelation(prev => ({ ...prev, target_ref: e.target.value }))}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                <option value="">Select target entity...</option>
+                                {allEntities.filter(e => e.stixId !== newRelation.source_ref).map((e) => (
+                                    <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Confidence */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Confidence (0-100)</label>
+                            <input type="number" min="0" max="100" value={(newRelation as any).confidence ?? ''} onChange={(e) => setNewRelation(prev => ({ ...prev, confidence: e.target.value ? parseInt(e.target.value) : undefined } as any))}
+                                placeholder="e.g. 85"
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
+                        </div>
+                        {/* Visual preview */}
+                        {newRelation.source_ref && newRelation.target_ref && (
+                            <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Preview</p>
+                                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                                    <span className="font-semibold truncate max-w-[120px]">{allEntities.find(e => e.stixId === newRelation.source_ref)?.name}</span>
+                                    <span className="text-amber-500 font-mono shrink-0">&mdash;{newRelation.relationship_type}&rarr;</span>
+                                    <span className="font-semibold truncate max-w-[120px]">{allEntities.find(e => e.stixId === newRelation.target_ref)?.name}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {/* Save / Cancel footer */}
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-3 mt-auto shrink-0">
+                        <button onClick={() => { setGraphMode('view'); setEditingRelation(null); }}
+                            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm text-sm font-semibold transition-colors text-slate-700 dark:text-slate-300">
+                            <ArrowLeft size={16} /> Cancel
+                        </button>
+                        <button
+                            disabled={!newRelation.source_ref || !newRelation.target_ref || saving}
+                            onClick={async () => {
+                                try {
+                                    setSaving(true);
+                                    const payload: any = {
+                                        source_ref: newRelation.source_ref,
+                                        target_ref: newRelation.target_ref,
+                                        relationship_type: newRelation.relationship_type,
+                                    };
+                                    if ((newRelation as any).confidence !== undefined) payload.confidence = (newRelation as any).confidence;
+                                    await apiService.updateRelation(editingRelation.id, payload);
+                                    setNewRelation({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
+                                    setEditingRelation(null);
+                                    setHighlightedRelationId(null);
+                                    setGraphMode('view');
+                                    await fetchGraph(initialActorId);
+                                    await refreshAllEntities();
+                                } catch (err) {
+                                    console.error('Failed to update relation:', err);
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }}
+                            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            {saving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />} Save Changes
                         </button>
                     </div>
                     </>
@@ -1565,10 +1665,10 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                                     <span className="text-[10px] text-cyan-400 font-bold font-mono">{(nodeEntity.gsciAttributes.hybrid_pressure_index ?? 0).toFixed(1)}</span>
                                                                 </div>
                                                             )}
-                                                            {(nodeEntity.confidence != null || nodeEntity.gsciAttributes?.confidence_score != null) && (
+                                                            {nodeEntity.confidence != null && (
                                                                 <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
                                                                     <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Confidence</span>
-                                                                    <span className="text-[10px] text-emerald-400 font-bold font-mono">{nodeEntity.confidence ?? nodeEntity.gsciAttributes?.confidence_score ?? 0}%</span>
+                                                                    <span className="text-[10px] text-emerald-400 font-bold font-mono">{nodeEntity.confidence}%</span>
                                                                 </div>
                                                             )}
                                                             {(nodeEntity.first_seen || nodeEntity.gsciAttributes?.first_seen) && (
@@ -1792,16 +1892,35 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                     )}
                                                 </div>
                                                 {isRelHighlighted && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setDeleteRelationTarget(link.relation);
-                                                        }}
-                                                        className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors shrink-0"
-                                                        title="Delete relation"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setEditingRelation(link.relation);
+                                                                setNewRelation({
+                                                                    source_ref: link.relation.source_ref,
+                                                                    relationship_type: link.relation.relationship_type,
+                                                                    target_ref: link.relation.target_ref,
+                                                                    confidence: link.relation.confidence,
+                                                                } as any);
+                                                                setGraphMode('edit-relation');
+                                                            }}
+                                                            className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded transition-colors"
+                                                            title="Edit relation"
+                                                        >
+                                                            <Pencil size={14} />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDeleteRelationTarget(link.relation);
+                                                            }}
+                                                            className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors"
+                                                            title="Delete relation"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </li>

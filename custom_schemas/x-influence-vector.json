@@ -30,9 +30,10 @@
             "mandatory": false
         },
         {
-            "name": "confidence_score",
+            "name": "confidence",
             "type": "number",
-            "mandatory": false
+            "mandatory": false,
+            "description": "STIX 2.1 standard confidence score (0-100)"
         }
     ],
     "relations": [

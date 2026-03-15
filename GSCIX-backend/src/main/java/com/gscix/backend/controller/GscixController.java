@@ -114,6 +114,32 @@ public class GscixController {
         return ResponseEntity.ok(relationRepository.findAll());
     }
 
+    @PutMapping("/relations/{id}")
+    public ResponseEntity<GscixRelation> updateRelation(@PathVariable String id, @RequestBody GscixRelation incoming) {
+        GscixRelation existing = relationRepository.findById(id).orElse(null);
+        if (existing == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Validate that source and target entities exist
+        if (incoming.getSourceRef() != null && !entityRepository.existsById(incoming.getSourceRef())) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (incoming.getTargetRef() != null && !entityRepository.existsById(incoming.getTargetRef())) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        // Merge non-null fields
+        if (incoming.getSourceRef() != null) existing.setSourceRef(incoming.getSourceRef());
+        if (incoming.getTargetRef() != null) existing.setTargetRef(incoming.getTargetRef());
+        if (incoming.getRelationshipType() != null) existing.setRelationshipType(incoming.getRelationshipType());
+        if (incoming.getDescription() != null) existing.setDescription(incoming.getDescription());
+        if (incoming.getConfidence() != null) existing.setConfidence(incoming.getConfidence());
+
+        GscixRelation saved = relationRepository.save(existing);
+        return ResponseEntity.ok(saved);
+    }
+
     @DeleteMapping("/relations/{id}")
     public ResponseEntity<Void> deleteRelation(@PathVariable String id) {
         if (!relationRepository.existsById(id)) {

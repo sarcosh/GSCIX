@@ -51,7 +51,7 @@ const CommandCenterHPI = ({ actor, analytics, loading, divergenceAlert }: { acto
     // Green (<4.0), Yellow (4.0-7.0), Red (>7.0).
     const colorClass = isHigh ? "text-risk-high" : isLow ? "text-emerald-500" : "text-amber-500";
 
-    const confidence = analytics?.avg_confidence_score ?? actor.gsciAttributes?.confidence_score ?? 0;
+    const confidence = analytics?.avg_confidence_score ?? actor.confidence ?? 0;
 
     const breakdown = analytics?.pressure_breakdown || {};
     const sortedBreakdown = Object.entries(breakdown).sort((a, b) => b[1] - a[1]);

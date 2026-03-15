@@ -160,10 +160,6 @@ public class GscixEntity {
         @Field(type = FieldType.Double)
         private Double deterrenceSignalStrength;
 
-        @JsonProperty("confidence_score")
-        @Field(type = FieldType.Double)
-        private Double confidenceScore;
-
         @JsonProperty("narrative")
         @Field(type = FieldType.Text)
         private String narrative;

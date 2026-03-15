@@ -21,7 +21,6 @@ export interface GsciAttributes {
     economic_disruption_index?: number;
     alliance_fragmentation_score?: number;
     deterrence_signal_strength?: number;
-    confidence_score?: number;
     narrative?: string;
     channel?: string;
     target_audience?: string;

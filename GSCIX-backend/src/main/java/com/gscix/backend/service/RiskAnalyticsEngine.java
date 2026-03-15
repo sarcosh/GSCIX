@@ -33,6 +33,14 @@ public class RiskAnalyticsEngine {
         private final GscixEntityRepository entityRepository;
         private final GscixRelationRepository relationRepository;
 
+        /** Returns effective lastSeen: entity.lastSeen or gsciAttributes.lastSeen */
+        private Instant getEffectiveLastSeen(GscixEntity e) {
+                if (e.getLastSeen() != null) return e.getLastSeen();
+                if (e.getGsciAttributes() != null && e.getGsciAttributes().getLastSeen() != null)
+                        return e.getGsciAttributes().getLastSeen();
+                return null;
+        }
+
         public HpiAnalysisResponse calculateWeightedHpi(String actorId) {
                 logger.info("Calculating weighted HPI for actor: {}", actorId);
 
@@ -49,15 +57,19 @@ public class RiskAnalyticsEngine {
                         campaignAssessments.addAll(getAssessmentsForTarget(relation.getTargetRef()));
                 }
 
-                // Combine and filter by confidence_score > 80%
+                // Combine and deduplicate, then filter by confidence > 80%
                 List<GscixEntity> allAssessments = new ArrayList<>();
                 allAssessments.addAll(actorAssessments);
                 allAssessments.addAll(campaignAssessments);
+                // Deduplicate by stixId (an assessment can evaluate both an actor and its campaign)
+                allAssessments = allAssessments.stream()
+                                .filter(a -> a.getStixId() != null)
+                                .collect(Collectors.collectingAndThen(
+                                                Collectors.toMap(GscixEntity::getStixId, a -> a, (a, b) -> a),
+                                                m -> new ArrayList<>(m.values())));
 
                 List<GscixEntity> filteredAssessments = allAssessments.stream()
-                                .filter(a -> a.getGsciAttributes() != null &&
-                                                a.getGsciAttributes().getConfidenceScore() != null &&
-                                                a.getGsciAttributes().getConfidenceScore() > 80.0)
+                                .filter(a -> a.getConfidence() != null && a.getConfidence() > 80)
                                 .collect(Collectors.toList());
 
                 if (filteredAssessments.isEmpty()) {
@@ -83,7 +95,7 @@ public class RiskAnalyticsEngine {
                 List<GscixEntity> historicalAssessments = new ArrayList<>();
 
                 for (GscixEntity assessment : filteredAssessments) {
-                        Instant lastSeen = assessment.getGsciAttributes().getLastSeen();
+                        Instant lastSeen = getEffectiveLastSeen(assessment);
                         if (lastSeen == null)
                                 continue;
 
@@ -128,9 +140,9 @@ public class RiskAnalyticsEngine {
 
                 // Average Confidence Score
                 double avgConfidenceScore = filteredAssessments.stream()
-                                .map(a -> a.getGsciAttributes().getConfidenceScore())
+                                .map(GscixEntity::getConfidence)
                                 .filter(Objects::nonNull)
-                                .mapToDouble(Double::doubleValue)
+                                .mapToDouble(Integer::doubleValue)
                                 .average()
                                 .orElse(0.0);
 
@@ -184,10 +196,10 @@ public class RiskAnalyticsEngine {
                 // Calculate Trend Data (time-series for chart)
                 List<HpiTrendPoint> trendData = new ArrayList<>();
                 List<GscixEntity> sortedAssessments = filteredAssessments.stream()
-                                .filter(a -> a.getGsciAttributes().getLastSeen() != null
+                                .filter(a -> getEffectiveLastSeen(a) != null
+                                                && a.getGsciAttributes() != null
                                                 && a.getGsciAttributes().getHybridPressureIndex() != null)
-                                .sorted((a, b) -> a.getGsciAttributes().getLastSeen()
-                                                .compareTo(b.getGsciAttributes().getLastSeen()))
+                                .sorted(Comparator.comparing(a -> getEffectiveLastSeen(a)))
                                 .collect(Collectors.toList());
 
                 double runningSum = 0.0;
@@ -197,7 +209,7 @@ public class RiskAnalyticsEngine {
                         runningSum += hpiVal;
                         double drift = runningSum / (i + 1);
                         trendData.add(HpiTrendPoint.builder()
-                                        .date(sa.getGsciAttributes().getLastSeen().toString())
+                                        .date(getEffectiveLastSeen(sa).toString())
                                         .hpi(hpiVal)
                                         .drift(Math.round(drift * 10.0) / 10.0)
                                         .build());
@@ -236,8 +248,8 @@ public class RiskAnalyticsEngine {
 
         private boolean detectSpike(List<GscixEntity> assessments, Instant oneMonthAgo) {
                 double currentMonthAvg = assessments.stream()
-                                .filter(a -> a.getGsciAttributes().getLastSeen() != null
-                                                && a.getGsciAttributes().getLastSeen().isAfter(oneMonthAgo))
+                                .filter(a -> getEffectiveLastSeen(a) != null
+                                                && getEffectiveLastSeen(a).isAfter(oneMonthAgo))
                                 .map(a -> a.getGsciAttributes().getCyberGeopoliticalCouplingIndex())
                                 .filter(Objects::nonNull)
                                 .mapToDouble(Double::doubleValue)
@@ -245,8 +257,8 @@ public class RiskAnalyticsEngine {
                                 .orElse(0.0);
 
                 double previousAvg = assessments.stream()
-                                .filter(a -> a.getGsciAttributes().getLastSeen() != null
-                                                && a.getGsciAttributes().getLastSeen().isBefore(oneMonthAgo))
+                                .filter(a -> getEffectiveLastSeen(a) != null
+                                                && getEffectiveLastSeen(a).isBefore(oneMonthAgo))
                                 .map(a -> a.getGsciAttributes().getCyberGeopoliticalCouplingIndex())
                                 .filter(Objects::nonNull)
                                 .mapToDouble(Double::doubleValue)
