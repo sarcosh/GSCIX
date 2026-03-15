@@ -81,6 +81,41 @@ public class InfluenceGraphService {
                 .stream(entityRepository.findAllById(reachableIds).spliterator(), false)
                 .collect(Collectors.toList());
 
+        // Post-BFS expansion: for every intrusion-set or threat-actor in the graph,
+        // ensure its associated threat-actor / intrusion-set (via attributed-to) is
+        // also included. This guarantees that the tactical linkage is always visible.
+        Set<String> idsToExpand = new HashSet<>();
+        for (GscixEntity entity : subgraphEntities) {
+            if ("intrusion-set".equals(entity.getType()) || "threat-actor".equals(entity.getType())) {
+                // Look for attributed-to relations in both directions
+                for (GscixRelation r : relationRepository.findBySourceRef(entity.getStixId())) {
+                    if ("attributed-to".equals(r.getRelationshipType()) && !reachableIds.contains(r.getTargetRef())) {
+                        idsToExpand.add(r.getTargetRef());
+                        if (collectedRelationIds.add(r.getId())) {
+                            subgraphRelations.add(r);
+                        }
+                    }
+                }
+                for (GscixRelation r : relationRepository.findByTargetRef(entity.getStixId())) {
+                    if ("attributed-to".equals(r.getRelationshipType()) && !reachableIds.contains(r.getSourceRef())) {
+                        idsToExpand.add(r.getSourceRef());
+                        if (collectedRelationIds.add(r.getId())) {
+                            subgraphRelations.add(r);
+                        }
+                    }
+                }
+            }
+        }
+        // Fetch and add the expanded entities
+        if (!idsToExpand.isEmpty()) {
+            List<GscixEntity> expandedEntities = StreamSupport
+                    .stream(entityRepository.findAllById(idsToExpand).spliterator(), false)
+                    .collect(Collectors.toList());
+            subgraphEntities.addAll(expandedEntities);
+            reachableIds.addAll(idsToExpand);
+            log.info("Expanded {} threat-actor/intrusion-set entities via attributed-to", expandedEntities.size());
+        }
+
         log.info("Subgraph built: {} entities, {} relations", subgraphEntities.size(), subgraphRelations.size());
 
         return InfluenceGraphResponse.builder()
