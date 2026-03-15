@@ -864,12 +864,22 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     onChange={(e) => {
                                         const selected = openctiEntities.find(ent => ent.stixId === e.target.value);
                                         if (selected) {
+                                            // OpenCTI uses sentinel values for unset dates:
+                                            //   first_seen = 1970-01-01T00:00:00.000Z (epoch 0)
+                                            //   last_seen  = 5138-11-16T09:46:40.000Z (far future)
+                                            // Treat these as empty (not set).
+                                            const isSentinel = (d?: string) => {
+                                                if (!d) return true;
+                                                const ms = new Date(d).getTime();
+                                                // year 2200 threshold to catch any far-future sentinel
+                                                return ms <= 0 || ms >= new Date('2200-01-01').getTime();
+                                            };
                                             setNewEntity(prev => ({
                                                 ...prev,
                                                 name: selected.name,
                                                 description: selected.description || '',
-                                                first_seen: selected.first_seen ? selected.first_seen.split('T')[0] : '',
-                                                last_seen: selected.last_seen ? selected.last_seen.split('T')[0] : '',
+                                                first_seen: isSentinel(selected.first_seen) ? '' : selected.first_seen!.split('T')[0],
+                                                last_seen: isSentinel(selected.last_seen) ? '' : selected.last_seen!.split('T')[0],
                                                 resource_level: selected.resource_level || '',
                                                 primary_motivation: selected.primary_motivation || '',
                                                 _openctiStixId: selected.stixId,
@@ -1046,6 +1056,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 try {
                                     setSaving(true);
                                     const isOpenctiEntity = newEntity._openctiStixId;
+                                    let savedEntityStixId = '';
 
                                     if (!isOpenctiEntity) {
                                         // Create new entity (custom GSCIX types)
@@ -1058,9 +1069,24 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                             payload.gsciAttributes = cleanGsci;
                                             Object.assign(payload, cleanGsci);
                                         }
+                                        const created = await apiService.createEntity(payload);
+                                        savedEntityStixId = created.stixId;
+                                    } else {
+                                        // OpenCTI entity already exists — update with user-provided dates & fields
+                                        savedEntityStixId = newEntity._openctiStixId;
+                                        const { type, name, description, first_seen, last_seen, resource_level, primary_motivation, _openctiStixId, _openctiInternalId } = newEntity;
+                                        const payload: any = {
+                                            stixId: _openctiStixId,
+                                            type,
+                                            name,
+                                            description,
+                                        };
+                                        if (first_seen) payload.first_seen = first_seen.includes('T') ? first_seen : first_seen + 'T00:00:00Z';
+                                        if (last_seen) payload.last_seen = last_seen.includes('T') ? last_seen : last_seen + 'T00:00:00Z';
+                                        if (resource_level) payload.resource_level = resource_level;
+                                        if (primary_motivation) payload.primary_motivation = primary_motivation;
                                         await apiService.createEntity(payload);
                                     }
-                                    // For OpenCTI entities, they already exist in ES — just proceed to Add Relation
 
                                     // Refresh graph and all entities list
                                     await fetchGraph(initialActorId);
@@ -1069,7 +1095,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     setNewEntity({ type: 'x-strategic-objective', name: '', description: '' });
                                     setOpenctiEntities([]);
                                     setNewRelation({
-                                        source_ref: '',
+                                        source_ref: savedEntityStixId,
                                         relationship_type: 'attributed-to',
                                         target_ref: '',
                                     });

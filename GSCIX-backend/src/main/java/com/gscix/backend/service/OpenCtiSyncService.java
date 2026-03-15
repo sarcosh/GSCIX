@@ -149,6 +149,21 @@ public class OpenCtiSyncService {
     // Shared persistence logic
     // =========================================================================
 
+    /**
+     * OpenCTI uses sentinel values for unset dates:
+     *   first_seen = 1970-01-01T00:00:00.000Z  (epoch 0)
+     *   last_seen  = 5138-11-16T09:46:40.000Z  (epoch seconds 100000000000)
+     * These must be treated as null (not set) to avoid misleading data.
+     * We use a threshold (year 2200) to catch any far-future sentinel generically.
+     */
+    private static final Instant OPENCTI_EPOCH_SENTINEL = Instant.EPOCH;
+    private static final Instant FAR_FUTURE_THRESHOLD = Instant.parse("2200-01-01T00:00:00Z");
+
+    private boolean isOpenCtiSentinelDate(Instant instant) {
+        return instant != null
+                && (instant.equals(OPENCTI_EPOCH_SENTINEL) || instant.isAfter(FAR_FUTURE_THRESHOLD));
+    }
+
     private void saveEntity(GraphQLResponse.Node node, String stixType) {
         if (node.getStandard_id() == null) {
             logger.warn("Skipping {} node with missing standard_id (opencti id: {})", stixType, node.getId());
@@ -164,12 +179,18 @@ public class OpenCtiSyncService {
         entity.setName(node.getName());
         entity.setDescription(node.getDescription());
 
-        // Temporal fields
+        // Temporal fields — filter out OpenCTI sentinel values
         if (node.getFirst_seen() != null) {
-            try { entity.setFirstSeen(Instant.parse(node.getFirst_seen())); } catch (Exception ignored) {}
+            try {
+                Instant parsed = Instant.parse(node.getFirst_seen());
+                entity.setFirstSeen(isOpenCtiSentinelDate(parsed) ? null : parsed);
+            } catch (Exception ignored) {}
         }
         if (node.getLast_seen() != null) {
-            try { entity.setLastSeen(Instant.parse(node.getLast_seen())); } catch (Exception ignored) {}
+            try {
+                Instant parsed = Instant.parse(node.getLast_seen());
+                entity.setLastSeen(isOpenCtiSentinelDate(parsed) ? null : parsed);
+            } catch (Exception ignored) {}
         }
 
         // Type-specific fields
