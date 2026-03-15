@@ -77,6 +77,34 @@ public class GscixController {
         return ResponseEntity.ok(saved);
     }
 
+    @PutMapping("/entities/{id}")
+    public ResponseEntity<GscixEntity> updateEntity(@PathVariable String id, @RequestBody GscixEntity entity) {
+        GscixEntity target = entityRepository.findById(id).orElse(null);
+        if (target == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Merge non-null fields (same logic as POST upsert)
+        if (entity.getName() != null) target.setName(entity.getName());
+        if (entity.getDescription() != null) target.setDescription(entity.getDescription());
+        if (entity.getFirstSeen() != null) target.setFirstSeen(entity.getFirstSeen());
+        if (entity.getLastSeen() != null) target.setLastSeen(entity.getLastSeen());
+        if (entity.getResourceLevel() != null) target.setResourceLevel(entity.getResourceLevel());
+        if (entity.getPrimaryMotivation() != null) target.setPrimaryMotivation(entity.getPrimaryMotivation());
+        if (entity.getAliases() != null) target.setAliases(entity.getAliases());
+        if (entity.getGoals() != null) target.setGoals(entity.getGoals());
+        if (entity.getThreatActorTypes() != null) target.setThreatActorTypes(entity.getThreatActorTypes());
+        if (entity.getConfidence() != null) target.setConfidence(entity.getConfidence());
+        if (entity.getGsciAttributes() != null) target.setGsciAttributes(entity.getGsciAttributes());
+        if (entity.getMetadata() != null && entity.getMetadata().getOpenctiInternalId() != null) {
+            target.getMetadata().setOpenctiInternalId(entity.getMetadata().getOpenctiInternalId());
+        }
+        target.getMetadata().setUpdatedAt(Instant.now());
+
+        GscixEntity saved = entityRepository.save(target);
+        return ResponseEntity.ok(saved);
+    }
+
     @GetMapping("/entities")
     public ResponseEntity<Iterable<GscixEntity>> getAllEntities() {
         return ResponseEntity.ok(entityRepository.findAll());

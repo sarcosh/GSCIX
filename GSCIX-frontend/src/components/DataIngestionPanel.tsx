@@ -11,7 +11,9 @@ import {
     Info,
     XCircle,
     Search,
-    Link
+    Link,
+    X,
+    Layers
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import apiService from '../services/api';
@@ -26,6 +28,7 @@ export const DataIngestionPanel: React.FC = () => {
     const [jsonContent, setJsonContent] = useState<string>('');
     const [originalJsonContent, setOriginalJsonContent] = useState<string>('');
     const [fileName, setFileName] = useState<string>('');
+    const [loadedFiles, setLoadedFiles] = useState<{ name: string; content: string }[]>([]);
     const [isDragging, setIsDragging] = useState(false);
     const [strategy, setStrategy] = useState('Upsert');
     const [confidence, setConfidence] = useState(85);
@@ -38,6 +41,7 @@ export const DataIngestionPanel: React.FC = () => {
         processing: false,
         recentJobs: []
     });
+    const [showOrphanDialog, setShowOrphanDialog] = useState(false);
 
     const fetchHistory = useCallback(async () => {
         try {
@@ -127,6 +131,96 @@ export const DataIngestionPanel: React.FC = () => {
         }
     }, [actors]);
 
+    // Merge multiple bundle files: aggregate entities, keep only the first
+    // x-geo-strategic-actor, and normalize all references in relationships.
+    const mergeBundles = useCallback((files: { name: string; content: string }[]): string => {
+        if (files.length === 0) return '';
+        if (files.length === 1) return files[0].content;
+
+        const allObjects: any[] = [];
+        let primaryActorId: string | null = null;
+        const secondaryActorIds = new Set<string>();
+        const seenIds = new Set<string>();
+
+        // First pass: collect all objects, identify geo-strategic-actors
+        for (const file of files) {
+            try {
+                const data = JSON.parse(file.content);
+                if (data.type !== 'bundle' || !Array.isArray(data.objects)) continue;
+                for (const obj of data.objects) {
+                    if (obj.type === 'x-geo-strategic-actor') {
+                        if (!primaryActorId) {
+                            primaryActorId = obj.id;
+                            if (!seenIds.has(obj.id)) {
+                                allObjects.push(obj);
+                                seenIds.add(obj.id);
+                            }
+                        } else if (obj.id !== primaryActorId) {
+                            secondaryActorIds.add(obj.id);
+                            // Skip — don't add secondary actors as entities
+                        }
+                    } else {
+                        // For non-actor entities: deduplicate by id, keeping the first occurrence
+                        if (obj.id && seenIds.has(obj.id)) continue;
+                        allObjects.push(obj);
+                        if (obj.id) seenIds.add(obj.id);
+                    }
+                }
+            } catch {
+                // skip unparseable files
+            }
+        }
+
+        // Second pass: normalize references in relationships
+        if (primaryActorId && secondaryActorIds.size > 0) {
+            for (const obj of allObjects) {
+                if (obj.type === 'relationship') {
+                    if (secondaryActorIds.has(obj.source_ref)) obj.source_ref = primaryActorId;
+                    if (secondaryActorIds.has(obj.target_ref)) obj.target_ref = primaryActorId;
+                }
+            }
+        }
+
+        // Deduplicate relationships (same source_ref + target_ref + relationship_type)
+        const relSeen = new Set<string>();
+        const dedupedObjects = allObjects.filter(obj => {
+            if (obj.type === 'relationship') {
+                const key = `${obj.source_ref}|${obj.target_ref}|${obj.relationship_type}`;
+                if (relSeen.has(key)) return false;
+                relSeen.add(key);
+            }
+            return true;
+        });
+
+        const merged = { type: 'bundle', id: `bundle--merged-${Date.now()}`, objects: dedupedObjects };
+        return JSON.stringify(merged, null, 2);
+    }, []);
+
+    // Detect entities that have no relationship (orphans)
+    const detectOrphanEntities = useCallback((content: string): { name: string; type: string }[] => {
+        try {
+            const data = JSON.parse(content);
+            if (data.type !== 'bundle' || !Array.isArray(data.objects)) return [];
+
+            const entities = data.objects.filter((o: any) => o.type !== 'relationship' && o.id);
+            const relationships = data.objects.filter((o: any) => o.type === 'relationship');
+
+            // Collect all IDs referenced in relationships
+            const referencedIds = new Set<string>();
+            for (const rel of relationships) {
+                if (rel.source_ref) referencedIds.add(rel.source_ref);
+                if (rel.target_ref) referencedIds.add(rel.target_ref);
+            }
+
+            // Find entities whose ID is not referenced in any relationship
+            return entities
+                .filter((e: any) => !referencedIds.has(e.id))
+                .map((e: any) => ({ name: e.name || e.id, type: e.type }));
+        } catch {
+            return [];
+        }
+    }, []);
+
     const validateJson = useCallback(async (content: string) => {
         if (!content) return;
         autoDetectActor(content);
@@ -134,6 +228,18 @@ export const DataIngestionPanel: React.FC = () => {
             setValidating(true);
             const data = JSON.parse(content);
             const result = await apiService.validateSchema(data);
+
+            // After schema validation, check for orphan entities
+            const orphans = detectOrphanEntities(content);
+            if (orphans.length > 0 && result.status === 'OK') {
+                result.status = 'WARNING';
+                result.message = `Schema valid, but ${orphans.length} entit${orphans.length === 1 ? 'y has' : 'ies have'} no relationships and will not appear in the graph.`;
+                result.warnings = orphans.map(o => ({
+                    objectType: o.type,
+                    name: o.name,
+                }));
+            }
+
             setValidationResult(result);
         } catch (err) {
             console.error('Validation failed:', err);
@@ -144,39 +250,120 @@ export const DataIngestionPanel: React.FC = () => {
         } finally {
             setValidating(false);
         }
-    }, [autoDetectActor]);
+    }, [autoDetectActor, detectOrphanEntities]);
+
+    // Process files: reads them, merges, validates
+    const processFiles = useCallback((files: { name: string; content: string }[]) => {
+        if (files.length === 0) {
+            setFileName('');
+            setOriginalJsonContent('');
+            setJsonContent('');
+            setValidationResult(null);
+            return;
+        }
+        const displayName = files.length === 1 ? files[0].name : `${files.length} files merged`;
+        setFileName(displayName);
+
+        const merged = mergeBundles(files);
+        setOriginalJsonContent(merged);
+        setJsonContent(merged);
+        setValidationResult(null);
+        if (merged) validateJson(merged);
+    }, [mergeBundles, validateJson]);
+
+    const readFilesAndMerge = useCallback((fileList: FileList, append: boolean) => {
+        const jsonFiles = Array.from(fileList).filter(f => f.name.endsWith('.json') || f.type === 'application/json');
+        if (jsonFiles.length === 0) return;
+
+        let completed = 0;
+        const newEntries: { name: string; content: string }[] = [];
+
+        jsonFiles.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                newEntries.push({ name: file.name, content: event.target?.result as string });
+                completed++;
+                if (completed === jsonFiles.length) {
+                    const updatedFiles = append ? [...loadedFiles, ...newEntries] : newEntries;
+                    setLoadedFiles(updatedFiles);
+                    processFiles(updatedFiles);
+                }
+            };
+            reader.readAsText(file);
+        });
+    }, [loadedFiles, processFiles]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        const file = e.dataTransfer.files[0];
-        if (file && file.type === "application/json") {
-            setFileName(file.name);
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const content = event.target?.result as string;
-                setOriginalJsonContent(content);
-                setJsonContent(content);
-                setValidationResult(null);
-                validateJson(content);
-            };
-            reader.readAsText(file);
-        }
-    }, [validateJson]);
+        readFilesAndMerge(e.dataTransfer.files, true);
+    }, [readFilesAndMerge]);
 
     const handleValidate = () => {
         validateJson(jsonContent);
     };
 
-    const handleIngest = async () => {
+    // Inject 'attributed-to' relationships for orphan entities targeting the actor
+    const injectOrphanRelations = useCallback((content: string): string => {
+        try {
+            const data = JSON.parse(content);
+            if (data.type !== 'bundle' || !Array.isArray(data.objects)) return content;
+
+            // Find the geo-strategic-actor in the bundle
+            const actor = data.objects.find((o: any) => o.type === 'x-geo-strategic-actor');
+            const actorId = actor?.id || targetActorId;
+            if (!actorId) return content;
+
+            const entities = data.objects.filter((o: any) => o.type !== 'relationship' && o.id);
+            const relationships = data.objects.filter((o: any) => o.type === 'relationship');
+
+            const referencedIds = new Set<string>();
+            for (const rel of relationships) {
+                if (rel.source_ref) referencedIds.add(rel.source_ref);
+                if (rel.target_ref) referencedIds.add(rel.target_ref);
+            }
+
+            const orphans = entities.filter((e: any) => !referencedIds.has(e.id) && e.id !== actorId);
+            if (orphans.length === 0) return content;
+
+            // Generate new relationships for orphans
+            const newRels = orphans.map((e: any, i: number) => ({
+                type: 'relationship',
+                id: `relationship--auto-link-${Date.now()}-${i}`,
+                relationship_type: 'attributed-to',
+                source_ref: e.id,
+                target_ref: actorId,
+            }));
+
+            data.objects.push(...newRels);
+            return JSON.stringify(data, null, 2);
+        } catch {
+            return content;
+        }
+    }, [targetActorId]);
+
+    const handleIngestClick = () => {
         if (!jsonContent) return;
+        // If there are orphan warnings, show the confirmation dialog
+        if (validationResult?.status === 'WARNING' && validationResult.warnings && validationResult.warnings.length > 0) {
+            setShowOrphanDialog(true);
+            return;
+        }
+        doIngest(jsonContent);
+    };
+
+    const doIngest = async (contentToIngest: string) => {
+        if (!contentToIngest) return;
 
         try {
             setStats(prev => ({ ...prev, processing: true }));
-            const data = JSON.parse(jsonContent);
+            const data = JSON.parse(contentToIngest);
 
             if (data.type === 'bundle') {
-                await apiService.ingestBundle(data, fileName, targetActorId || undefined, confidence);
+                const ingestName = loadedFiles.length > 1
+                    ? loadedFiles.map(f => f.name).join(' + ')
+                    : fileName;
+                await apiService.ingestBundle(data, ingestName, targetActorId || undefined, confidence);
             } else {
                 await apiService.ingestData(data);
             }
@@ -184,12 +371,18 @@ export const DataIngestionPanel: React.FC = () => {
             setJsonContent('');
             setOriginalJsonContent('');
             setFileName('');
+            setLoadedFiles([]);
             setValidationResult(null);
+            setTargetActorId('');
+            setActorAutoDetected(false);
+            setShowOrphanDialog(false);
             setStats(prev => ({ ...prev, processing: false }));
             fetchHistory();
+            apiService.getActors().then(setActors).catch(() => {});
         } catch (err) {
             console.error('Ingestion failed:', err);
             setStats(prev => ({ ...prev, processing: false }));
+            setShowOrphanDialog(false);
             alert('Ingestion failed. Please check the JSON format and backend logs.');
         }
     };
@@ -234,27 +427,59 @@ export const DataIngestionPanel: React.FC = () => {
                             <div className="flex justify-center mb-4">
                                 <FileJson className={cn("text-4xl transition-colors", isDragging ? "text-primary" : "text-slate-400")} size={48} />
                             </div>
-                            <p className="text-sm font-semibold text-slate-900 dark:text-white">Drop JSON Bundle</p>
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">STIX 2.1 or GSCIX exports</p>
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">Drop JSON Bundle{loadedFiles.length > 0 ? 's' : ''}</p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">STIX 2.1 or GSCIX exports — multiple files supported</p>
                             <label className="mt-4 inline-block px-4 py-2 bg-white dark:bg-slate-700 border border-border-light dark:border-border-dark rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 shadow-sm transition-all cursor-pointer">
                                 Browse Files
-                                <input type="file" className="hidden" accept=".json" onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                        setFileName(file.name);
-                                        const reader = new FileReader();
-                                        reader.onload = (event) => {
-                                            const content = event.target?.result as string;
-                                            setOriginalJsonContent(content);
-                                            setJsonContent(content);
-                                            setValidationResult(null);
-                                            validateJson(content);
-                                        };
-                                        reader.readAsText(file);
+                                <input type="file" className="hidden" accept=".json" multiple onChange={(e) => {
+                                    if (e.target.files && e.target.files.length > 0) {
+                                        readFilesAndMerge(e.target.files, true);
                                     }
+                                    // Reset input so the same file(s) can be re-selected
+                                    e.target.value = '';
                                 }} />
                             </label>
                         </div>
+
+                        {/* Loaded files list */}
+                        {loadedFiles.length > 0 && (
+                            <div className="mt-4 space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Layers size={12} /> {loadedFiles.length} file{loadedFiles.length > 1 ? 's' : ''} loaded
+                                        {loadedFiles.length > 1 && <span className="text-amber-500 font-normal">(merged)</span>}
+                                    </span>
+                                    <button
+                                        onClick={() => { setLoadedFiles([]); processFiles([]); }}
+                                        className="text-[10px] text-slate-400 hover:text-red-500 transition-colors"
+                                    >
+                                        Clear all
+                                    </button>
+                                </div>
+                                {loadedFiles.map((f, i) => (
+                                    <div key={`${f.name}-${i}`} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg px-3 py-1.5">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <FileJson size={14} className={i === 0 && loadedFiles.length > 1 ? "text-cyan-500 shrink-0" : "text-slate-400 shrink-0"} />
+                                            <span className="text-xs text-slate-700 dark:text-slate-300 truncate">{f.name}</span>
+                                            {i === 0 && loadedFiles.length > 1 && (
+                                                <span className="text-[9px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 px-1.5 py-0.5 rounded font-bold shrink-0">Primary actor</span>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const updated = loadedFiles.filter((_, idx) => idx !== i);
+                                                setLoadedFiles(updated);
+                                                processFiles(updated);
+                                            }}
+                                            className="p-0.5 text-slate-400 hover:text-red-500 transition-colors shrink-0 ml-2"
+                                            title="Remove file"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <div className="mt-6 space-y-4">
                             <div>
@@ -375,25 +600,71 @@ export const DataIngestionPanel: React.FC = () => {
 
                 {/* Right Column: Preview & Action */}
                 <div className="lg:col-span-2 space-y-6 flex flex-col">
+                    {/* Ready for Ingest — top for accessibility */}
+                    <div className="bg-surface-light dark:bg-surface-dark shadow-sm rounded-xl p-6 border border-border-light dark:border-border-dark flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div className="text-center sm:text-left">
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Ready for Ingest</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                {jsonContent ? "Valid JSON structure detected." : "Waiting for valid payload input."}
+                            </p>
+                        </div>
+                        <div className="flex gap-3 w-full sm:w-auto">
+                            <button
+                                onClick={handleValidate}
+                                disabled={!jsonContent || validating}
+                                className="flex-1 sm:flex-none px-6 py-2.5 bg-transparent border border-border-light dark:border-border-dark text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-semibold transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {validating && <RefreshCw className="animate-spin" size={16} />}
+                                Validate Schema
+                            </button>
+                            <button
+                                onClick={handleIngestClick}
+                                disabled={!jsonContent || stats.processing}
+                                className="flex-1 sm:flex-none px-8 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {stats.processing ? <RefreshCw className="animate-spin" size={18} /> : <Send size={18} />}
+                                Ingest Data
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Validation Feedback */}
                     {validationResult && (
                         <div className={cn(
                             "rounded-xl px-6 py-4 border shadow-sm",
-                            validationResult.status === 'OK' ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/50" : "bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800/50"
+                            validationResult.status === 'OK' && "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/50",
+                            validationResult.status === 'WARNING' && "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/50",
+                            validationResult.status === 'ERROR' && "bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800/50"
                         )}>
                             <div className="flex items-center gap-3 mb-2">
-                                {validationResult.status === 'OK' ? (
+                                {validationResult.status === 'OK' && (
                                     <CheckCircle className="text-emerald-500" size={20} />
-                                ) : (
+                                )}
+                                {validationResult.status === 'WARNING' && (
+                                    <AlertTriangle className="text-amber-500" size={20} />
+                                )}
+                                {validationResult.status === 'ERROR' && (
                                     <XCircle className="text-rose-500" size={20} />
                                 )}
                                 <span className={cn(
                                     "text-sm font-bold",
-                                    validationResult.status === 'OK' ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"
+                                    validationResult.status === 'OK' && "text-emerald-700 dark:text-emerald-400",
+                                    validationResult.status === 'WARNING' && "text-amber-700 dark:text-amber-400",
+                                    validationResult.status === 'ERROR' && "text-rose-700 dark:text-rose-400"
                                 )}>
                                     {validationResult.message}
                                 </span>
                             </div>
+                            {validationResult.warnings && validationResult.warnings.length > 0 && (
+                                <ul className="space-y-1 mt-3">
+                                    {validationResult.warnings.map((w, i) => (
+                                        <li key={i} className="text-xs text-amber-600 dark:text-amber-300 flex items-start gap-2">
+                                            <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                                            <span><span className="font-bold opacity-70">[{w.objectType}]</span> {w.name}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                             {validationResult.errors && validationResult.errors.length > 0 && (
                                 <ul className="space-y-1 mt-3">
                                     {validationResult.errors.map((err, i) => (
@@ -439,34 +710,66 @@ export const DataIngestionPanel: React.FC = () => {
 
                     </div>
 
-                    <div className="bg-surface-light dark:bg-surface-dark shadow-sm rounded-xl p-6 border border-border-light dark:border-border-dark flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <div className="text-center sm:text-left">
-                            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Ready for Ingest</h3>
+                </div>
+            </div>
+
+            {/* Orphan Entities Confirmation Dialog */}
+            {showOrphanDialog && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowOrphanDialog(false)}>
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-border-light dark:border-border-dark w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-amber-50/50 dark:bg-amber-900/10">
+                            <div className="flex items-center gap-3 mb-2">
+                                <AlertTriangle className="text-amber-500 shrink-0" size={24} />
+                                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Unlinked entities detected</h2>
+                            </div>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                {jsonContent ? "Valid JSON structure detected." : "Waiting for valid payload input."}
+                                {validationResult?.warnings?.length} entit{(validationResult?.warnings?.length ?? 0) === 1 ? 'y' : 'ies'} will not appear in the graph because {(validationResult?.warnings?.length ?? 0) === 1 ? 'it has' : 'they have'} no relationships:
                             </p>
                         </div>
-                        <div className="flex gap-3 w-full sm:w-auto">
+                        <div className="p-6 max-h-48 overflow-y-auto">
+                            <ul className="space-y-2">
+                                {validationResult?.warnings?.map((w, i) => (
+                                    <li key={i} className="flex items-center gap-2 text-sm">
+                                        <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded uppercase">{w.objectType}</span>
+                                        <span className="text-slate-700 dark:text-slate-300 font-medium truncate">{w.name}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2">
                             <button
-                                onClick={handleValidate}
-                                disabled={!jsonContent || validating}
-                                className="flex-1 sm:flex-none px-6 py-2.5 bg-transparent border border-border-light dark:border-border-dark text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-semibold transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                onClick={() => {
+                                    setShowOrphanDialog(false);
+                                    const linked = injectOrphanRelations(jsonContent);
+                                    setJsonContent(linked);
+                                    setOriginalJsonContent(linked);
+                                    setValidationResult(null);
+                                    doIngest(linked);
+                                }}
+                                className="w-full py-2.5 px-4 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold transition-colors shadow-lg flex items-center justify-center gap-2"
                             >
-                                {validating && <RefreshCw className="animate-spin" size={16} />}
-                                Validate Schema
+                                <Link size={16} /> Link automatically and ingest
                             </button>
                             <button
-                                onClick={handleIngest}
-                                disabled={!jsonContent || stats.processing}
-                                className="flex-1 sm:flex-none px-8 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={() => {
+                                    setShowOrphanDialog(false);
+                                    doIngest(jsonContent);
+                                }}
+                                className="w-full py-2.5 px-4 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors flex items-center justify-center gap-2"
                             >
-                                {stats.processing ? <RefreshCw className="animate-spin" size={18} /> : <Send size={18} />}
-                                Ingest Data
+                                <Send size={16} /> Ingest without linking
+                            </button>
+                            <button
+                                onClick={() => setShowOrphanDialog(false)}
+                                className="w-full py-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                            >
+                                Cancel
                             </button>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

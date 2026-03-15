@@ -33,12 +33,13 @@ public class RiskAnalyticsEngine {
         private final GscixEntityRepository entityRepository;
         private final GscixRelationRepository relationRepository;
 
-        /** Returns effective lastSeen: entity.lastSeen or gsciAttributes.lastSeen */
+        /** Returns effective lastSeen: entity.lastSeen, gsciAttributes.lastSeen, or current time if still active */
         private Instant getEffectiveLastSeen(GscixEntity e) {
                 if (e.getLastSeen() != null) return e.getLastSeen();
                 if (e.getGsciAttributes() != null && e.getGsciAttributes().getLastSeen() != null)
                         return e.getGsciAttributes().getLastSeen();
-                return null;
+                // No lastSeen means the assessment is still active — use current time
+                return Instant.now();
         }
 
         public HpiAnalysisResponse calculateWeightedHpi(String actorId) {
@@ -236,9 +237,14 @@ public class RiskAnalyticsEngine {
         }
 
         private List<GscixEntity> getAssessmentsForTarget(String targetId) {
-                List<GscixRelation> relations = relationRepository.findByTargetRefAndRelationshipType(targetId,
+                // Collect assessments linked via "evaluates" or "attributed-to"
+                List<GscixRelation> evaluatesRels = relationRepository.findByTargetRefAndRelationshipType(targetId,
                                 "evaluates");
-                return relations.stream()
+                List<GscixRelation> attributedRels = relationRepository.findByTargetRefAndRelationshipType(targetId,
+                                "attributed-to");
+                List<GscixRelation> allRels = new ArrayList<>(evaluatesRels);
+                allRels.addAll(attributedRels);
+                return allRels.stream()
                                 .map(r -> entityRepository.findById(r.getSourceRef()))
                                 .filter(Optional::isPresent)
                                 .map(Optional::get)

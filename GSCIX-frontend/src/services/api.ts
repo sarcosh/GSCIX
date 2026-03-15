@@ -127,6 +127,11 @@ export const apiService = {
         return response.data;
     },
 
+    updateEntity: async (id: string, entity: Partial<GscixEntity>): Promise<GscixEntity> => {
+        const response = await apiClient.put<GscixEntity>(`/gscix/entities/${encodeURIComponent(id)}`, entity);
+        return response.data;
+    },
+
     createRelation: async (relation: { source_ref: string; target_ref: string; relationship_type: string; description?: string; confidence?: number }): Promise<GscixRelation> => {
         const response = await apiClient.post<GscixRelation>('/gscix/relations', relation);
         return response.data;

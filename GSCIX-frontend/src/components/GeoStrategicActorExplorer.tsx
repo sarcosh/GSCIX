@@ -14,7 +14,10 @@ import {
     Trash2,
     History,
     Activity,
-    AlertTriangle
+    AlertTriangle,
+    X,
+    Pencil,
+    Save
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import apiService from '../services/api';
@@ -276,6 +279,9 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [actorAnalytics, setActorAnalytics] = useState<Record<string, HpiAnalytics>>({});
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+    const [editingActor, setEditingActor] = useState<GscixEntity | null>(null);
+    const [editForm, setEditForm] = useState<Record<string, any>>({});
+    const [savingEdit, setSavingEdit] = useState(false);
 
     const fetchActors = async () => {
         try {
@@ -555,9 +561,23 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         setOpenMenuId(null);
+                                                                        setEditingActor(actor);
+                                                                        setEditForm({
+                                                                            name: actor.name || '',
+                                                                            description: actor.description || '',
+                                                                            confidence: actor.confidence,
+                                                                            first_seen: (actor.first_seen || actor.gsciAttributes?.first_seen || '').split('T')[0],
+                                                                            last_seen: (actor.last_seen || actor.gsciAttributes?.last_seen || '').split('T')[0],
+                                                                            strategic_alignment: actor.gsciAttributes?.strategic_alignment || '',
+                                                                            geopolitical_doctrine: actor.gsciAttributes?.geopolitical_doctrine || '',
+                                                                            revisionist_index: actor.gsciAttributes?.revisionist_index,
+                                                                            strategic_ambiguity_score: actor.gsciAttributes?.strategic_ambiguity_score,
+                                                                            doctrine_type: actor.gsciAttributes?.doctrine_type || '',
+                                                                        });
                                                                     }}
-                                                                    className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                                                    className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
                                                                 >
+                                                                    <Pencil size={14} />
                                                                     Edit Actor Profile
                                                                 </button>
                                                                 {onNavigateToGraph && (
@@ -661,6 +681,146 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                         )}
                     </div>
                 </div>
+
+                {/* Edit Actor Modal */}
+                {editingActor && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditingActor(null)}>
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-border-light dark:border-border-dark w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+                            {/* Header */}
+                            <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] uppercase tracking-wider font-bold text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-full bg-amber-500/5 flex items-center gap-1">
+                                        <Pencil size={12} /> Editing Actor
+                                    </span>
+                                    <button onClick={() => setEditingActor(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                                <h2 className="text-xl font-bold text-slate-900 dark:text-white">{editingActor.name}</h2>
+                                <p className="text-xs text-slate-500 mt-1 font-mono">{editingActor.stixId}</p>
+                            </div>
+
+                            {/* Form */}
+                            <div className="flex-1 p-6 space-y-5 overflow-y-auto">
+                                {/* Name */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Name *</label>
+                                    <input type="text" value={editForm.name || ''} onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                </div>
+                                {/* Description */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Description</label>
+                                    <textarea value={editForm.description || ''} onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))} rows={3}
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none" />
+                                </div>
+                                {/* Dates */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">First Seen</label>
+                                        <input type="date" value={editForm.first_seen || ''} onChange={(e) => setEditForm(prev => ({ ...prev, first_seen: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Last Seen</label>
+                                        <input type="date" value={editForm.last_seen || ''} onChange={(e) => setEditForm(prev => ({ ...prev, last_seen: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                </div>
+                                {/* Confidence */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Confidence (0-100)</label>
+                                    <input type="number" min="0" max="100" value={editForm.confidence ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, confidence: e.target.value ? parseInt(e.target.value) : undefined }))}
+                                        placeholder="e.g. 85"
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
+                                </div>
+
+                                {/* GSCI Attributes */}
+                                <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Strategic Attributes</label>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Alignment</label>
+                                            <select value={editForm.strategic_alignment || ''} onChange={(e) => setEditForm(prev => ({ ...prev, strategic_alignment: e.target.value }))}
+                                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                                <option value="">Select...</option>
+                                                <option>NATO</option><option>BRICS</option><option>EU</option><option>Non-Aligned</option><option>Other</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Geopolitical Doctrine</label>
+                                            <input type="text" value={editForm.geopolitical_doctrine || ''} onChange={(e) => setEditForm(prev => ({ ...prev, geopolitical_doctrine: e.target.value }))}
+                                                placeholder="e.g. Neo-Eurasianist expansionism"
+                                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Revisionist Index (0-10)</label>
+                                                <input type="number" step="0.1" min="0" max="10" value={editForm.revisionist_index ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, revisionist_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                                    className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Ambiguity Score (0-10)</label>
+                                                <input type="number" step="0.1" min="0" max="10" value={editForm.strategic_ambiguity_score ?? ''} onChange={(e) => setEditForm(prev => ({ ...prev, strategic_ambiguity_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                                    className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Doctrine Type</label>
+                                            <select value={editForm.doctrine_type || ''} onChange={(e) => setEditForm(prev => ({ ...prev, doctrine_type: e.target.value }))}
+                                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                                <option value="">Select...</option>
+                                                <option>revisionist</option><option>status-quo</option><option>expansionist</option><option>defensive</option><option>hybrid</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-3 shrink-0">
+                                <button onClick={() => setEditingActor(null)}
+                                    className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm text-sm font-semibold transition-colors text-slate-700 dark:text-slate-300">
+                                    Cancel
+                                </button>
+                                <button
+                                    disabled={!editForm.name || savingEdit}
+                                    onClick={async () => {
+                                        try {
+                                            setSavingEdit(true);
+                                            const { name, description, confidence, first_seen, last_seen, ...gsciFields } = editForm;
+                                            const payload: any = { name };
+                                            if (description) payload.description = description;
+                                            if (confidence !== undefined && confidence !== '') payload.confidence = confidence;
+                                            if (first_seen) payload.first_seen = first_seen.includes('T') ? first_seen : first_seen + 'T00:00:00Z';
+                                            if (last_seen) payload.last_seen = last_seen.includes('T') ? last_seen : last_seen + 'T00:00:00Z';
+
+                                            const cleanGsci = Object.fromEntries(
+                                                Object.entries(gsciFields).filter(([_, v]) => v !== '' && v !== undefined && v !== null)
+                                            );
+                                            if (first_seen) cleanGsci.first_seen = payload.first_seen;
+                                            if (last_seen) cleanGsci.last_seen = payload.last_seen;
+                                            if (Object.keys(cleanGsci).length > 0) {
+                                                payload.gsciAttributes = cleanGsci;
+                                            }
+
+                                            await apiService.updateEntity(editingActor.stixId, payload);
+                                            setEditingActor(null);
+                                            setEditForm({});
+                                            await fetchActors();
+                                        } catch (err) {
+                                            console.error('Failed to update actor:', err);
+                                        } finally {
+                                            setSavingEdit(false);
+                                        }
+                                    }}
+                                    className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {savingEdit ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />} Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

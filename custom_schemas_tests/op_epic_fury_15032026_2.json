@@ -1,0 +1,151 @@
+{
+    "type": "bundle",
+    "id": "bundle--a1e2b3c4-d5e6-4f7g-8h9i-0j1k2l3m4n5o",
+    "objects": [
+        {
+            "type": "x-geo-strategic-actor",
+            "id": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b",
+            "spec_version": "2.1",
+            "name": "Islamic Republic of Iran",
+            "strategic_alignment": "Other",
+            "geopolitical_doctrine": "Mosaic Defense / Offensive Defense",
+            "revisionist_index": 9.8,
+            "strategic_ambiguity_score": 8.5,
+            "doctrine_type": "revisionist",
+            "technological_modernization_rate": 7.5,
+            "first_seen": "1979-02-11T00:00:00Z",
+            "external_references": [
+                {
+                    "source_name": "DIA Military Power Report",
+                    "description": "Core doctrine of regime survival and asymmetric power projection.",
+                    "url": "https://www.dia.mil/Military-Power-Publications"
+                },
+                {
+                    "source_name": "IEEE Opinion Paper 02/2025",
+                    "description": "Strategic thinking post-Gaza and transition to defensive self-sufficiency.",
+                    "url": "https://www.ieee.es"
+                }
+            ],
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--escalation-audit-2026",
+            "spec_version": "2.1",
+            "name": "Geopolitical Escalation Assessment - Phase I",
+            "description": "Evaluation of the decentralized retaliatory cycle following the Feb 28 decapitation strikes. Conflict expansion into 6+ countries within 24 hours.",
+            "hybrid_pressure_index": 9.8,
+            "escalation_probability_score": 0.95,
+            "strategic_signaling_score": 10.0,
+            "cyber_geopolitical_coupling_index": 9.5,
+            "first_seen": "2026-02-28T07:00:00Z",
+            "external_references": [
+                {
+                    "source_name": "Flashpoint March 2026 Timeline",
+                    "description": "Tracking kinetic and cyber convergence during Operation Epic Fury.",
+                    "url": "https://flashpoint.io/blog/escalation-middle-east-2026"
+                },
+                {
+                    "source_name": "CSIS Critical Questions",
+                    "description": "Analysis of the U.S.-Israel campaign aimed at systematic government degradation.",
+                    "url": "https://www.csis.org/analysis/operation-epic-fury-remnants-iran-nuclear-program"
+                }
+            ],
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--hydro-strategic-risk",
+            "spec_version": "2.1",
+            "name": "Hydro-Strategic Multiplier Assessment",
+            "description": "Evaluation of the targeting of desalination plants in Bahrain and UAE as a dangerous 'wildcard' to force a regional halt to hostilities.",
+            "hybrid_pressure_index": 9.2,
+            "escalation_probability_score": 0.85,
+            "strategic_signaling_score": 9.0,
+            "first_seen": "2026-03-08T00:00:00Z",
+            "external_references": [
+                {
+                    "source_name": "Hudson Institute Situation Report",
+                    "description": "Battlefield assessment and strategic signals regarding water infrastructure.",
+                    "url": "https://www.hudson.org/situation-reports/epic-fury-march-2026"
+                }
+            ],
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--cyber-physical-convergence",
+            "spec_version": "2.1",
+            "name": "Cyber-Physical Capability Audit",
+            "description": "Assessment of MOIS-linked actors' shift toward consuming the cybercrime ecosystem to bolster destructive capabilities (e.g., Stryker MedTech wipe).",
+            "hybrid_pressure_index": 9.5,
+            "cyber_geopolitical_coupling_index": 9.9,
+            "first_seen": "2026-03-10T00:00:00Z",
+            "external_references": [
+                {
+                    "source_name": "Check Point Research",
+                    "description": "The connection between MOIS actors (Void Manticore/Handala) and criminal malware like Rhadamanthys.",
+                    "url": "https://research.checkpoint.com/2026/mois-cyber-crime-connection"
+                },
+                {
+                    "source_name": "Unit 42 Technical Brief",
+                    "description": "Analysis of wiper attacks targeting U.S. and Israeli identities via Microsoft Intune.",
+                    "url": "https://unit42.paloaltonetworks.com/handala-hack-wiper-attacks"
+                }
+            ],
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--convention-degradation",
+            "spec_version": "2.1",
+            "name": "Conventional Capability Degradation Audit",
+            "description": "Analysis of the gap between Iranian 'Offensive Defense' rhetoric and the reality of 90-95% loss in drone/missile inventories.",
+            "doctrine_capacity_divergence_score": 8.8,
+            "strategic_signaling_score": 10.0,
+            "first_seen": "2026-03-05T00:00:00Z",
+            "external_references": [
+                {
+                    "source_name": "JINSA Conflict Update",
+                    "description": "Detailed breakdown of Iranian inventory depletion and retaliatory limitations.",
+                    "url": "https://jinsa.org/3-13-26-update"
+                }
+            ],
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--eval-geo",
+            "relationship_type": "evaluates",
+            "source_ref": "x-strategic-assessment--escalation-audit-2026",
+            "target_ref": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--eval-hydro",
+            "relationship_type": "evaluates",
+            "source_ref": "x-strategic-assessment--hydro-strategic-risk",
+            "target_ref": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b"
+        }
+    ]
+}

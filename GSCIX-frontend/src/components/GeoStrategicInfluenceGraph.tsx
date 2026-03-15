@@ -3,7 +3,7 @@ import {
     X, Download, Zap,
     Globe, Flag, Megaphone, Bug, Plus, Minus,
     Maximize2, RefreshCw, AlertTriangle, ExternalLink,
-    Radio, Scale, BarChart3, ChevronLeft, Layers, Users,
+    Radio, Scale, BarChart3, ChevronLeft, ChevronDown, ChevronRight, Layers, Users,
     PlusSquare, GitBranch, Save, ArrowLeft, Trash2, ToggleLeft, ToggleRight, Pencil
 } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
@@ -58,19 +58,22 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     });
     const [dateRange, setDateRange] = useState({ from: '', to: '' });
     const [openctiBaseUrl, setOpenctiBaseUrl] = useState<string>('');
-    const [graphMode, setGraphMode] = useState<'view' | 'add-entity' | 'add-relation' | 'edit-relation'>('view');
+    const [graphMode, setGraphMode] = useState<'view' | 'add-entity' | 'add-relation' | 'edit-relation' | 'edit-entity'>('view');
     const [saving, setSaving] = useState(false);
     const [newEntity, setNewEntity] = useState<Record<string, any>>({ type: 'x-strategic-objective', name: '', description: '' });
     const [newRelation, setNewRelation] = useState({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
     const [deleteTarget, setDeleteTarget] = useState<{ entity: GscixEntity; childCount: number; relationCount: number } | null>(null);
     const [deleteRelationTarget, setDeleteRelationTarget] = useState<GscixRelation | null>(null);
     const [editingRelation, setEditingRelation] = useState<GscixRelation | null>(null);
+    const [editingEntity, setEditingEntity] = useState<GscixEntity | null>(null);
+    const [editEntityForm, setEditEntityForm] = useState<Record<string, any>>({});
     const [highlightedRelationId, setHighlightedRelationId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [openctiEntities, setOpenctiEntities] = useState<GscixEntity[]>([]);
     const graphRef = useRef<any>(null);
     const initialZoomDone = useRef(false);
     const d3ForcesConfigured = useRef(false);
+    const [connectionsCollapsed, setConnectionsCollapsed] = useState(true);
 
     // Fetch subgraph from backend
     const fetchGraph = useCallback(async (rootId?: string) => {
@@ -155,9 +158,19 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
     // When clicking a node: toggle highlight on its pill in the sidebar.
     // The root actor header + Strategic Metrics always stay visible.
+    // If in edit mode, cancel the edit and return to view mode.
     const handleNodeClick = useCallback((node: any) => {
         if (!node.entity) return;
         const entity = node.entity as GscixEntity;
+
+        // If in edit mode, cancel editing and return to view
+        if (graphMode === 'edit-relation' || graphMode === 'edit-entity') {
+            setEditingRelation(null);
+            setEditingEntity(null);
+            setEditEntityForm({});
+            setGraphMode('view');
+            return;
+        }
 
         // Ensure the panel is visible
         setPanelVisible(true);
@@ -165,13 +178,15 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         // Toggle highlight: click same node again → deselect
         const newId = highlightedConnectionId === entity.stixId ? null : entity.stixId;
         setHighlightedConnectionId(newId);
+        // Deselect any highlighted relation
+        setHighlightedRelationId(null);
 
         if (newId) {
             setTimeout(() => {
                 document.getElementById(`conn-${entity.stixId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }, 100);
         }
-    }, [highlightedConnectionId]);
+    }, [highlightedConnectionId, graphMode]);
 
     // Build visual graph data from the backend-provided entities/relations + client layer filters
     const graphData = useMemo(() => {
@@ -658,6 +673,14 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         nodeCanvasObject={paintNode}
                         onNodeClick={handleNodeClick}
                         onLinkClick={(link: any) => {
+                            // If in edit mode, cancel editing and return to view
+                            if (graphMode === 'edit-relation' || graphMode === 'edit-entity') {
+                                setEditingRelation(null);
+                                setEditingEntity(null);
+                                setEditEntityForm({});
+                                setGraphMode('view');
+                                return;
+                            }
                             const linkId = link.id;
                             if (!linkId) return;
                             // Toggle: click same link again → deselect
@@ -667,17 +690,19 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             setHighlightedConnectionId(null);
                             setPanelVisible(true);
                             if (newId) {
+                                // Auto-expand Connections section if collapsed
+                                setConnectionsCollapsed(false);
                                 setTimeout(() => {
                                     document.getElementById(`rel-${linkId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                                }, 100);
+                                }, 150);
                             }
                         }}
                         linkColor={(link: any) => link.id === highlightedRelationIdRef.current ? 'rgba(6,182,212,0.9)' : 'rgba(148,163,184,0.4)'}
-                        linkWidth={(link: any) => link.id === highlightedRelationIdRef.current ? 3 : 1.8}
+                        linkWidth={() => 1.8}
                         linkDirectionalArrowLength={7}
                         linkDirectionalArrowRelPos={0.85}
                         linkDirectionalArrowColor={(link: any) => link.id === highlightedRelationIdRef.current ? 'rgba(6,182,212,0.9)' : 'rgba(148,163,184,0.6)'}
-                        linkLineDash={(link: any) => link.id === highlightedRelationIdRef.current ? null : [4, 2]}
+                        linkLineDash={() => [4, 2]}
                         linkCanvasObjectMode={() => 'after'}
                         linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
                             if (globalScale < 0.4) return; // Same threshold as node labels
@@ -1039,14 +1064,56 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Type-specific Attributes</label>
 
+                            {newEntity.type === 'x-geo-strategic-actor' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Alignment *</label>
+                                        <select value={newEntity.strategic_alignment || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, strategic_alignment: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>NATO</option><option>BRICS</option><option>EU</option><option>Non-Aligned</option><option>Other</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Geopolitical Doctrine</label>
+                                        <input type="text" value={newEntity.geopolitical_doctrine || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, geopolitical_doctrine: e.target.value }))}
+                                            placeholder="e.g. Neo-Eurasianist expansionism"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Revisionist Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.revisionist_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, revisionist_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Ambiguity Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.strategic_ambiguity_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, strategic_ambiguity_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Doctrine Type</label>
+                                        <select value={newEntity.doctrine_type || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, doctrine_type: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>Stability-Oriented</option><option>status-quo</option><option>revisionist</option><option>expansionist</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Technological Modernization Rate (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.technological_modernization_rate ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, technological_modernization_rate: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                </div>
+                            )}
+
                             {newEntity.type === 'x-strategic-objective' && (
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Objective Type</label>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Objective Type *</label>
                                         <select value={newEntity.objective_type || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, objective_type: e.target.value }))}
                                             className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
                                             <option value="">Select...</option>
-                                            <option>political</option><option>military</option><option>economic</option><option>technological</option><option>informational</option>
+                                            <option>political</option><option>military</option><option>economic</option><option>societal</option>
                                         </select>
                                     </div>
                                     <div>
@@ -1065,23 +1132,54 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                             <option>short-term</option><option>medium-term</option><option>long-term</option><option>decadal</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-2">Civil-Military Fusion</label>
+                                        <select value={newEntity.civil_military_fusion === true ? 'true' : newEntity.civil_military_fusion === false ? 'false' : ''} onChange={(e) => setNewEntity(prev => ({ ...prev, civil_military_fusion: e.target.value === '' ? undefined : e.target.value === 'true' }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option value="true">Yes</option><option value="false">No</option>
+                                        </select>
+                                    </div>
                                 </div>
                             )}
 
                             {newEntity.type === 'x-hybrid-campaign' && (
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Phase</label>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Phase *</label>
                                         <select value={newEntity.phase || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, phase: e.target.value }))}
                                             className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
                                             <option value="">Select...</option>
-                                            <option>planning</option><option>active</option><option>escalation</option><option>de-escalation</option><option>dormant</option>
+                                            <option>pre-conflict</option><option>escalation</option><option>sustained-pressure</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Hybrid Pressure Index (0-10)</label>
-                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.hybrid_pressure_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, hybrid_pressure_index: parseFloat(e.target.value) || undefined }))}
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Integration Level</label>
+                                        <input type="text" value={newEntity.integration_level || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, integration_level: e.target.value }))} placeholder="e.g. high"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Geographic Scope</label>
+                                        <input type="text" value={newEntity.geographic_scope || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, geographic_scope: e.target.value }))} placeholder="e.g. Eastern Europe"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Escalation Risk Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.escalation_risk_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, escalation_risk_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
                                             className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Velocity</label>
+                                        <select value={newEntity.velocity || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, velocity: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>fast-spike</option><option>slow-drift</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Nature (comma-separated)</label>
+                                        <input type="text" value={Array.isArray(newEntity.nature) ? newEntity.nature.join(', ') : newEntity.nature || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, nature: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean) }))} placeholder="e.g. cyber, economic, diplomatic"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400" />
                                     </div>
                                 </div>
                             )}
@@ -1089,14 +1187,14 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             {newEntity.type === 'x-influence-vector' && (
                                 <div className="space-y-4">
                                     <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Narrative *</label>
+                                        <textarea value={newEntity.narrative || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, narrative: e.target.value }))} rows={2} placeholder="Key narrative"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400 resize-none" />
+                                    </div>
+                                    <div>
                                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Channel</label>
                                         <input type="text" value={newEntity.channel || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, channel: e.target.value }))} placeholder="e.g. social-media"
                                             className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Narrative</label>
-                                        <textarea value={newEntity.narrative || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, narrative: e.target.value }))} rows={2} placeholder="Key narrative"
-                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400 resize-none" />
                                     </div>
                                     <div>
                                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Target Audience</label>
@@ -1110,12 +1208,57 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Political Destabilization Index (0-10)</label>
-                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.political_destabilization_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, political_destabilization_index: parseFloat(e.target.value) || undefined }))}
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.political_destabilization_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, political_destabilization_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
                                             className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
                                     </div>
                                     <div>
                                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Economic Disruption Index (0-10)</label>
-                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.economic_disruption_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, economic_disruption_index: parseFloat(e.target.value) || undefined }))}
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.economic_disruption_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, economic_disruption_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Alliance Fragmentation Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.alliance_fragmentation_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, alliance_fragmentation_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Deterrence Signal Strength (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.deterrence_signal_strength ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, deterrence_signal_strength: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {newEntity.type === 'x-strategic-assessment' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Hybrid Pressure Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.hybrid_pressure_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, hybrid_pressure_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Escalation Probability Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.escalation_probability_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, escalation_probability_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Signaling Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.strategic_signaling_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, strategic_signaling_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Cyber-Geopolitical Coupling Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.cyber_geopolitical_coupling_index ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, cyber_geopolitical_coupling_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Narrative Penetration Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.narrative_penetration_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, narrative_penetration_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Doctrine-Capacity Divergence Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={newEntity.doctrine_capacity_divergence_score ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, doctrine_capacity_divergence_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
                                             className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
                                     </div>
                                 </div>
@@ -1419,6 +1562,339 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                     </>
                 )}
 
+                {/* ── EDIT ENTITY FORM ── */}
+                {graphMode === 'edit-entity' && editingEntity && (
+                    <>
+                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded-full bg-amber-500/5 flex items-center gap-1">
+                                <Pencil size={12} /> Editing
+                            </span>
+                            <button onClick={() => { setGraphMode('view'); setEditingEntity(null); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">Edit Entity</h2>
+                        <p className="text-xs text-slate-500 mt-1">Modify {NODE_CONFIG[editingEntity.type]?.label || editingEntity.type}: <span className="font-semibold text-slate-700 dark:text-slate-300">{editingEntity.name}</span></p>
+                    </div>
+                    <div className="flex-1 p-6 space-y-5 overflow-y-auto">
+                        {/* Name */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Name *</label>
+                            <input
+                                type="text"
+                                value={editEntityForm.name || ''}
+                                onChange={(e) => setEditEntityForm(prev => ({ ...prev, name: e.target.value }))}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                            />
+                        </div>
+                        {/* Description */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Description</label>
+                            <textarea
+                                value={editEntityForm.description || ''}
+                                onChange={(e) => setEditEntityForm(prev => ({ ...prev, description: e.target.value }))}
+                                rows={3}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none"
+                            />
+                        </div>
+                        {/* First Seen / Last Seen */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">First Seen</label>
+                                <input type="date" value={editEntityForm.first_seen || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, first_seen: e.target.value }))}
+                                    className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Last Seen</label>
+                                <input type="date" value={editEntityForm.last_seen || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, last_seen: e.target.value }))}
+                                    className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                            </div>
+                        </div>
+                        {/* Confidence */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Confidence (0-100)</label>
+                            <input type="number" min="0" max="100" value={editEntityForm.confidence ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, confidence: e.target.value ? parseInt(e.target.value) : undefined }))}
+                                placeholder="e.g. 85"
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
+                        </div>
+
+                        {/* Dynamic GSCI fields based on entity type */}
+                        <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Type-specific Attributes</label>
+
+                            {editingEntity.type === 'x-geo-strategic-actor' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Alignment *</label>
+                                        <select value={editEntityForm.strategic_alignment || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, strategic_alignment: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>NATO</option><option>BRICS</option><option>EU</option><option>Non-Aligned</option><option>Other</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Geopolitical Doctrine</label>
+                                        <input type="text" value={editEntityForm.geopolitical_doctrine || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, geopolitical_doctrine: e.target.value }))}
+                                            placeholder="e.g. Neo-Eurasianist expansionism"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Revisionist Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.revisionist_index ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, revisionist_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Ambiguity Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.strategic_ambiguity_score ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, strategic_ambiguity_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Doctrine Type</label>
+                                        <select value={editEntityForm.doctrine_type || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, doctrine_type: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>Stability-Oriented</option><option>status-quo</option><option>revisionist</option><option>expansionist</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Technological Modernization Rate (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.technological_modernization_rate ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, technological_modernization_rate: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {editingEntity.type === 'x-strategic-objective' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Objective Type *</label>
+                                        <select value={editEntityForm.objective_type || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, objective_type: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>political</option><option>military</option><option>economic</option><option>societal</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Priority Level</label>
+                                        <select value={editEntityForm.priority_level || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, priority_level: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>critical</option><option>high</option><option>medium</option><option>low</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Time Horizon</label>
+                                        <select value={editEntityForm.time_horizon || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, time_horizon: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>short-term</option><option>medium-term</option><option>long-term</option><option>decadal</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Civil-Military Fusion</label>
+                                        <select value={editEntityForm.civil_military_fusion === true ? 'true' : editEntityForm.civil_military_fusion === false ? 'false' : ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, civil_military_fusion: e.target.value === '' ? undefined : e.target.value === 'true' }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option value="true">Yes</option><option value="false">No</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {editingEntity.type === 'x-hybrid-campaign' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Phase *</label>
+                                        <select value={editEntityForm.phase || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, phase: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>pre-conflict</option><option>escalation</option><option>sustained-pressure</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Integration Level</label>
+                                        <input type="text" value={editEntityForm.integration_level || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, integration_level: e.target.value }))} placeholder="e.g. high"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Geographic Scope</label>
+                                        <input type="text" value={editEntityForm.geographic_scope || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, geographic_scope: e.target.value }))} placeholder="e.g. Eastern Europe"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Escalation Risk Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.escalation_risk_score ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, escalation_risk_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Velocity</label>
+                                        <select value={editEntityForm.velocity || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, velocity: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>fast-spike</option><option>slow-drift</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Nature (comma-separated)</label>
+                                        <input type="text" value={Array.isArray(editEntityForm.nature) ? editEntityForm.nature.join(', ') : editEntityForm.nature || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, nature: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean) }))} placeholder="e.g. cyber, economic, diplomatic"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {editingEntity.type === 'x-influence-vector' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Narrative *</label>
+                                        <textarea value={editEntityForm.narrative || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, narrative: e.target.value }))} rows={2} placeholder="Key narrative"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400 resize-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Channel</label>
+                                        <input type="text" value={editEntityForm.channel || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, channel: e.target.value }))} placeholder="e.g. social-media"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Target Audience</label>
+                                        <input type="text" value={editEntityForm.target_audience || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, target_audience: e.target.value }))} placeholder="e.g. Baltic civilian population"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {editingEntity.type === 'x-strategic-impact' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Political Destabilization Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.political_destabilization_index ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, political_destabilization_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Economic Disruption Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.economic_disruption_index ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, economic_disruption_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Alliance Fragmentation Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.alliance_fragmentation_score ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, alliance_fragmentation_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Deterrence Signal Strength (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.deterrence_signal_strength ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, deterrence_signal_strength: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {editingEntity.type === 'x-strategic-assessment' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Hybrid Pressure Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.hybrid_pressure_index ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, hybrid_pressure_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Escalation Probability Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.escalation_probability_score ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, escalation_probability_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Strategic Signaling Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.strategic_signaling_score ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, strategic_signaling_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Cyber-Geopolitical Coupling Index (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.cyber_geopolitical_coupling_index ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, cyber_geopolitical_coupling_index: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Narrative Penetration Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.narrative_penetration_score ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, narrative_penetration_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Doctrine-Capacity Divergence Score (0-10)</label>
+                                        <input type="number" step="0.1" min="0" max="10" value={editEntityForm.doctrine_capacity_divergence_score ?? ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, doctrine_capacity_divergence_score: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {(editingEntity.type === 'intrusion-set' || editingEntity.type === 'threat-actor') && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Resource Level</label>
+                                        <select value={editEntityForm.resource_level || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, resource_level: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>individual</option><option>club</option><option>contest</option><option>team</option><option>organization</option><option>government</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Primary Motivation</label>
+                                        <select value={editEntityForm.primary_motivation || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, primary_motivation: e.target.value }))}
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                            <option value="">Select...</option>
+                                            <option>accidental</option><option>coercion</option><option>dominance</option><option>ideology</option><option>notoriety</option><option>organizational-gain</option><option>personal-gain</option><option>personal-satisfaction</option><option>revenge</option><option>unpredictable</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    {/* Save / Cancel footer */}
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-3 mt-auto shrink-0">
+                        <button onClick={() => { setGraphMode('view'); setEditingEntity(null); }}
+                            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm text-sm font-semibold transition-colors text-slate-700 dark:text-slate-300">
+                            <ArrowLeft size={16} /> Cancel
+                        </button>
+                        <button
+                            disabled={!editEntityForm.name || saving}
+                            onClick={async () => {
+                                try {
+                                    setSaving(true);
+                                    const { name, description, confidence, first_seen, last_seen, resource_level, primary_motivation, ...gsciFields } = editEntityForm;
+                                    const payload: any = { name };
+                                    if (description) payload.description = description;
+                                    if (confidence !== undefined && confidence !== '') payload.confidence = confidence;
+                                    if (first_seen) payload.first_seen = first_seen.includes('T') ? first_seen : first_seen + 'T00:00:00Z';
+                                    if (last_seen) payload.last_seen = last_seen.includes('T') ? last_seen : last_seen + 'T00:00:00Z';
+                                    if (resource_level) payload.resource_level = resource_level;
+                                    if (primary_motivation) payload.primary_motivation = primary_motivation;
+
+                                    // Build gsciAttributes from remaining fields, including dates for consistency
+                                    const cleanGsci = Object.fromEntries(
+                                        Object.entries(gsciFields).filter(([_, v]) => v !== '' && v !== undefined && v !== null)
+                                    );
+                                    if (first_seen) cleanGsci.first_seen = payload.first_seen;
+                                    if (last_seen) cleanGsci.last_seen = payload.last_seen;
+                                    if (Object.keys(cleanGsci).length > 0) {
+                                        payload.gsciAttributes = cleanGsci;
+                                    }
+
+                                    await apiService.updateEntity(editingEntity.stixId, payload);
+                                    setEditingEntity(null);
+                                    setEditEntityForm({});
+                                    setHighlightedConnectionId(null);
+                                    setGraphMode('view');
+                                    await fetchGraph(initialActorId);
+                                    await refreshAllEntities();
+                                } catch (err) {
+                                    console.error('Failed to update entity:', err);
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }}
+                            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            {saving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />} Save Changes
+                        </button>
+                    </div>
+                    </>
+                )}
+
                 {/* ── VIEW MODE: Original panel ── */}
                 {graphMode === 'view' && rootActor && (
                 <>
@@ -1428,9 +1904,32 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             <span className="text-[10px] uppercase tracking-wider font-bold text-cyan-500 border border-cyan-500/20 px-2 py-0.5 rounded-full bg-cyan-500/5">
                                 {NODE_CONFIG[rootActor.type]?.label || rootActor.type}
                             </span>
-                            <button onClick={() => setPanelVisible(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
-                                <X size={18} />
-                            </button>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => {
+                                        const e = rootActor;
+                                        setEditingEntity(e);
+                                        setEditEntityForm({
+                                            ...(e.gsciAttributes || {}),
+                                            name: e.name || '',
+                                            description: e.description || '',
+                                            confidence: e.confidence,
+                                            first_seen: (e.first_seen || e.gsciAttributes?.first_seen || '').split('T')[0],
+                                            last_seen: (e.last_seen || e.gsciAttributes?.last_seen || '').split('T')[0],
+                                            resource_level: e.resource_level || '',
+                                            primary_motivation: e.primary_motivation || '',
+                                        });
+                                        setGraphMode('edit-entity');
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded transition-colors"
+                                    title="Edit entity"
+                                >
+                                    <Pencil size={16} />
+                                </button>
+                                <button onClick={() => setPanelVisible(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                                    <X size={18} />
+                                </button>
+                            </div>
                         </div>
                         <div className="flex items-center gap-3 mb-2">
                             <div className="w-10 h-10 rounded-full bg-slate-900 shadow-sm border border-slate-700 flex items-center justify-center">
@@ -1553,26 +2052,49 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         </div>
 
                         {/* Tactical Linkage (OpenCTI) */}
-                        {rootActor.metadata?.openctiInternalId && (
+                        {(rootActor.type === 'intrusion-set' || rootActor.type === 'threat-actor') && (
                             <div>
                                 <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                                     Tactical Linkage (OpenCTI)
                                 </h3>
-                                <div className="bg-white dark:bg-slate-800 rounded-lg p-4 text-sm border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <div className={cn(
+                                    "bg-white dark:bg-slate-800 rounded-lg p-4 text-sm shadow-sm",
+                                    rootActor.metadata?.openctiInternalId
+                                        ? "border border-slate-200 dark:border-slate-700"
+                                        : "border border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/5"
+                                )}>
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="flex items-center gap-2">
                                             <Bug className="text-slate-400" size={16} />
                                             <span className="font-bold text-slate-800 dark:text-white">{rootActor.name}</span>
                                         </div>
-                                        <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded font-mono">Linked</span>
+                                        {rootActor.metadata?.openctiInternalId ? (
+                                            <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono flex items-center gap-1">
+                                                <ExternalLink size={9} /> Linked
+                                            </span>
+                                        ) : (
+                                            <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold flex items-center gap-1">
+                                                <AlertTriangle size={10} /> Unlinked
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-                                        {rootActor.description || 'Linked threat actor from OpenCTI platform.'}
+                                        {rootActor.metadata?.openctiInternalId
+                                            ? (rootActor.description || 'Linked threat actor from OpenCTI platform.')
+                                            : 'This entity is not linked to any OpenCTI record. It was created manually or ingested without an OpenCTI identifier.'
+                                        }
                                     </p>
                                     <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                                         <div className="bg-slate-50 dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-700">
                                             <span className="block text-[10px] text-slate-400 mb-0.5">Source</span>
-                                            <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">OpenCTI</span>
+                                            <span className={cn(
+                                                "font-mono font-semibold",
+                                                rootActor.metadata?.openctiInternalId
+                                                    ? "text-emerald-600 dark:text-emerald-400"
+                                                    : "text-amber-600 dark:text-amber-400"
+                                            )}>
+                                                {rootActor.metadata?.openctiInternalId ? 'OpenCTI' : 'Manual / GSCIX'}
+                                            </span>
                                         </div>
                                         <div className="bg-slate-50 dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-700">
                                             <span className="block text-[10px] text-slate-400 mb-0.5">Last Seen</span>
@@ -1581,8 +2103,29 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                             </span>
                                         </div>
                                     </div>
-                                    <button className="w-full py-2 text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 hover:border-cyan-500 hover:text-cyan-500 rounded-md text-slate-600 dark:text-slate-400 transition-all shadow-sm flex items-center justify-center gap-1">
-                                        View in OpenCTI <ExternalLink size={12} />
+                                    <button
+                                        onClick={() => {
+                                            const base = openctiBaseUrl || 'http://localhost:8080';
+                                            const openctiId = rootActor.metadata?.openctiInternalId;
+                                            const dashPath = rootActor.type === 'intrusion-set'
+                                                ? 'threats/intrusion_sets'
+                                                : 'threats/threat_actors_individual';
+                                            const url = openctiId
+                                                ? `${base}/dashboard/${dashPath}/${openctiId}`
+                                                : `${base}/dashboard/search/${encodeURIComponent(rootActor.name)}`;
+                                            window.open(url, '_blank', 'noopener,noreferrer');
+                                        }}
+                                        className={cn(
+                                            "w-full py-2 text-xs font-semibold rounded-md transition-all shadow-sm flex items-center justify-center gap-1",
+                                            rootActor.metadata?.openctiInternalId
+                                                ? "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 hover:border-cyan-500 hover:text-cyan-500 text-slate-600 dark:text-slate-400"
+                                                : "bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                                        )}
+                                    >
+                                        {rootActor.metadata?.openctiInternalId
+                                            ? <><ExternalLink size={12} /> View in OpenCTI</>
+                                            : <><AlertTriangle size={12} /> Search in OpenCTI</>
+                                        }
                                     </button>
                                 </div>
                             </div>
@@ -1611,6 +2154,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                 )}
                                                 onClick={() => {
                                                     setHighlightedConnectionId(isHighlighted ? null : n.id);
+                                                    setHighlightedRelationId(null);
                                                 }}
                                             >
                                                 {/* Header / Pill */}
@@ -1625,23 +2169,58 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                             "font-medium truncate",
                                                             isHighlighted ? "text-cyan-700 dark:text-cyan-300" : "text-slate-700 dark:text-slate-300"
                                                         )}>{n.name}</span>
+                                                        {(nodeEntity.type === 'intrusion-set' || nodeEntity.type === 'threat-actor') && !nodeEntity.metadata?.openctiInternalId && (
+                                                            <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded" title="Not linked to OpenCTI — entity was created manually or the OpenCTI ID is missing">
+                                                                <AlertTriangle size={10} /> Unlinked
+                                                            </span>
+                                                        )}
+                                                        {(nodeEntity.type === 'intrusion-set' || nodeEntity.type === 'threat-actor') && nodeEntity.metadata?.openctiInternalId && (
+                                                            <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded" title="Linked to OpenCTI">
+                                                                <ExternalLink size={9} /> Linked
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    {isHighlighted && nodeEntity.stixId !== rootActor?.stixId && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                const impact = computeCascadeImpact(nodeEntity.stixId);
-                                                                setDeleteTarget({
-                                                                    entity: nodeEntity,
-                                                                    childCount: impact.entityCount - 1,
-                                                                    relationCount: impact.relationCount,
-                                                                });
-                                                            }}
-                                                            className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors ml-auto shrink-0"
-                                                            title="Delete entity"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
+                                                    {isHighlighted && (
+                                                        <div className="flex items-center gap-1 ml-auto shrink-0">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setEditingEntity(nodeEntity);
+                                                                    setEditEntityForm({
+                                                                        ...(nodeEntity.gsciAttributes || {}),
+                                                                        name: nodeEntity.name || '',
+                                                                        description: nodeEntity.description || '',
+                                                                        confidence: nodeEntity.confidence,
+                                                                        first_seen: (nodeEntity.first_seen || nodeEntity.gsciAttributes?.first_seen || '').split('T')[0],
+                                                                        last_seen: (nodeEntity.last_seen || nodeEntity.gsciAttributes?.last_seen || '').split('T')[0],
+                                                                        resource_level: nodeEntity.resource_level || '',
+                                                                        primary_motivation: nodeEntity.primary_motivation || '',
+                                                                    });
+                                                                    setGraphMode('edit-entity');
+                                                                }}
+                                                                className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded transition-colors"
+                                                                title="Edit entity"
+                                                            >
+                                                                <Pencil size={14} />
+                                                            </button>
+                                                            {nodeEntity.stixId !== rootActor?.stixId && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        const impact = computeCascadeImpact(nodeEntity.stixId);
+                                                                        setDeleteTarget({
+                                                                            entity: nodeEntity,
+                                                                            childCount: impact.entityCount - 1,
+                                                                            relationCount: impact.relationCount,
+                                                                        });
+                                                                    }}
+                                                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors"
+                                                                    title="Delete entity"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
 
@@ -1832,9 +2411,17 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                                         : `${base}/dashboard/search/${encodeURIComponent(nodeEntity.name)}`;
                                                                     window.open(url, '_blank', 'noopener,noreferrer');
                                                                 }}
-                                                                className="w-full py-1.5 text-[10px] font-bold bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5"
+                                                                className={cn(
+                                                                    "w-full py-1.5 text-[10px] font-bold rounded transition-colors uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5",
+                                                                    nodeEntity.metadata?.openctiInternalId
+                                                                        ? "bg-slate-700 hover:bg-slate-600 text-white"
+                                                                        : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                                                                )}
                                                             >
-                                                                <ExternalLink size={11} /> View in OpenCTI
+                                                                {nodeEntity.metadata?.openctiInternalId
+                                                                    ? <><ExternalLink size={11} /> View in OpenCTI</>
+                                                                    : <><AlertTriangle size={11} /> Search in OpenCTI</>
+                                                                }
                                                             </button>
                                                         )}
                                                     </div>
@@ -1847,11 +2434,17 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
                         {/* ── Connections (Relations) ── */}
                         <div className="mt-6">
-                            <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                                <span className="flex items-center gap-1.5"><GitBranch size={12} /> Connections</span>
+                            <h3
+                                onClick={() => setConnectionsCollapsed(prev => !prev)}
+                                className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors select-none"
+                            >
+                                <span className="flex items-center gap-1.5">
+                                    {connectionsCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                                    <GitBranch size={12} /> Connections
+                                </span>
                                 <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">{graphData.links.length}</span>
                             </h3>
-                            <ul className="space-y-2">
+                            {!connectionsCollapsed && <ul className="space-y-2">
                                 {graphData.links.map((link: any) => {
                                     const sourceEntity = entities.find(e => e.stixId === (typeof link.source === 'object' ? link.source.id : link.source));
                                     const targetEntity = entities.find(e => e.stixId === (typeof link.target === 'object' ? link.target.id : link.target));
@@ -1864,12 +2457,18 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                             className={cn(
                                                 "flex flex-col rounded-lg border transition-all duration-300 cursor-pointer overflow-hidden",
                                                 isRelHighlighted
-                                                    ? "bg-cyan-500/10 dark:bg-cyan-500/15 border-cyan-500 shadow-[0_0_12px_-3px_rgba(6,182,212,0.4)] ring-1 ring-cyan-500/30"
+                                                    ? "bg-slate-50 dark:bg-slate-800 border-cyan-500 dark:border-cyan-500"
                                                     : "bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-cyan-500/50"
                                             )}
                                             onClick={() => {
-                                                setHighlightedRelationId(isRelHighlighted ? null : link.id);
+                                                const newId = isRelHighlighted ? null : link.id;
+                                                setHighlightedRelationId(newId);
                                                 setHighlightedConnectionId(null);
+                                                if (newId) {
+                                                    setTimeout(() => {
+                                                        document.getElementById(`rel-${link.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                                    }, 50);
+                                                }
                                             }}
                                         >
                                             <div className="flex items-center justify-between text-xs p-2.5 gap-2">
@@ -1877,17 +2476,17 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                     <span className={cn(
                                                         "shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
                                                         isRelHighlighted
-                                                            ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
-                                                            : "bg-slate-700/50 text-slate-400 border border-slate-600/50"
+                                                            ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30"
+                                                            : "bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600/50"
                                                     )}>
                                                         {link.relType}
                                                     </span>
                                                     <div className="flex items-center gap-1 min-w-0 text-[10px]">
-                                                        <span className={cn("truncate max-w-[80px] font-medium", isRelHighlighted ? "text-cyan-300" : "text-slate-300")}>
+                                                        <span className={cn("truncate max-w-[80px] font-medium", isRelHighlighted ? "text-cyan-700 dark:text-cyan-300" : "text-slate-700 dark:text-slate-300")}>
                                                             {sourceEntity.name}
                                                         </span>
-                                                        <span className="text-slate-500 shrink-0">&rarr;</span>
-                                                        <span className={cn("truncate max-w-[80px] font-medium", isRelHighlighted ? "text-cyan-300" : "text-slate-300")}>
+                                                        <span className="text-slate-400 dark:text-slate-500 shrink-0">&rarr;</span>
+                                                        <span className={cn("truncate max-w-[80px] font-medium", isRelHighlighted ? "text-cyan-700 dark:text-cyan-300" : "text-slate-700 dark:text-slate-300")}>
                                                             {targetEntity.name}
                                                         </span>
                                                     </div>
@@ -1930,7 +2529,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                         </li>
                                     );
                                 })}
-                            </ul>
+                            </ul>}
                         </div>
                     </div>
 

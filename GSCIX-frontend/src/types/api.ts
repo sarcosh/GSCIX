@@ -73,10 +73,16 @@ export interface ValidationError {
     error: string;
 }
 
+export interface ValidationWarning {
+    objectType: string;
+    name: string;
+}
+
 export interface ValidationResponse {
     status: 'OK' | 'ERROR' | 'WARNING';
     message: string;
     errors?: ValidationError[];
+    warnings?: ValidationWarning[];
 }
 
 export interface IngestionJob {
