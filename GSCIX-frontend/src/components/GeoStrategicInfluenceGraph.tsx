@@ -63,6 +63,8 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     const [newEntity, setNewEntity] = useState<Record<string, any>>({ type: 'x-strategic-objective', name: '', description: '' });
     const [newRelation, setNewRelation] = useState({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
     const [deleteTarget, setDeleteTarget] = useState<{ entity: GscixEntity; childCount: number; relationCount: number } | null>(null);
+    const [deleteRelationTarget, setDeleteRelationTarget] = useState<GscixRelation | null>(null);
+    const [highlightedRelationId, setHighlightedRelationId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [openctiEntities, setOpenctiEntities] = useState<GscixEntity[]>([]);
     const graphRef = useRef<any>(null);
@@ -239,9 +241,11 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         const links = relations
             .filter(r => reachableIds.has(r.source_ref) && reachableIds.has(r.target_ref))
             .map(r => ({
+                id: r.id,
                 source: r.source_ref,
                 target: r.target_ref,
                 relType: r.relationship_type,
+                relation: r,
             }));
 
         return { nodes, links };
@@ -253,6 +257,9 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
     const highlightedConnectionIdRef = useRef<string | null>(null);
     useEffect(() => { highlightedConnectionIdRef.current = highlightedConnectionId; }, [highlightedConnectionId]);
+
+    const highlightedRelationIdRef = useRef<string | null>(null);
+    useEffect(() => { highlightedRelationIdRef.current = highlightedRelationId; }, [highlightedRelationId]);
 
     // Canvas node renderer — stable callback (no rootActor dependency, uses refs)
     const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
@@ -639,12 +646,27 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         graphData={graphData}
                         nodeCanvasObject={paintNode}
                         onNodeClick={handleNodeClick}
-                        linkColor={() => 'rgba(148,163,184,0.4)'}
-                        linkWidth={1.8}
+                        onLinkClick={(link: any) => {
+                            const linkId = link.id;
+                            if (!linkId) return;
+                            // Toggle: click same link again → deselect
+                            const newId = highlightedRelationId === linkId ? null : linkId;
+                            setHighlightedRelationId(newId);
+                            // Deselect any highlighted node
+                            setHighlightedConnectionId(null);
+                            setPanelVisible(true);
+                            if (newId) {
+                                setTimeout(() => {
+                                    document.getElementById(`rel-${linkId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }, 100);
+                            }
+                        }}
+                        linkColor={(link: any) => link.id === highlightedRelationIdRef.current ? 'rgba(6,182,212,0.9)' : 'rgba(148,163,184,0.4)'}
+                        linkWidth={(link: any) => link.id === highlightedRelationIdRef.current ? 3 : 1.8}
                         linkDirectionalArrowLength={7}
                         linkDirectionalArrowRelPos={0.85}
-                        linkDirectionalArrowColor={() => 'rgba(148,163,184,0.6)'}
-                        linkLineDash={[4, 2]}
+                        linkDirectionalArrowColor={(link: any) => link.id === highlightedRelationIdRef.current ? 'rgba(6,182,212,0.9)' : 'rgba(148,163,184,0.6)'}
+                        linkLineDash={(link: any) => link.id === highlightedRelationIdRef.current ? null : [4, 2]}
                         linkCanvasObjectMode={() => 'after'}
                         linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
                             if (globalScale < 0.4) return; // Same threshold as node labels
@@ -674,17 +696,19 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             const boxH = fontSize + padY * 2;
                             const borderRadius = 3 / globalScale;
 
+                            const isHighlightedLink = link.id === highlightedRelationIdRef.current;
+
                             // Rounded rectangle background
                             ctx.beginPath();
                             ctx.roundRect(boxX, boxY, boxW, boxH, borderRadius);
-                            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                            ctx.fillStyle = isHighlightedLink ? 'rgba(6, 182, 212, 0.15)' : 'rgba(15, 23, 42, 0.85)';
                             ctx.fill();
-                            ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
-                            ctx.lineWidth = 1 / globalScale;
+                            ctx.strokeStyle = isHighlightedLink ? 'rgba(6, 182, 212, 0.8)' : 'rgba(148, 163, 184, 0.4)';
+                            ctx.lineWidth = (isHighlightedLink ? 1.5 : 1) / globalScale;
                             ctx.stroke();
 
                             // Text
-                            ctx.fillStyle = 'rgba(203, 213, 225, 0.95)';
+                            ctx.fillStyle = isHighlightedLink ? 'rgba(6, 182, 212, 1)' : 'rgba(203, 213, 225, 0.95)';
                             ctx.fillText(label, midX, midY);
                         }}
                         enableNodeDrag={true}
@@ -808,6 +832,68 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         </div>
                     </div>
                 )}
+
+                {/* ── Delete Relation Confirmation Modal ── */}
+                {deleteRelationTarget && (() => {
+                    const srcEntity = entities.find(e => e.stixId === deleteRelationTarget.source_ref);
+                    const tgtEntity = entities.find(e => e.stixId === deleteRelationTarget.target_ref);
+                    return (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm z-50">
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-96 overflow-hidden animate-in fade-in zoom-in duration-200">
+                                <div className="p-6">
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center shrink-0">
+                                            <Trash2 className="text-red-500" size={20} />
+                                        </div>
+                                        <button onClick={() => setDeleteRelationTarget(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Delete Relation</h3>
+                                    <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700 mb-4">
+                                        <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                                            <span className="font-semibold truncate max-w-[120px]">{srcEntity?.name || 'Unknown'}</span>
+                                            <span className="text-cyan-500 font-mono shrink-0">&mdash;{deleteRelationTarget.relationship_type}&rarr;</span>
+                                            <span className="font-semibold truncate max-w-[120px]">{tgtEntity?.name || 'Unknown'}</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                        This will permanently remove the connection between these two entities. The entities themselves will not be deleted.
+                                    </p>
+                                </div>
+                                <div className="px-6 pb-6 grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setDeleteRelationTarget(null)}
+                                        className="py-2.5 px-4 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        disabled={deleting}
+                                        onClick={async () => {
+                                            try {
+                                                setDeleting(true);
+                                                await apiService.deleteRelation(deleteRelationTarget.id);
+                                                setDeleteRelationTarget(null);
+                                                setHighlightedRelationId(null);
+                                                await fetchGraph(initialActorId);
+                                                await refreshAllEntities();
+                                            } catch (err) {
+                                                console.error('Failed to delete relation:', err);
+                                            } finally {
+                                                setDeleting(false);
+                                            }
+                                        }}
+                                        className="py-2.5 px-4 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-colors shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {deleting ? <RefreshCw className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* ── Right Detail Panel ── */}
@@ -1589,6 +1675,72 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                             </li>
                                         );
                                     })}
+                            </ul>
+                        </div>
+
+                        {/* ── Connections (Relations) ── */}
+                        <div className="mt-6">
+                            <h3 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                                <span className="flex items-center gap-1.5"><GitBranch size={12} /> Connections</span>
+                                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">{graphData.links.length}</span>
+                            </h3>
+                            <ul className="space-y-2">
+                                {graphData.links.map((link: any) => {
+                                    const sourceEntity = entities.find(e => e.stixId === (typeof link.source === 'object' ? link.source.id : link.source));
+                                    const targetEntity = entities.find(e => e.stixId === (typeof link.target === 'object' ? link.target.id : link.target));
+                                    if (!sourceEntity || !targetEntity) return null;
+                                    const isRelHighlighted = highlightedRelationId === link.id;
+
+                                    return (
+                                        <li key={link.id}
+                                            id={`rel-${link.id}`}
+                                            className={cn(
+                                                "flex flex-col rounded-lg border transition-all duration-300 cursor-pointer overflow-hidden",
+                                                isRelHighlighted
+                                                    ? "bg-cyan-500/10 dark:bg-cyan-500/15 border-cyan-500 shadow-[0_0_12px_-3px_rgba(6,182,212,0.4)] ring-1 ring-cyan-500/30"
+                                                    : "bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-cyan-500/50"
+                                            )}
+                                            onClick={() => {
+                                                setHighlightedRelationId(isRelHighlighted ? null : link.id);
+                                                setHighlightedConnectionId(null);
+                                            }}
+                                        >
+                                            <div className="flex items-center justify-between text-xs p-2.5 gap-2">
+                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                    <span className={cn(
+                                                        "shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
+                                                        isRelHighlighted
+                                                            ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                                                            : "bg-slate-700/50 text-slate-400 border border-slate-600/50"
+                                                    )}>
+                                                        {link.relType}
+                                                    </span>
+                                                    <div className="flex items-center gap-1 min-w-0 text-[10px]">
+                                                        <span className={cn("truncate max-w-[80px] font-medium", isRelHighlighted ? "text-cyan-300" : "text-slate-300")}>
+                                                            {sourceEntity.name}
+                                                        </span>
+                                                        <span className="text-slate-500 shrink-0">&rarr;</span>
+                                                        <span className={cn("truncate max-w-[80px] font-medium", isRelHighlighted ? "text-cyan-300" : "text-slate-300")}>
+                                                            {targetEntity.name}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                {isRelHighlighted && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setDeleteRelationTarget(link.relation);
+                                                        }}
+                                                        className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors shrink-0"
+                                                        title="Delete relation"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         </div>
                     </div>

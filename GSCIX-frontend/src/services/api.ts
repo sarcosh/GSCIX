@@ -129,6 +129,10 @@ export const apiService = {
     createRelation: async (relation: { source_ref: string; target_ref: string; relationship_type: string; description?: string }): Promise<GscixRelation> => {
         const response = await apiClient.post<GscixRelation>('/gscix/relations', relation);
         return response.data;
+    },
+
+    deleteRelation: async (id: string): Promise<void> => {
+        await apiClient.delete(`/gscix/relations/${encodeURIComponent(id)}`);
     }
 };
 

@@ -113,6 +113,15 @@ public class GscixController {
         return ResponseEntity.ok(relationRepository.findAll());
     }
 
+    @DeleteMapping("/relations/{id}")
+    public ResponseEntity<Void> deleteRelation(@PathVariable String id) {
+        if (!relationRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        relationRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/relations/source/{sourceRef}")
     public ResponseEntity<List<GscixRelation>> getRelationsBySource(@PathVariable String sourceRef) {
         return ResponseEntity.ok(relationRepository.findBySourceRef(sourceRef));
