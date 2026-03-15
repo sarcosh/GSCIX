@@ -1063,8 +1063,8 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 value={newEntity.description || ''}
                                 onChange={(e) => setNewEntity(prev => ({ ...prev, description: e.target.value }))}
                                 placeholder="Optional description"
-                                rows={3}
-                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400 resize-none"
+                                rows={6}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400 resize-y"
                             />
                         </div>
                         {/* First Seen / Last Seen */}
@@ -1216,8 +1216,8 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Narrative *</label>
-                                        <textarea value={newEntity.narrative || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, narrative: e.target.value }))} rows={2} placeholder="Key narrative"
-                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400 resize-none" />
+                                        <textarea value={newEntity.narrative || ''} onChange={(e) => setNewEntity(prev => ({ ...prev, narrative: e.target.value }))} rows={5} placeholder="Key narrative"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400 resize-y" />
                                     </div>
                                     <div>
                                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Channel</label>
@@ -1622,8 +1622,8 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             <textarea
                                 value={editEntityForm.description || ''}
                                 onChange={(e) => setEditEntityForm(prev => ({ ...prev, description: e.target.value }))}
-                                rows={3}
-                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none"
+                                rows={6}
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none resize-y"
                             />
                         </div>
                         {/* First Seen / Last Seen */}
@@ -1775,8 +1775,8 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Narrative *</label>
-                                        <textarea value={editEntityForm.narrative || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, narrative: e.target.value }))} rows={2} placeholder="Key narrative"
-                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400 resize-none" />
+                                        <textarea value={editEntityForm.narrative || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, narrative: e.target.value }))} rows={5} placeholder="Key narrative"
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400 resize-y" />
                                     </div>
                                     <div>
                                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Channel</label>

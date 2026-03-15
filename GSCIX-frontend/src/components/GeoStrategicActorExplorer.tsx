@@ -711,8 +711,8 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                                 {/* Description */}
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Description</label>
-                                    <textarea value={editForm.description || ''} onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))} rows={3}
-                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none" />
+                                    <textarea value={editForm.description || ''} onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))} rows={6}
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none resize-y" />
                                 </div>
                                 {/* Dates */}
                                 <div className="grid grid-cols-2 gap-3">

@@ -164,6 +164,14 @@ public class OpenCtiSyncService {
                 && (instant.equals(OPENCTI_EPOCH_SENTINEL) || instant.isAfter(FAR_FUTURE_THRESHOLD));
     }
 
+    /**
+     * Persists or updates an entity from OpenCTI sync.
+     *
+     * For NEW entities: all fields from OpenCTI are used.
+     * For EXISTING entities: only non-null OpenCTI fields are merged,
+     * preserving locally-enriched data (gsciAttributes, confidence,
+     * externalReferences) that OpenCTI does not provide.
+     */
     private void saveEntity(GraphQLResponse.Node node, String stixType) {
         if (node.getStandard_id() == null) {
             logger.warn("Skipping {} node with missing standard_id (opencti id: {})", stixType, node.getId());
@@ -171,34 +179,49 @@ public class OpenCtiSyncService {
         }
 
         Optional<GscixEntity> existing = repository.findById(node.getStandard_id());
+        boolean isNew = existing.isEmpty();
         GscixEntity entity = existing.orElseGet(GscixEntity::new);
 
         entity.setStixId(node.getStandard_id());
         entity.setType(stixType);
-        entity.setSource("OPENCTI");
-        entity.setName(node.getName());
-        entity.setDescription(node.getDescription());
 
-        // Temporal fields — filter out OpenCTI sentinel values
+        // Source: only set on new entities to preserve manual overrides
+        if (isNew) {
+            entity.setSource("OPENCTI");
+        }
+
+        // Core fields — merge non-null from OpenCTI
+        if (node.getName() != null) entity.setName(node.getName());
+        if (node.getDescription() != null) entity.setDescription(node.getDescription());
+
+        // Temporal fields — filter out OpenCTI sentinel values, only update if non-sentinel
         if (node.getFirst_seen() != null) {
             try {
                 Instant parsed = Instant.parse(node.getFirst_seen());
-                entity.setFirstSeen(isOpenCtiSentinelDate(parsed) ? null : parsed);
+                if (!isOpenCtiSentinelDate(parsed)) {
+                    entity.setFirstSeen(parsed);
+                }
             } catch (Exception ignored) {}
         }
         if (node.getLast_seen() != null) {
             try {
                 Instant parsed = Instant.parse(node.getLast_seen());
-                entity.setLastSeen(isOpenCtiSentinelDate(parsed) ? null : parsed);
+                if (!isOpenCtiSentinelDate(parsed)) {
+                    entity.setLastSeen(parsed);
+                }
             } catch (Exception ignored) {}
         }
 
-        // Type-specific fields
-        entity.setAliases(node.getAliases());
-        entity.setGoals(node.getGoals());
-        entity.setResourceLevel(node.getResource_level());
-        entity.setPrimaryMotivation(node.getPrimary_motivation());
-        entity.setThreatActorTypes(node.getThreat_actor_types());
+        // Type-specific fields — only update when OpenCTI provides non-null values
+        if (node.getAliases() != null && !node.getAliases().isEmpty()) entity.setAliases(node.getAliases());
+        if (node.getGoals() != null && !node.getGoals().isEmpty()) entity.setGoals(node.getGoals());
+        if (node.getResource_level() != null) entity.setResourceLevel(node.getResource_level());
+        if (node.getPrimary_motivation() != null) entity.setPrimaryMotivation(node.getPrimary_motivation());
+        if (node.getThreat_actor_types() != null && !node.getThreat_actor_types().isEmpty()) entity.setThreatActorTypes(node.getThreat_actor_types());
+
+        // NOTE: gsciAttributes, confidence, and externalReferences are NOT touched
+        // by the sync — they are GSCIX-specific enrichments that only come from
+        // manual editing or bundle ingestion.
 
         // Metadata
         if (entity.getMetadata() == null) {
@@ -210,6 +233,6 @@ public class OpenCtiSyncService {
         entity.getMetadata().setOpenctiInternalId(node.getId());
 
         repository.save(entity);
-        logger.debug("Saved/Updated {}: {} (opencti:{})", stixType, node.getName(), node.getId());
+        logger.debug("{} {}: {} (opencti:{})", isNew ? "Created" : "Updated", stixType, node.getName(), node.getId());
     }
 }
