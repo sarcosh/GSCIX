@@ -3,8 +3,8 @@ import {
     X, Download, Zap,
     Globe, Flag, Megaphone, Bug, Plus, Minus,
     Maximize2, RefreshCw, AlertTriangle, ExternalLink,
-    Share2, Activity, ChevronLeft, Layers, Users,
-    PlusSquare, GitBranch, Save, ArrowLeft, Trash2
+    Radio, Scale, BarChart3, ChevronLeft, Layers, Users,
+    PlusSquare, GitBranch, Save, ArrowLeft, Trash2, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { cn } from '../lib/utils';
@@ -26,9 +26,9 @@ const NODE_CONFIG: Record<string, { color: string; border: string; path: string;
 const LAYER_FILTERS = [
     { key: 'x-strategic-objective', label: 'Strategic Objectives', icon: Flag, color: 'text-amber-500 bg-amber-500/10' },
     { key: 'x-hybrid-campaign', label: 'Hybrid Campaigns', icon: Megaphone, color: 'text-red-500 bg-red-500/10' },
-    { key: 'x-influence-vector', label: 'Influence Vectors', icon: Share2, color: 'text-purple-500 bg-purple-500/10' },
-    { key: 'x-strategic-impact', label: 'Strategic Impacts', icon: Activity, color: 'text-indigo-500 bg-indigo-500/10' },
-    { key: 'x-strategic-assessment', label: 'Assessments', icon: Zap, color: 'text-emerald-500 bg-emerald-500/10' },
+    { key: 'x-influence-vector', label: 'Influence Vectors', icon: Radio, color: 'text-purple-500 bg-purple-500/10' },
+    { key: 'x-strategic-impact', label: 'Strategic Impacts', icon: Scale, color: 'text-indigo-500 bg-indigo-500/10' },
+    { key: 'x-strategic-assessment', label: 'Assessments', icon: BarChart3, color: 'text-emerald-500 bg-emerald-500/10' },
     { key: 'intrusion-set', label: 'Intrusion Sets', icon: Layers, color: 'text-slate-500 bg-slate-500/10' },
     { key: 'threat-actor', label: 'Threat Actors', icon: Users, color: 'text-slate-400 bg-slate-400/10' },
 ];
@@ -491,20 +491,26 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Graph Layers</h3>
                         <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setActiveLayers({
-                                'x-strategic-objective': true,
-                                'x-hybrid-campaign': true,
-                                'x-strategic-assessment': true,
-                                'x-influence-vector': true,
-                                'x-strategic-impact': true,
-                                'intrusion-set': true,
-                                'threat-actor': true,
-                            })}
-                            className="text-[10px] text-cyan-500 hover:underline font-medium"
-                        >
-                            Reset
-                        </button>
+                        {(() => {
+                            const allActive = LAYER_FILTERS.every(l => activeLayers[l.key]);
+                            return (
+                                <button
+                                    onClick={() => {
+                                        const newState: Record<string, boolean> = {};
+                                        LAYER_FILTERS.forEach(l => { newState[l.key] = !allActive; });
+                                        setActiveLayers(newState);
+                                    }}
+                                    className={cn(
+                                        "flex items-center gap-1 text-[10px] font-medium transition-colors",
+                                        allActive ? "text-slate-400 hover:text-red-400" : "text-cyan-500 hover:text-cyan-400"
+                                    )}
+                                    title={allActive ? "Deselect all layers" : "Select all layers"}
+                                >
+                                    {allActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                                    {allActive ? 'None' : 'All'}
+                                </button>
+                            );
+                        })()}
                         <button onClick={() => setLeftPanelVisible(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors" title="Hide filters">
                             <X size={14} />
                         </button>
@@ -1553,7 +1559,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                                     <span className="text-[10px] text-slate-300 font-mono">{nodeEntity.gsciAttributes.phase}</span>
                                                                 </div>
                                                             )}
-                                                            {nodeEntity.gsciAttributes?.hybrid_pressure_index !== undefined && (
+                                                            {nodeEntity.type === 'x-strategic-assessment' && nodeEntity.gsciAttributes?.hybrid_pressure_index !== undefined && (
                                                                 <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
                                                                     <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">HPI Index</span>
                                                                     <span className="text-[10px] text-cyan-400 font-bold font-mono">{(nodeEntity.gsciAttributes.hybrid_pressure_index ?? 0).toFixed(1)}</span>
