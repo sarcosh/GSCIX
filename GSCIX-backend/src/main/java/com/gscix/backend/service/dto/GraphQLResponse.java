@@ -39,5 +39,36 @@ public class GraphQLResponse {
         private String primary_motivation;
         @JsonProperty("threat_actor_types")
         private List<String> threat_actor_types;
+
+        // Nested relationships from OpenCTI GraphQL
+        private RelationConnection stixCoreRelationships;
+    }
+
+    @Data
+    public static class RelationConnection {
+        private List<RelationEdge> edges;
+    }
+
+    @Data
+    public static class RelationEdge {
+        private RelationNode node;
+    }
+
+    @Data
+    public static class RelationNode {
+        private String id;
+        private String standard_id;
+        private String relationship_type;
+
+        // The "from" and "to" sides of the relationship
+        private RelationEntity from;
+        private RelationEntity to;
+    }
+
+    @Data
+    public static class RelationEntity {
+        private String standard_id;
+        private String entity_type;
+        private String name;
     }
 }
