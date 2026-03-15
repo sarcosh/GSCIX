@@ -53,6 +53,11 @@
             "mandatory": false
         },
         {
+            "name": "confidence_score",
+            "type": "number",
+            "mandatory": false
+        },
+        {
             "name": "first_seen",
             "type": "timestamp",
             "mandatory": false

@@ -28,6 +28,11 @@
             "name": "target_audience",
             "type": "string",
             "mandatory": false
+        },
+        {
+            "name": "confidence_score",
+            "type": "number",
+            "mandatory": false
         }
     ],
     "relations": [

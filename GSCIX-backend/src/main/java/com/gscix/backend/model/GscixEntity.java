@@ -61,6 +61,9 @@ public class GscixEntity {
     @Field(type = FieldType.Keyword)
     private List<String> threatActorTypes;
 
+    @Field(type = FieldType.Integer)
+    private Integer confidence;
+
     @Field(type = FieldType.Object)
     private GsciAttributes gsciAttributes;
 

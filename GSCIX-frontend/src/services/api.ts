@@ -53,10 +53,11 @@ export const apiService = {
         return response.data;
     },
 
-    ingestBundle: async (data: any, filename?: string, targetActorId?: string) => {
-        const params: Record<string, string> = {};
+    ingestBundle: async (data: any, filename?: string, targetActorId?: string, defaultConfidence?: number) => {
+        const params: Record<string, string | number> = {};
         if (filename) params.filename = filename;
         if (targetActorId) params.targetActorId = targetActorId;
+        if (defaultConfidence !== undefined) params.defaultConfidence = defaultConfidence;
         const response = await apiClient.post('/geopolitical/bundle', data, { params });
         return response.data;
     },
@@ -126,7 +127,7 @@ export const apiService = {
         return response.data;
     },
 
-    createRelation: async (relation: { source_ref: string; target_ref: string; relationship_type: string; description?: string }): Promise<GscixRelation> => {
+    createRelation: async (relation: { source_ref: string; target_ref: string; relationship_type: string; description?: string; confidence?: number }): Promise<GscixRelation> => {
         const response = await apiClient.post<GscixRelation>('/gscix/relations', relation);
         return response.data;
     },

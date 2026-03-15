@@ -53,6 +53,7 @@ export interface GscixEntity {
     resource_level?: string;
     primary_motivation?: string;
     threat_actor_types?: string[];
+    confidence?: number;
     gsciAttributes?: GsciAttributes;
     metadata?: EntityMetadata;
 }
@@ -63,6 +64,7 @@ export interface GscixRelation {
     source_ref: string;
     target_ref: string;
     relationship_type: string;
+    confidence?: number;
 }
 
 export interface ValidationError {

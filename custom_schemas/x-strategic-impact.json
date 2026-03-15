@@ -37,7 +37,7 @@
         {
             "name": "confidence_score",
             "type": "number",
-            "mandatory": true
+            "mandatory": false
         },
         {
             "name": "first_seen",

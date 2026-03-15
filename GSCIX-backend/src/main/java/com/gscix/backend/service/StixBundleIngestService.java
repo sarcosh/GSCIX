@@ -56,42 +56,92 @@ public class StixBundleIngestService {
     }
 
     public Map<String, Object> ingestBundle(Map<String, Object> bundle, String filename) {
-        return ingestBundle(bundle, filename, null);
+        return ingestBundle(bundle, filename, null, null);
     }
 
     public Map<String, Object> ingestBundle(Map<String, Object> bundle, String filename, String targetActorId) {
+        return ingestBundle(bundle, filename, targetActorId, null);
+    }
+
+    public Map<String, Object> ingestBundle(Map<String, Object> bundle, String filename, String targetActorId, Integer defaultConfidence) {
         List<Map<String, Object>> objects = (List<Map<String, Object>>) bundle.get("objects");
         if (objects == null) {
             trackingService.logJob(filename, "ERROR", "No objects found in bundle", 0, 0);
             return Map.of("status", "ERROR", "message", "No objects found in bundle");
         }
 
-        int entitiesCreated = 0;
-        int relationsCreated = 0;
-        List<String> ingestedEntityIds = new ArrayList<>();
+        // =================================================================
+        // Actor ID remapping: when a targetActorId is specified and the
+        // bundle contains a x-geo-strategic-actor, remap all internal
+        // references from the bundle actor's ID to the targetActorId.
+        // This fixes bundles with inconsistent internal IDs and ensures
+        // that relationships correctly point to the existing platform actor.
+        // =================================================================
+        Set<String> remappedActorIds = new HashSet<>();
+        if (targetActorId != null && !targetActorId.isBlank()) {
+            // Collect IDs of all x-geo-strategic-actor objects in the bundle
+            for (Map<String, Object> obj : objects) {
+                if ("x-geo-strategic-actor".equals(obj.get("type"))) {
+                    String bundleActorId = (String) obj.get("id");
+                    if (bundleActorId != null && !bundleActorId.equals(targetActorId)) {
+                        remappedActorIds.add(bundleActorId);
+                    }
+                }
+            }
 
-        // Collect all target_refs from relationships in the bundle so we can
-        // determine which entities are "root" nodes (not pointed to by any
-        // relationship within the bundle).
-        Set<String> targetRefs = new HashSet<>();
-        for (Map<String, Object> obj : objects) {
-            if ("relationship".equals(obj.get("type"))) {
-                String tRef = (String) obj.get("target_ref");
-                if (tRef != null) {
-                    targetRefs.add(tRef);
+            // Also collect any actor IDs referenced only in relationships but not
+            // present as entities (phantom references from broken bundles)
+            Set<String> entityIds = new HashSet<>();
+            for (Map<String, Object> obj : objects) {
+                if (!"relationship".equals(obj.get("type")) && obj.get("id") != null) {
+                    entityIds.add((String) obj.get("id"));
+                }
+            }
+            for (Map<String, Object> obj : objects) {
+                if ("relationship".equals(obj.get("type"))) {
+                    for (String refField : List.of("source_ref", "target_ref")) {
+                        String ref = (String) obj.get(refField);
+                        if (ref != null && ref.startsWith("x-geo-strategic-actor--")
+                                && !ref.equals(targetActorId) && !entityIds.contains(ref)) {
+                            remappedActorIds.add(ref);
+                        }
+                    }
+                }
+            }
+
+            // Apply remapping across all objects
+            if (!remappedActorIds.isEmpty()) {
+                logger.info("Remapping {} bundle actor ID(s) {} -> {}", remappedActorIds.size(), remappedActorIds, targetActorId);
+                for (Map<String, Object> obj : objects) {
+                    String objId = (String) obj.get("id");
+                    if (objId != null && remappedActorIds.contains(objId)) {
+                        obj.put("id", targetActorId);
+                    }
+                    String srcRef = (String) obj.get("source_ref");
+                    if (srcRef != null && remappedActorIds.contains(srcRef)) {
+                        obj.put("source_ref", targetActorId);
+                    }
+                    String tgtRef = (String) obj.get("target_ref");
+                    if (tgtRef != null && remappedActorIds.contains(tgtRef)) {
+                        obj.put("target_ref", targetActorId);
+                    }
                 }
             }
         }
+
+        int entitiesCreated = 0;
+        int relationsCreated = 0;
+        List<String> ingestedEntityIds = new ArrayList<>();
 
         for (Map<String, Object> obj : objects) {
             String type = (String) obj.get("type");
             String id = (String) obj.get("id");
 
             if ("relationship".equals(type)) {
-                processRelationship(obj);
+                processRelationship(obj, defaultConfidence);
                 relationsCreated++;
             } else if (type != null && !NON_ENTITY_TYPES.contains(type)) {
-                processEntity(obj);
+                processEntity(obj, defaultConfidence);
                 entitiesCreated++;
                 if (id != null) {
                     ingestedEntityIds.add(id);
@@ -99,21 +149,43 @@ public class StixBundleIngestService {
             }
         }
 
-        // If a target actor was specified, create 'attributed-to' relationships
-        // only for root entities — those that are NOT the target_ref of any
-        // relationship within the bundle. This avoids redundant links for
-        // entities that are already reachable through the graph.
+        // If a target actor was specified, verify which ingested entities are
+        // actually reachable from the target actor via existing relations (BFS).
+        // Entities that are NOT reachable are considered orphaned and get an
+        // 'attributed-to' relationship to the target actor.
+        // This is more robust than the previous approach (checking target_refs)
+        // because it handles bundles with broken/inconsistent internal relations.
         if (targetActorId != null && !targetActorId.isBlank()) {
+            Set<String> ingestedSet = new HashSet<>(ingestedEntityIds);
+            // BFS from targetActorId through all relations in the DB
+            Set<String> reachable = new HashSet<>();
+            Queue<String> bfsQueue = new LinkedList<>();
+            bfsQueue.add(targetActorId);
+            reachable.add(targetActorId);
+            while (!bfsQueue.isEmpty()) {
+                String current = bfsQueue.poll();
+                for (GscixRelation r : relationRepository.findBySourceRef(current)) {
+                    if (ingestedSet.contains(r.getTargetRef()) && reachable.add(r.getTargetRef())) {
+                        bfsQueue.add(r.getTargetRef());
+                    }
+                }
+                for (GscixRelation r : relationRepository.findByTargetRef(current)) {
+                    if (ingestedSet.contains(r.getSourceRef()) && reachable.add(r.getSourceRef())) {
+                        bfsQueue.add(r.getSourceRef());
+                    }
+                }
+            }
+
             int linked = 0;
             for (String entityId : ingestedEntityIds) {
-                if (!entityId.equals(targetActorId) && !targetRefs.contains(entityId)) {
-                    createAttributedToRelation(targetActorId, entityId);
+                if (!entityId.equals(targetActorId) && !reachable.contains(entityId)) {
+                    createAttributedToRelation(targetActorId, entityId, defaultConfidence);
                     relationsCreated++;
                     linked++;
                 }
             }
-            logger.info("Created {} 'attributed-to' relations linking actor {} to root entities (out of {} total).",
-                    linked, targetActorId, ingestedEntityIds.size());
+            logger.info("Created {} 'attributed-to' relations linking actor {} to orphaned entities (out of {} ingested, {} reachable).",
+                    linked, targetActorId, ingestedEntityIds.size(), reachable.size());
         }
 
         Map<String, Object> result = Map.of(
@@ -134,19 +206,34 @@ public class StixBundleIngestService {
      * persisted with basic fields (name, description, first_seen, etc.) so they
      * can participate in graph traversal.
      */
-    private void processEntity(Map<String, Object> obj) {
+    private void processEntity(Map<String, Object> obj, Integer defaultConfidence) {
         String type = (String) obj.get("type");
         String id = (String) obj.get("id");
         String name = (String) obj.get("name");
         String description = (String) obj.get("description");
 
-        GscixEntity entity = new GscixEntity();
+        // If entity already exists (e.g. remapped actor or re-import), merge
+        // non-null fields instead of overwriting to preserve existing data.
+        Optional<GscixEntity> existingOpt = entityRepository.findById(id);
+        GscixEntity entity = existingOpt.orElseGet(GscixEntity::new);
+
         entity.setStixId(id);
         entity.setType(type);
-        entity.setName(name != null ? name : type); // Fallback: use type as name
-        entity.setDescription(description);
-        entity.setSource("STIX-BUNDLE-INGEST");
-        entity.setExtensions(Collections.singletonList(GSCI_EXTENSION_ID));
+        if (name != null) entity.setName(name);
+        else if (entity.getName() == null) entity.setName(type);
+        if (description != null) entity.setDescription(description);
+        if (!existingOpt.isPresent()) {
+            entity.setSource("STIX-BUNDLE-INGEST");
+            entity.setExtensions(Collections.singletonList(GSCI_EXTENSION_ID));
+        }
+
+        // Confidence: use value from bundle object, or fall back to import-level default
+        Object confidenceVal = obj.get("confidence");
+        if (confidenceVal instanceof Number) {
+            entity.setConfidence(((Number) confidenceVal).intValue());
+        } else if (entity.getConfidence() == null && defaultConfidence != null) {
+            entity.setConfidence(defaultConfidence);
+        }
 
         // Standard STIX 2.1 temporal fields
         String firstSeenStr = (String) obj.get("first_seen");
@@ -165,23 +252,24 @@ public class StixBundleIngestService {
         if (obj.get("goals") instanceof List) {
             entity.setGoals((List<String>) obj.get("goals"));
         }
-        entity.setResourceLevel((String) obj.get("resource_level"));
-        entity.setPrimaryMotivation((String) obj.get("primary_motivation"));
+        if (obj.get("resource_level") != null) entity.setResourceLevel((String) obj.get("resource_level"));
+        if (obj.get("primary_motivation") != null) entity.setPrimaryMotivation((String) obj.get("primary_motivation"));
         if (obj.get("threat_actor_types") instanceof List) {
             entity.setThreatActorTypes((List<String>) obj.get("threat_actor_types"));
         }
 
-        GscixEntity.EntityMetadata metadata = new GscixEntity.EntityMetadata();
-        metadata.setCreatedAt(Instant.now());
-        metadata.setUpdatedAt(Instant.now());
+        if (entity.getMetadata() == null) {
+            GscixEntity.EntityMetadata metadata = new GscixEntity.EntityMetadata();
+            metadata.setCreatedAt(Instant.now());
+            entity.setMetadata(metadata);
+        }
+        entity.getMetadata().setUpdatedAt(Instant.now());
 
         // Extract OpenCTI internal ID if present (custom property added by OpenCTI exports)
         String openctiId = (String) obj.get("x_opencti_id");
         if (openctiId != null) {
-            metadata.setOpenctiInternalId(openctiId);
+            entity.getMetadata().setOpenctiInternalId(openctiId);
         }
-
-        entity.setMetadata(metadata);
 
         // Extract GSCIX Attributes
         // 1. From root (handles custom properties at object level)
@@ -204,12 +292,19 @@ public class StixBundleIngestService {
             }
         }
 
-        entity.setGsciAttributes(gsciAttributes);
+        // Merge new gsciAttributes with existing ones if entity already existed
+        if (existingOpt.isPresent() && entity.getGsciAttributes() != null && gsciAttributes != null) {
+            copyNonNullProperties(gsciAttributes, entity.getGsciAttributes());
+        } else {
+            entity.setGsciAttributes(gsciAttributes);
+        }
+
         entityRepository.save(entity);
-        logger.info("Ingested Entity from Bundle: type={} name={} ({})", type, name, id);
+        logger.info("Ingested Entity from Bundle: type={} name={} ({}) [{}]", type,
+                entity.getName(), id, existingOpt.isPresent() ? "merged" : "new");
     }
 
-    private void createAttributedToRelation(String actorId, String entityId) {
+    private void createAttributedToRelation(String actorId, String entityId, Integer defaultConfidence) {
         GscixRelation relation = new GscixRelation();
         relation.setId("relationship--" + java.util.UUID.randomUUID());
         relation.setSourceRef(actorId);
@@ -218,12 +313,12 @@ public class StixBundleIngestService {
         relation.setDescription("Auto-generated link from target actor to ingested entity.");
         relation.setExtensions(Collections.singletonList(GSCI_EXTENSION_ID));
         relation.setStartTime(Instant.now());
-        relation.setConfidence(85);
+        relation.setConfidence(defaultConfidence != null ? defaultConfidence : 85);
         relationRepository.save(relation);
         logger.info("Created attributed-to relation: {} -> {}", actorId, entityId);
     }
 
-    private void processRelationship(Map<String, Object> obj) {
+    private void processRelationship(Map<String, Object> obj, Integer defaultConfidence) {
         GscixRelation relation = new GscixRelation();
         relation.setId((String) obj.get("id"));
         relation.setSourceRef((String) obj.get("source_ref"));
@@ -232,7 +327,14 @@ public class StixBundleIngestService {
         relation.setDescription((String) obj.get("description"));
         relation.setExtensions(Collections.singletonList(GSCI_EXTENSION_ID));
         relation.setStartTime(Instant.now());
-        relation.setConfidence(85);
+
+        // Confidence: use value from bundle relationship, or fall back to import-level default
+        Object confidenceVal = obj.get("confidence");
+        if (confidenceVal instanceof Number) {
+            relation.setConfidence(((Number) confidenceVal).intValue());
+        } else {
+            relation.setConfidence(defaultConfidence != null ? defaultConfidence : 85);
+        }
 
         relationRepository.save(relation);
         logger.info("Ingested Relationship from Bundle: {}", relation.getId());

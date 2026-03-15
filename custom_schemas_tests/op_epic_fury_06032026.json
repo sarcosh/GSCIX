@@ -1,0 +1,154 @@
+{
+    "type": "bundle",
+    "id": "bundle--5e8c4a1b-9d2e-4f3a-87b1-2c9e8d7f6a5b",
+    "objects": [
+        {
+            "type": "x-geo-strategic-actor",
+            "id": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b",
+            "spec_version": "2.1",
+            "name": "Islamic Republic of Iran",
+            "strategic_alignment": "Other",
+            "geopolitical_doctrine": "360-Degree Asymmetric Defense / Forward Defense",
+            "revisionist_index": 9.8,
+            "strategic_ambiguity_score": 8.5,
+            "doctrine_type": "expansionist",
+            "technological_modernization_rate": 7.5,
+            "description": "State actor currently operating under existential threat conditions following Operation Epic Fury [3]. The strategy prioritizes Regime Survival (S3) and deterrence by punishment through proxies and asymmetric cyber capabilities [4-6].",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-objective",
+            "id": "x-strategic-objective--a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+            "spec_version": "2.1",
+            "name": "Regime Survival and Stability (S3)",
+            "objective_type": "political",
+            "priority_level": "critical",
+            "time_horizon": "short-term",
+            "description": "Preserving the integrity of the system following the elimination of the Supreme Leader and senior command, utilizing horizontal escalation to force a ceasefire [4, 7, 8].",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "id": "x-hybrid-campaign--f1e2d3c4-b5a6-4978-bd9c-0e1f2a3b4c5d",
+            "spec_version": "2.1",
+            "name": "Operation Great Epic (Epic Fury Retaliation)",
+            "phase": "escalation",
+            "velocity": "fast-spike",
+            "nature": [
+                "cyber",
+                "cognitive",
+                "infrastructural",
+                "kinetic"
+            ],
+            "escalation_risk_score": 9.5,
+            "description": "Multi-domain campaign activated after the February 28, 2026 strikes [9]. Includes the weaponization of the Strait of Hormuz and destructive cyberattacks against US and Gulf critical infrastructure [10-12].",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "intrusion-set",
+            "id": "intrusion-set--8e7d6c5b-4a3f-4210-9e8d-7c6b5a432109",
+            "name": "APT33 / Elfin",
+            "description": "Primary destructive arm of the IRGC. Deploys wipers such as SHAPESHIFT and Tickler against aerospace and petrochemical sectors [13, 14].",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "intrusion-set",
+            "id": "intrusion-set--2a3b4c5d-6e7f-4890-a1b2-c3d4e5f6a7b8",
+            "name": "CyberAv3ngers",
+            "description": "IRGC-CEC proxy specialized in ICS/OT exploitation, specifically targeting Unitronics PLCs to cause physical failures in water and energy supplies [15, 16].",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-influence-vector",
+            "id": "x-influence-vector--c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+            "spec_version": "2.1",
+            "name": "Resistance Narrative and 'Help Arrived' PSYOP",
+            "narrative": "Psychological warfare messages designed to erode internal trust in Israel and the US, amplified following hacks of high-reach applications [12, 17].",
+            "channel": "Telegram, State Media, Mobile Apps",
+            "target_audience": "Civilian populations of Israel and the US [12].",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b",
+            "spec_version": "2.1",
+            "name": "Post-Epic Fury Risk Assessment",
+            "hybrid_pressure_index": 9.2,
+            "escalation_probability_score": 0.85,
+            "strategic_signaling_score": 10.0,
+            "cyber_geopolitical_coupling_index": 9.5,
+            "description": "The paralysis of central command has decentralized cyber operations, granting proxies autonomy to act under maximum motivation [6].",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--1",
+            "relationship_type": "pursues",
+            "source_ref": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b",
+            "target_ref": "x-strategic-objective--a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--2",
+            "relationship_type": "executes",
+            "source_ref": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b",
+            "target_ref": "x-hybrid-campaign--f1e2d3c4-b5a6-4978-bd9c-0e1f2a3b4c5d"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--3",
+            "relationship_type": "controls",
+            "source_ref": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b",
+            "target_ref": "intrusion-set--8e7d6c5b-4a3f-4210-9e8d-7c6b5a432109"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--4",
+            "relationship_type": "sponsors",
+            "source_ref": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b",
+            "target_ref": "intrusion-set--2a3b4c5d-6e7f-4890-a1b2-c3d4e5f6a7b8"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--5",
+            "relationship_type": "integrates",
+            "source_ref": "x-hybrid-campaign--f1e2d3c4-b5a6-4978-bd9c-0e1f2a3b4c5d",
+            "target_ref": "x-influence-vector--c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--6",
+            "relationship_type": "evaluates",
+            "source_ref": "x-strategic-assessment--e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b",
+            "target_ref": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b"
+        }
+    ]
+}

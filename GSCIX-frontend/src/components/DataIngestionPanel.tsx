@@ -31,6 +31,7 @@ export const DataIngestionPanel: React.FC = () => {
     const [validating, setValidating] = useState(false);
     const [validationResult, setValidationResult] = useState<ValidationResponse | null>(null);
     const [targetActorId, setTargetActorId] = useState<string>('');
+    const [actorAutoDetected, setActorAutoDetected] = useState(false);
     const [actors, setActors] = useState<GscixEntity[]>([]);
     const [stats, setStats] = useState<IngestionStats>({
         processing: false,
@@ -51,8 +52,32 @@ export const DataIngestionPanel: React.FC = () => {
         apiService.getActors().then(setActors).catch(() => {});
     }, [fetchHistory]);
 
+    // Auto-detect x-geo-strategic-actor in a bundle and pre-select Target Actor
+    const autoDetectActor = useCallback((content: string) => {
+        setActorAutoDetected(false);
+        try {
+            const data = JSON.parse(content);
+            if (data.type === 'bundle' && Array.isArray(data.objects)) {
+                const bundleActor = data.objects.find(
+                    (obj: any) => obj.type === 'x-geo-strategic-actor' && obj.id
+                );
+                if (bundleActor) {
+                    // Check if this actor already exists in the platform
+                    const match = actors.find(a => a.stixId === bundleActor.id);
+                    if (match) {
+                        setTargetActorId(match.stixId);
+                        setActorAutoDetected(true);
+                    }
+                }
+            }
+        } catch {
+            // Ignore parse errors — validation will catch them
+        }
+    }, [actors]);
+
     const validateJson = useCallback(async (content: string) => {
         if (!content) return;
+        autoDetectActor(content);
         try {
             setValidating(true);
             const data = JSON.parse(content);
@@ -67,7 +92,7 @@ export const DataIngestionPanel: React.FC = () => {
         } finally {
             setValidating(false);
         }
-    }, []);
+    }, [autoDetectActor]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -98,7 +123,7 @@ export const DataIngestionPanel: React.FC = () => {
             const data = JSON.parse(jsonContent);
 
             if (data.type === 'bundle') {
-                await apiService.ingestBundle(data, fileName, targetActorId || undefined);
+                await apiService.ingestBundle(data, fileName, targetActorId || undefined, confidence);
             } else {
                 await apiService.ingestData(data);
             }
@@ -221,7 +246,7 @@ export const DataIngestionPanel: React.FC = () => {
                                     <Search className="absolute left-3 top-2.5 text-slate-400 pointer-events-none" size={16} />
                                     <select
                                         value={targetActorId}
-                                        onChange={(e) => setTargetActorId(e.target.value)}
+                                        onChange={(e) => { setTargetActorId(e.target.value); setActorAutoDetected(false); }}
                                         className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none appearance-none"
                                     >
                                         <option value="">None (No linking)</option>
@@ -232,10 +257,20 @@ export const DataIngestionPanel: React.FC = () => {
                                 </div>
                             </div>
                             {targetActorId && (
-                                <div className="p-2.5 bg-blue-50 dark:bg-blue-500/10 rounded-lg border border-blue-100 dark:border-blue-500/20 flex items-center gap-2">
-                                    <Info className="text-primary shrink-0" size={14} />
-                                    <span className="text-[10px] text-blue-700 dark:text-blue-300 font-medium">
-                                        Linking will create 'attributed-to' relationships automatically.
+                                <div className={cn(
+                                    "p-2.5 rounded-lg border flex items-center gap-2",
+                                    actorAutoDetected
+                                        ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20"
+                                        : "bg-blue-50 dark:bg-blue-500/10 border-blue-100 dark:border-blue-500/20"
+                                )}>
+                                    {actorAutoDetected ? <Link className="text-emerald-600 dark:text-emerald-400 shrink-0" size={14} /> : <Info className="text-primary shrink-0" size={14} />}
+                                    <span className={cn(
+                                        "text-[10px] font-medium",
+                                        actorAutoDetected ? "text-emerald-700 dark:text-emerald-300" : "text-blue-700 dark:text-blue-300"
+                                    )}>
+                                        {actorAutoDetected
+                                            ? "Actor auto-detected from bundle. Orphaned entities will be linked automatically."
+                                            : "Linking will create 'attributed-to' relationships automatically."}
                                     </span>
                                 </div>
                             )}

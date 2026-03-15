@@ -1016,6 +1016,13 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" />
                             </div>
                         </div>
+                        {/* Confidence */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Confidence (0-100)</label>
+                            <input type="number" min="0" max="100" value={newEntity.confidence ?? ''} onChange={(e) => setNewEntity(prev => ({ ...prev, confidence: e.target.value ? parseInt(e.target.value) : undefined }))}
+                                placeholder="e.g. 85"
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400" />
+                        </div>
 
                         {/* Dynamic GSCI fields based on type */}
                         <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
@@ -1146,10 +1153,11 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
                                     if (!isOpenctiEntity) {
                                         // Create new entity (custom GSCIX types)
-                                        const { type, name, description, first_seen, last_seen, _openctiStixId, _openctiInternalId, ...gsciFields } = newEntity;
+                                        const { type, name, description, first_seen, last_seen, confidence, _openctiStixId, _openctiInternalId, ...gsciFields } = newEntity;
                                         const payload: any = { type, name, description };
                                         if (first_seen) payload.first_seen = first_seen + 'T00:00:00Z';
                                         if (last_seen) payload.last_seen = last_seen + 'T00:00:00Z';
+                                        if (confidence !== undefined && confidence !== '') payload.confidence = confidence;
                                         const cleanGsci = Object.fromEntries(Object.entries(gsciFields).filter(([_, v]) => v !== '' && v !== undefined));
                                         if (Object.keys(cleanGsci).length > 0) {
                                             payload.gsciAttributes = cleanGsci;
@@ -1160,7 +1168,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     } else {
                                         // OpenCTI entity already exists — update with user-provided dates & fields
                                         savedEntityStixId = newEntity._openctiStixId;
-                                        const { type, name, description, first_seen, last_seen, resource_level, primary_motivation, _openctiStixId, _openctiInternalId } = newEntity;
+                                        const { type, name, description, first_seen, last_seen, confidence: entityConfidence, resource_level, primary_motivation, _openctiStixId, _openctiInternalId } = newEntity;
                                         const payload: any = {
                                             stixId: _openctiStixId,
                                             type,
@@ -1169,6 +1177,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                         };
                                         if (first_seen) payload.first_seen = first_seen.includes('T') ? first_seen : first_seen + 'T00:00:00Z';
                                         if (last_seen) payload.last_seen = last_seen.includes('T') ? last_seen : last_seen + 'T00:00:00Z';
+                                        if (entityConfidence !== undefined && entityConfidence !== '') payload.confidence = entityConfidence;
                                         if (resource_level) payload.resource_level = resource_level;
                                         if (primary_motivation) payload.primary_motivation = primary_motivation;
                                         await apiService.createEntity(payload);
@@ -1247,6 +1256,13 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 ))}
                             </select>
                         </div>
+                        {/* Confidence */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Confidence (0-100)</label>
+                            <input type="number" min="0" max="100" value={(newRelation as any).confidence ?? ''} onChange={(e) => setNewRelation(prev => ({ ...prev, confidence: e.target.value ? parseInt(e.target.value) : undefined } as any))}
+                                placeholder="e.g. 85"
+                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400" />
+                        </div>
                         {/* Visual preview */}
                         {newRelation.source_ref && newRelation.target_ref && (
                             <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
@@ -1270,11 +1286,13 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             onClick={async () => {
                                 try {
                                     setSaving(true);
-                                    await apiService.createRelation({
+                                    const relPayload: any = {
                                         source_ref: newRelation.source_ref,
                                         target_ref: newRelation.target_ref,
                                         relationship_type: newRelation.relationship_type,
-                                    });
+                                    };
+                                    if ((newRelation as any).confidence !== undefined) relPayload.confidence = (newRelation as any).confidence;
+                                    await apiService.createRelation(relPayload);
                                     setNewRelation({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
                                     setGraphMode('view');
                                     fetchGraph(initialActorId);
@@ -1541,10 +1559,10 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                                     <span className="text-[10px] text-cyan-400 font-bold font-mono">{(nodeEntity.gsciAttributes.hybrid_pressure_index ?? 0).toFixed(1)}</span>
                                                                 </div>
                                                             )}
-                                                            {(nodeEntity.gsciAttributes?.confidence_score !== undefined || nodeEntity.type === 'x-influence-vector') && (
+                                                            {(nodeEntity.confidence != null || nodeEntity.gsciAttributes?.confidence_score != null) && (
                                                                 <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
                                                                     <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Confidence</span>
-                                                                    <span className="text-[10px] text-emerald-400 font-bold font-mono">{(nodeEntity.gsciAttributes?.confidence_score ?? 0)}%</span>
+                                                                    <span className="text-[10px] text-emerald-400 font-bold font-mono">{nodeEntity.confidence ?? nodeEntity.gsciAttributes?.confidence_score ?? 0}%</span>
                                                                 </div>
                                                             )}
                                                             {(nodeEntity.first_seen || nodeEntity.gsciAttributes?.first_seen) && (
@@ -1724,6 +1742,9 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                             {targetEntity.name}
                                                         </span>
                                                     </div>
+                                                    {link.relation?.confidence != null && (
+                                                        <span className="text-[9px] text-emerald-400 font-mono shrink-0">{link.relation.confidence}%</span>
+                                                    )}
                                                 </div>
                                                 {isRelHighlighted && (
                                                     <button

@@ -65,8 +65,9 @@ public class GeopoliticalIngestController {
     public ResponseEntity<java.util.Map<String, Object>> ingestBundle(
             @RequestBody java.util.Map<String, Object> bundle,
             @org.springframework.web.bind.annotation.RequestParam(required = false) String filename,
-            @org.springframework.web.bind.annotation.RequestParam(required = false) String targetActorId) {
-        java.util.Map<String, Object> response = bundleIngestService.ingestBundle(bundle, filename, targetActorId);
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String targetActorId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Integer defaultConfidence) {
+        java.util.Map<String, Object> response = bundleIngestService.ingestBundle(bundle, filename, targetActorId, defaultConfidence);
         if ("ERROR".equals(response.get("status"))) {
             return ResponseEntity.badRequest().body(response);
         }
