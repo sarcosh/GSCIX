@@ -185,18 +185,22 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                 const fsStr = e.first_seen || e.gsciAttributes?.first_seen;
                 const lsStr = e.last_seen || e.gsciAttributes?.last_seen;
 
-                const firstSeen = fsStr ? new Date(fsStr) : null;
-                // If no last_seen, the entity is considered still active (no upper bound)
-                const lastSeen = lsStr ? new Date(lsStr) : null;
+                const now = new Date();
+                // Default: entities without first_seen are assumed to have started now
+                // (they won't appear in historical ranges, which is correct)
+                const firstSeen = fsStr ? new Date(fsStr) : now;
+                // Default: entities without last_seen are assumed still active (today)
+                const lastSeen = lsStr ? new Date(lsStr) : now;
 
                 if (dateRange.from) {
                     const fromDate = new Date(dateRange.from);
-                    // Only filter out if the entity has a definitive end date before the range
-                    if (lastSeen && lastSeen < fromDate) return false;
+                    if (lastSeen < fromDate) return false;
                 }
                 if (dateRange.to) {
                     const toDate = new Date(dateRange.to);
-                    if (firstSeen && firstSeen > toDate) return false;
+                    // Set to end of day (23:59:59.999) so that "today" includes the full day
+                    toDate.setHours(23, 59, 59, 999);
+                    if (firstSeen > toDate) return false;
                 }
             }
             return true;
