@@ -163,20 +163,19 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
         if (!node.entity) return;
         const entity = node.entity as GscixEntity;
 
-        // If in edit mode, cancel editing and return to view
+        // If in edit mode, cancel editing and return to view, then continue to select
         if (graphMode === 'edit-relation' || graphMode === 'edit-entity') {
             setEditingRelation(null);
             setEditingEntity(null);
             setEditEntityForm({});
             setGraphMode('view');
-            return;
         }
 
         // Ensure the panel is visible
         setPanelVisible(true);
 
-        // Toggle highlight: click same node again → deselect
-        const newId = highlightedConnectionId === entity.stixId ? null : entity.stixId;
+        // Select the clicked entity (no toggle when coming from edit mode)
+        const newId = highlightedConnectionId === entity.stixId && graphMode === 'view' ? null : entity.stixId;
         setHighlightedConnectionId(newId);
         // Deselect any highlighted relation
         setHighlightedRelationId(null);
@@ -363,6 +362,35 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
             // White text
             ctx.fillStyle = '#ffffff';
             ctx.fillText(label, node.x, labelY);
+
+            // "Unlinked" badge for intrusion-set / threat-actor without OpenCTI ID
+            const entity = node.entity;
+            if (entity && (entity.type === 'intrusion-set' || entity.type === 'threat-actor') && !entity.metadata?.openctiInternalId) {
+                const badgeText = '\u26A0 Unlinked';
+                const badgeFontSize = Math.max(3, 8 / globalScale);
+                ctx.font = `700 ${badgeFontSize}px Inter, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+
+                const badgeY = labelY + labelFontSize + 3 / globalScale;
+                const badgeW = ctx.measureText(badgeText).width;
+                const bPadX = 3 / globalScale;
+                const bPadY = 1.5 / globalScale;
+                const bRadius = 2 / globalScale;
+
+                // Badge background
+                ctx.beginPath();
+                ctx.roundRect(node.x - badgeW / 2 - bPadX, badgeY - bPadY, badgeW + bPadX * 2, badgeFontSize + bPadY * 2, bRadius);
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.2)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)';
+                ctx.lineWidth = 0.8 / globalScale;
+                ctx.stroke();
+
+                // Badge text
+                ctx.fillStyle = 'rgba(245, 158, 11, 1)';
+                ctx.fillText(badgeText, node.x, badgeY);
+            }
         }
     }, []);
 
@@ -673,18 +701,18 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         nodeCanvasObject={paintNode}
                         onNodeClick={handleNodeClick}
                         onLinkClick={(link: any) => {
-                            // If in edit mode, cancel editing and return to view
-                            if (graphMode === 'edit-relation' || graphMode === 'edit-entity') {
+                            const wasEditing = graphMode === 'edit-relation' || graphMode === 'edit-entity';
+                            // If in edit mode, cancel editing and return to view, then continue to select
+                            if (wasEditing) {
                                 setEditingRelation(null);
                                 setEditingEntity(null);
                                 setEditEntityForm({});
                                 setGraphMode('view');
-                                return;
                             }
                             const linkId = link.id;
                             if (!linkId) return;
-                            // Toggle: click same link again → deselect
-                            const newId = highlightedRelationId === linkId ? null : linkId;
+                            // Select the clicked link (no toggle when coming from edit mode)
+                            const newId = highlightedRelationId === linkId && !wasEditing ? null : linkId;
                             setHighlightedRelationId(newId);
                             // Deselect any highlighted node
                             setHighlightedConnectionId(null);
@@ -734,10 +762,10 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
                             const isHighlightedLink = link.id === highlightedRelationIdRef.current;
 
-                            // Rounded rectangle background
+                            // Rounded rectangle background — opaque to occlude the link line beneath
                             ctx.beginPath();
                             ctx.roundRect(boxX, boxY, boxW, boxH, borderRadius);
-                            ctx.fillStyle = isHighlightedLink ? 'rgba(6, 182, 212, 0.15)' : 'rgba(15, 23, 42, 0.85)';
+                            ctx.fillStyle = isHighlightedLink ? 'rgba(15, 23, 42, 0.95)' : 'rgba(15, 23, 42, 0.85)';
                             ctx.fill();
                             ctx.strokeStyle = isHighlightedLink ? 'rgba(6, 182, 212, 0.8)' : 'rgba(148, 163, 184, 0.4)';
                             ctx.lineWidth = (isHighlightedLink ? 1.5 : 1) / globalScale;
@@ -1825,6 +1853,43 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
                             {(editingEntity.type === 'intrusion-set' || editingEntity.type === 'threat-actor') && (
                                 <div className="space-y-4">
+                                    {/* OpenCTI Linkage */}
+                                    <div className={cn(
+                                        "p-3 rounded-lg border",
+                                        editEntityForm._openctiInternalId
+                                            ? "bg-emerald-500/5 border-emerald-500/20"
+                                            : "bg-amber-500/5 border-amber-500/20"
+                                    )}>
+                                        <label className="block text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                            {editEntityForm._openctiInternalId ? (
+                                                <><ExternalLink size={12} className="text-emerald-500" /> <span className="text-emerald-600 dark:text-emerald-400">Linked to OpenCTI</span></>
+                                            ) : (
+                                                <><AlertTriangle size={12} className="text-amber-500" /> <span className="text-amber-600 dark:text-amber-400">Not linked to OpenCTI</span></>
+                                            )}
+                                        </label>
+                                        <select
+                                            value={editEntityForm._openctiInternalId || ''}
+                                            onChange={(e) => {
+                                                const selected = openctiEntities.find(ent => ent.metadata?.openctiInternalId === e.target.value);
+                                                setEditEntityForm(prev => ({
+                                                    ...prev,
+                                                    _openctiInternalId: e.target.value || '',
+                                                    ...(selected ? { name: selected.name } : {}),
+                                                }));
+                                            }}
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                                        >
+                                            <option value="">No linkage (manual entity)</option>
+                                            {openctiEntities.filter(ent => ent.metadata?.openctiInternalId).map(ent => (
+                                                <option key={ent.metadata!.openctiInternalId} value={ent.metadata!.openctiInternalId}>
+                                                    {ent.name} ({ent.metadata!.openctiInternalId!.substring(0, 8)}...)
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {editEntityForm._openctiInternalId && (
+                                            <p className="text-[10px] text-slate-400 font-mono mt-1.5 truncate">ID: {editEntityForm._openctiInternalId}</p>
+                                        )}
+                                    </div>
                                     <div>
                                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Resource Level</label>
                                         <select value={editEntityForm.resource_level || ''} onChange={(e) => setEditEntityForm(prev => ({ ...prev, resource_level: e.target.value }))}
@@ -1856,7 +1921,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             onClick={async () => {
                                 try {
                                     setSaving(true);
-                                    const { name, description, confidence, first_seen, last_seen, resource_level, primary_motivation, ...gsciFields } = editEntityForm;
+                                    const { name, description, confidence, first_seen, last_seen, resource_level, primary_motivation, _openctiInternalId, ...gsciFields } = editEntityForm;
                                     const payload: any = { name };
                                     if (description) payload.description = description;
                                     if (confidence !== undefined && confidence !== '') payload.confidence = confidence;
@@ -1865,9 +1930,14 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     if (resource_level) payload.resource_level = resource_level;
                                     if (primary_motivation) payload.primary_motivation = primary_motivation;
 
+                                    // Send OpenCTI linkage if present
+                                    if (_openctiInternalId !== undefined) {
+                                        payload.metadata = { openctiInternalId: _openctiInternalId || null };
+                                    }
+
                                     // Build gsciAttributes from remaining fields, including dates for consistency
                                     const cleanGsci = Object.fromEntries(
-                                        Object.entries(gsciFields).filter(([_, v]) => v !== '' && v !== undefined && v !== null)
+                                        Object.entries(gsciFields).filter(([k, v]) => v !== '' && v !== undefined && v !== null && !k.startsWith('_'))
                                     );
                                     if (first_seen) cleanGsci.first_seen = payload.first_seen;
                                     if (last_seen) cleanGsci.last_seen = payload.last_seen;
@@ -1918,7 +1988,13 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                             last_seen: (e.last_seen || e.gsciAttributes?.last_seen || '').split('T')[0],
                                             resource_level: e.resource_level || '',
                                             primary_motivation: e.primary_motivation || '',
+                                            _openctiInternalId: e.metadata?.openctiInternalId || '',
                                         });
+                                        if (e.type === 'intrusion-set' || e.type === 'threat-actor') {
+                                            apiService.getEntitiesByType(e.type).then(setOpenctiEntities).catch(() => setOpenctiEntities([]));
+                                        } else {
+                                            setOpenctiEntities([]);
+                                        }
                                         setGraphMode('edit-entity');
                                     }}
                                     className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded transition-colors"
@@ -2195,7 +2271,13 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                                         last_seen: (nodeEntity.last_seen || nodeEntity.gsciAttributes?.last_seen || '').split('T')[0],
                                                                         resource_level: nodeEntity.resource_level || '',
                                                                         primary_motivation: nodeEntity.primary_motivation || '',
+                                                                        _openctiInternalId: nodeEntity.metadata?.openctiInternalId || '',
                                                                     });
+                                                                    if (nodeEntity.type === 'intrusion-set' || nodeEntity.type === 'threat-actor') {
+                                                                        apiService.getEntitiesByType(nodeEntity.type).then(setOpenctiEntities).catch(() => setOpenctiEntities([]));
+                                                                    } else {
+                                                                        setOpenctiEntities([]);
+                                                                    }
                                                                     setGraphMode('edit-entity');
                                                                 }}
                                                                 className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded transition-colors"
