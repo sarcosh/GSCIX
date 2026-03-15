@@ -24,6 +24,7 @@ interface IngestionStats {
 
 export const DataIngestionPanel: React.FC = () => {
     const [jsonContent, setJsonContent] = useState<string>('');
+    const [originalJsonContent, setOriginalJsonContent] = useState<string>('');
     const [fileName, setFileName] = useState<string>('');
     const [isDragging, setIsDragging] = useState(false);
     const [strategy, setStrategy] = useState('Upsert');
@@ -51,6 +52,57 @@ export const DataIngestionPanel: React.FC = () => {
         fetchHistory();
         apiService.getActors().then(setActors).catch(() => {});
     }, [fetchHistory]);
+
+    // Apply actor ID remapping to the displayed JSON when targetActorId changes.
+    // Replaces all x-geo-strategic-actor IDs in the bundle (entity id, source_ref,
+    // target_ref) with the selected targetActorId so the user sees exactly what
+    // will be sent to the backend.
+    const applyActorRemapping = useCallback((source: string, actorId: string): string => {
+        if (!source || !actorId) return source;
+        try {
+            const data = JSON.parse(source);
+            if (data.type !== 'bundle' || !Array.isArray(data.objects)) return source;
+
+            // Collect all actor IDs from the bundle (entity + phantom refs)
+            const actorIds = new Set<string>();
+            const entityIds = new Set<string>();
+            for (const obj of data.objects) {
+                if (obj.type !== 'relationship' && obj.id) entityIds.add(obj.id);
+                if (obj.type === 'x-geo-strategic-actor' && obj.id && obj.id !== actorId) {
+                    actorIds.add(obj.id);
+                }
+            }
+            for (const obj of data.objects) {
+                if (obj.type === 'relationship') {
+                    for (const ref of [obj.source_ref, obj.target_ref]) {
+                        if (ref && ref.startsWith('x-geo-strategic-actor--') && ref !== actorId && !entityIds.has(ref)) {
+                            actorIds.add(ref);
+                        }
+                    }
+                }
+            }
+
+            if (actorIds.size === 0) return source;
+
+            // Replace all occurrences via string replacement to preserve formatting
+            let result = source;
+            for (const oldId of actorIds) {
+                result = result.split(oldId).join(actorId);
+            }
+            return result;
+        } catch {
+            return source;
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!originalJsonContent) return;
+        if (targetActorId) {
+            setJsonContent(applyActorRemapping(originalJsonContent, targetActorId));
+        } else {
+            setJsonContent(originalJsonContent);
+        }
+    }, [targetActorId, originalJsonContent, applyActorRemapping]);
 
     // Auto-detect x-geo-strategic-actor in a bundle and pre-select Target Actor
     const autoDetectActor = useCallback((content: string) => {
@@ -103,6 +155,7 @@ export const DataIngestionPanel: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (event) => {
                 const content = event.target?.result as string;
+                setOriginalJsonContent(content);
                 setJsonContent(content);
                 setValidationResult(null);
                 validateJson(content);
@@ -129,6 +182,7 @@ export const DataIngestionPanel: React.FC = () => {
             }
 
             setJsonContent('');
+            setOriginalJsonContent('');
             setFileName('');
             setValidationResult(null);
             setStats(prev => ({ ...prev, processing: false }));
@@ -191,6 +245,7 @@ export const DataIngestionPanel: React.FC = () => {
                                         const reader = new FileReader();
                                         reader.onload = (event) => {
                                             const content = event.target?.result as string;
+                                            setOriginalJsonContent(content);
                                             setJsonContent(content);
                                             setValidationResult(null);
                                             validateJson(content);
