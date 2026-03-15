@@ -1618,6 +1618,45 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                                                 </>
                                                             )}
 
+                                                            {/* Custom Attributes for Strategic Objective */}
+                                                            {nodeEntity.type === 'x-strategic-objective' && (
+                                                                <>
+                                                                    {nodeEntity.gsciAttributes?.objective_type && (
+                                                                        <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Objective Type</span>
+                                                                            <span className="text-[10px] text-violet-400 font-bold capitalize">{nodeEntity.gsciAttributes.objective_type}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {nodeEntity.gsciAttributes?.priority_level && (
+                                                                        <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Priority</span>
+                                                                            <span className={cn(
+                                                                                "text-[10px] font-bold capitalize",
+                                                                                nodeEntity.gsciAttributes.priority_level === 'critical' ? 'text-red-400'
+                                                                                    : nodeEntity.gsciAttributes.priority_level === 'high' ? 'text-orange-400'
+                                                                                    : nodeEntity.gsciAttributes.priority_level === 'medium' ? 'text-amber-400'
+                                                                                    : 'text-slate-400'
+                                                                            )}>{nodeEntity.gsciAttributes.priority_level}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {nodeEntity.gsciAttributes?.time_horizon && (
+                                                                        <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Time Horizon</span>
+                                                                            <span className="text-[10px] text-sky-400 font-bold capitalize">{nodeEntity.gsciAttributes.time_horizon}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {nodeEntity.gsciAttributes?.civil_military_fusion != null && (
+                                                                        <div className="bg-slate-900/40 p-1.5 rounded border border-slate-700/50">
+                                                                            <span className="block text-[9px] text-slate-500 uppercase font-bold mb-0.5">Civil-Military Fusion</span>
+                                                                            <span className={cn(
+                                                                                "text-[10px] font-bold",
+                                                                                nodeEntity.gsciAttributes.civil_military_fusion ? 'text-rose-400' : 'text-slate-500'
+                                                                            )}>{nodeEntity.gsciAttributes.civil_military_fusion ? 'Yes' : 'No'}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            )}
+
                                                             {/* Custom Attributes for Influence Vector */}
                                                             {nodeEntity.type === 'x-influence-vector' && (
                                                                 <>

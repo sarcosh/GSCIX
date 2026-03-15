@@ -1,0 +1,93 @@
+{
+    "type": "bundle",
+    "id": "bundle--9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d",
+    "objects": [
+        {
+            "type": "x-geo-strategic-actor",
+            "id": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b",
+            "spec_version": "2.1",
+            "name": "Islamic Republic of Iran",
+            "strategic_alignment": "BRICS",
+            "geopolitical_doctrine": "360-Degree Asymmetric Defense / Forward Defense",
+            "revisionist_index": 9.8,
+            "strategic_ambiguity_score": 8.5,
+            "doctrine_type": "revisionist",
+            "technological_modernization_rate": 7.5,
+            "description": "A theocratic revisionist power focused on Regime Survival, Security, and Stability (S3). It utilizes the 'Axis of Resistance' to project power and maintain strategic depth through proxy networks and asymmetric capabilities. Following the events of February 2026, the actor has shifted to a 'Death Ground' posture of maximum resistance under existential duress.",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-objective",
+            "id": "x-strategic-objective--b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e",
+            "spec_version": "2.1",
+            "name": "Regime Survival, Security, and Stability (S3)",
+            "objective_type": "political",
+            "priority_level": "critical",
+            "time_horizon": "decadal",
+            "description": "The primary objective of the Iranian state, focusing on the continuity of clerical rule (velayat-e faqih) and domestic stability against perceived Western-led regime change efforts.",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-objective",
+            "id": "x-strategic-objective--c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
+            "spec_version": "2.1",
+            "name": "Regional Hegemony and Strategic Depth",
+            "objective_type": "military",
+            "priority_level": "high",
+            "time_horizon": "long-term",
+            "description": "The pursuit of dominant influence in the Middle East by creating a 'ring of fire' through proxies in Lebanon, Syria, Iraq, and Yemen to project power beyond Iranian borders.",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "x-strategic-objective",
+            "id": "x-strategic-objective--d3e4f5a6-b7c8-4d9e-0f1a2b3c4d5e6f7a",
+            "spec_version": "2.1",
+            "name": "Asymmetric Deterrence and Deterrence by Punishment",
+            "objective_type": "military",
+            "priority_level": "high",
+            "time_horizon": "long-term",
+            "description": "Leveraging niche capabilities such as ballistic missiles, UAVs, and cyber operations to impose disproportionate costs on conventionally superior adversaries.",
+            "extensions": {
+                "extension-definition--d3b1f2c4-a5e6-4b7c-8d9e-0f1a2b3c4d5e": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--2a3b4c5d-6e7f-4a8b-9c0d-1e2f3a4b5c6d",
+            "spec_version": "2.1",
+            "relationship_type": "pursues",
+            "source_ref": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b",
+            "target_ref": "x-strategic-objective--b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--3b4c5d6e-7f8a-4b9c-0d1e-2f3a4b5c6d7e",
+            "spec_version": "2.1",
+            "relationship_type": "pursues",
+            "source_ref": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b",
+            "target_ref": "x-strategic-objective--c2d3e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--4c5d6e7f-8a9b-4c0d-1e2f-3a4b5c6d7e8f",
+            "spec_version": "2.1",
+            "relationship_type": "pursues",
+            "source_ref": "x-geo-strategic-actor--7d4e2f1a-bc3d-4e5f-9a8b-0c1d2e3f4a5b",
+            "target_ref": "x-strategic-objective--d3e4f5a6-b7c8-4d9e-0f1a2b3c4d5e6f7a"
+        }
+    ]
+}
