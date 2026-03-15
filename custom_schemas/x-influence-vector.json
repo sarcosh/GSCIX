@@ -34,6 +34,12 @@
             "type": "number",
             "mandatory": false,
             "description": "STIX 2.1 standard confidence score (0-100)"
+        },
+        {
+            "name": "external_references",
+            "type": "external_references",
+            "mandatory": false,
+            "description": "STIX 2.1 external references (source_name required, description and url optional)"
         }
     ],
     "relations": [

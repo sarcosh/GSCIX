@@ -220,6 +220,20 @@ public class JsonSchemaValidationService {
                     errors.add("Property " + name + " must be a list/array");
                 }
                 break;
+            case "external_references":
+                if (!value.isArray()) {
+                    errors.add("Property " + name + " must be a list/array of external reference objects");
+                } else {
+                    for (int i = 0; i < value.size(); i++) {
+                        JsonNode ref = value.get(i);
+                        if (!ref.isObject()) {
+                            errors.add("Property " + name + "[" + i + "] must be an object");
+                        } else if (!ref.has("source_name") || ref.get("source_name").asText().isEmpty()) {
+                            errors.add("Property " + name + "[" + i + "].source_name is required");
+                        }
+                    }
+                }
+                break;
             case "timestamp":
                 // Basic check if it's a string, could be improved with ISO parsing check
                 if (!value.isTextual()) {

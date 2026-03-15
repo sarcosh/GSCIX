@@ -64,6 +64,10 @@ public class GscixEntity {
     @Field(type = FieldType.Integer)
     private Integer confidence;
 
+    @JsonProperty("external_references")
+    @Field(type = FieldType.Object)
+    private List<ExternalReference> externalReferences;
+
     @Field(type = FieldType.Object)
     private GsciAttributes gsciAttributes;
 
@@ -215,5 +219,22 @@ public class GscixEntity {
 
         @Field(type = FieldType.Keyword)
         private String openctiInternalId;
+    }
+
+    @Data
+    public static class ExternalReference {
+        @JsonProperty("source_name")
+        @Field(type = FieldType.Keyword)
+        private String sourceName;
+
+        @Field(type = FieldType.Text)
+        private String description;
+
+        @Field(type = FieldType.Keyword)
+        private String url;
+
+        @JsonProperty("external_id")
+        @Field(type = FieldType.Keyword)
+        private String externalId;
     }
 }

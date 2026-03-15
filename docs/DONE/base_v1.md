@@ -68,6 +68,29 @@ These indices will allow your system to automatically detect coordinated campaig
 
 ---
 
+### Phase 4b: External References
+
+All GSCIX custom SDOs support the standard STIX 2.1 `external_references` property. This allows linking entities to external intelligence reports, academic papers, news articles, and other sources that substantiate the assessment.
+
+**Structure (per STIX 2.1 specification):**
+```json
+"external_references": [
+    {
+        "source_name": "DIA Military Power Report",        // Required
+        "description": "Comprehensive overview of ...",     // Optional
+        "url": "https://www.dia.mil/...",                   // Optional
+        "external_id": "DIA-2026-001"                       // Optional
+    }
+]
+```
+
+* `source_name` is **mandatory** for each reference entry.
+* `external_references` is persisted at the entity level and validated during schema validation (type `external_references`).
+* During bundle ingestion, references are extracted and stored in Elasticsearch.
+* The `PUT /entities/{id}` endpoint supports updating references.
+
+---
+
 ### Phase 5: Best Practices & Implementation Rules
 
 To ensure your GSCIX standard remains robust and adopted by the wider intelligence community, strict adherence to these rules is required:
@@ -76,3 +99,4 @@ To ensure your GSCIX standard remains robust and adopted by the wider intelligen
 * **Maintain strict UUID v4 formatting for all IDs**.
 * **Always implement object versioning**.
 * **Always require a `confidence_score` for strategic evaluations**.
+* **Always include `external_references` for strategic assessments to ensure traceability and auditability**.

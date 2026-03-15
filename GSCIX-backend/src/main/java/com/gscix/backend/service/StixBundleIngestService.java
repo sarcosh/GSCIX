@@ -245,6 +245,21 @@ public class StixBundleIngestService {
             entity.setLastSeen(Instant.parse(lastSeenStr));
         }
 
+        // Standard STIX 2.1 external_references
+        if (obj.get("external_references") instanceof List) {
+            List<Map<String, Object>> rawRefs = (List<Map<String, Object>>) obj.get("external_references");
+            List<GscixEntity.ExternalReference> refs = new java.util.ArrayList<>();
+            for (Map<String, Object> rawRef : rawRefs) {
+                GscixEntity.ExternalReference ref = new GscixEntity.ExternalReference();
+                ref.setSourceName((String) rawRef.get("source_name"));
+                ref.setDescription((String) rawRef.get("description"));
+                ref.setUrl((String) rawRef.get("url"));
+                ref.setExternalId((String) rawRef.get("external_id"));
+                refs.add(ref);
+            }
+            entity.setExternalReferences(refs);
+        }
+
         // Standard STIX 2.1 fields for intrusion-set / threat-actor
         if (obj.get("aliases") instanceof List) {
             entity.setAliases((List<String>) obj.get("aliases"));

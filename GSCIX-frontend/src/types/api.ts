@@ -40,6 +40,13 @@ export interface EntityMetadata {
     openctiInternalId?: string;
 }
 
+export interface ExternalReference {
+    source_name: string;
+    description?: string;
+    url?: string;
+    external_id?: string;
+}
+
 export interface GscixEntity {
     stixId: string;
     type: string;
@@ -53,6 +60,7 @@ export interface GscixEntity {
     primary_motivation?: string;
     threat_actor_types?: string[];
     confidence?: number;
+    external_references?: ExternalReference[];
     gsciAttributes?: GsciAttributes;
     metadata?: EntityMetadata;
 }

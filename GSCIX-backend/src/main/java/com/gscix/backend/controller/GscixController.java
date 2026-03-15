@@ -95,6 +95,7 @@ public class GscixController {
         if (entity.getGoals() != null) target.setGoals(entity.getGoals());
         if (entity.getThreatActorTypes() != null) target.setThreatActorTypes(entity.getThreatActorTypes());
         if (entity.getConfidence() != null) target.setConfidence(entity.getConfidence());
+        if (entity.getExternalReferences() != null) target.setExternalReferences(entity.getExternalReferences());
         if (entity.getGsciAttributes() != null) target.setGsciAttributes(entity.getGsciAttributes());
         if (entity.getMetadata() != null && entity.getMetadata().getOpenctiInternalId() != null) {
             target.getMetadata().setOpenctiInternalId(entity.getMetadata().getOpenctiInternalId());

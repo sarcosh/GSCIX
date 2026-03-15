@@ -68,6 +68,12 @@
             "name": "last_seen",
             "type": "timestamp",
             "mandatory": false
+        },
+        {
+            "name": "external_references",
+            "type": "external_references",
+            "mandatory": false,
+            "description": "STIX 2.1 external references (source_name required, description and url optional)"
         }
     ],
     "relations": [
