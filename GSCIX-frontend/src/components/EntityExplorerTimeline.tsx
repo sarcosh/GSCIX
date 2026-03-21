@@ -16,7 +16,6 @@ import {
     ChevronsRight,
     Maximize2,
     Layers,
-    X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import apiService from '../services/api';
@@ -456,23 +455,22 @@ const ActivityLogRow: React.FC<{ relation: GscixRelation; entities: GscixEntity[
     );
 };
 
-// ─── Entity Detail Panel (horizontal scroll strip above timeline) ─────────────
+// ─── Entity Detail Panel (fixed horizontal scroll strip above timeline) ───────
 
 interface EntityDetailPanelProps {
-    group: TemporalGroup;
-    deckType: string;
-    onClose: () => void;
+    group: TemporalGroup | null;
+    deckType: string | null;
     onSwitchDeck: (deckType: string) => void;
 }
 
-const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({ group, deckType, onClose, onSwitchDeck }) => {
+const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({ group, deckType, onSwitchDeck }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
 
-    const activeDeck = group.decks.find(d => d.type === deckType);
-    const dominantColor = TYPE_COLOR[deckType]?.connector || '#64748b';
-    const colors = TYPE_COLOR[deckType] || DEFAULT_COLOR;
+    const activeDeck = group && deckType ? group.decks.find(d => d.type === deckType) : null;
+    const dominantColor = deckType ? (TYPE_COLOR[deckType]?.connector || '#64748b') : '#64748b';
+    const colors = deckType ? (TYPE_COLOR[deckType] || DEFAULT_COLOR) : DEFAULT_COLOR;
 
     const updateScrollIndicators = useCallback(() => {
         const el = scrollRef.current;
@@ -494,7 +492,7 @@ const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({ group, deckType, 
     // Reset scroll when deck type changes
     useEffect(() => {
         if (scrollRef.current) scrollRef.current.scrollLeft = 0;
-    }, [deckType, group.id]);
+    }, [deckType, group?.id]);
 
     const scroll = (direction: 'left' | 'right') => {
         const el = scrollRef.current;
@@ -503,11 +501,28 @@ const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({ group, deckType, 
         el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
     };
 
-    if (!activeDeck) return null;
+    // Empty state
+    if (!activeDeck || !group || !deckType) {
+        return (
+            <div className="mb-4 border border-border-light dark:border-border-dark rounded-2xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+                <div className="flex items-center px-5 py-3 border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/30">
+                    <span className="text-[10px] font-mono uppercase font-bold tracking-widest text-slate-400 dark:text-slate-500">
+                        Entity Detail
+                    </span>
+                </div>
+                <div className="flex items-center justify-center py-8">
+                    <div className="flex flex-col items-center gap-2 text-slate-400 dark:text-slate-500">
+                        <Layers size={24} className="opacity-30" />
+                        <p className="text-[11px] font-mono">Select a deck from the timeline to inspect its entities</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div
-            className="mb-4 border border-border-light dark:border-border-dark rounded-2xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300"
+            className="mb-4 border border-border-light dark:border-border-dark rounded-2xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-all duration-300"
             style={{ borderTopWidth: '3px', borderTopColor: dominantColor }}
             onClick={e => e.stopPropagation()}
         >
@@ -546,13 +561,6 @@ const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({ group, deckType, 
                         </div>
                     )}
                 </div>
-                <button
-                    onClick={onClose}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                    title="Close panel"
-                >
-                    <X size={16} />
-                </button>
             </div>
 
             {/* Scrollable card strip */}
@@ -931,19 +939,14 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
                     </div>
                 )}
 
-                {/* ───── Entity Detail Panel (shown when a deck is expanded) ───── */}
-                {!isLoading && expandedGroupId && expandedDeckType && (() => {
-                    const activeGroup = [...geoGroups, ...cyberGroups].find(g => g.id === expandedGroupId);
-                    if (!activeGroup) return null;
-                    return (
-                        <EntityDetailPanel
-                            group={activeGroup}
-                            deckType={expandedDeckType}
-                            onClose={() => { setExpandedGroupId(null); setExpandedDeckType(null); }}
-                            onSwitchDeck={(t) => setExpandedDeckType(t)}
-                        />
-                    );
-                })()}
+                {/* ───── Entity Detail Panel (always visible) ───── */}
+                {!isLoading && graphEntities.length > 0 && (
+                    <EntityDetailPanel
+                        group={expandedGroupId ? [...geoGroups, ...cyberGroups].find(g => g.id === expandedGroupId) || null : null}
+                        deckType={expandedDeckType}
+                        onSwitchDeck={(t) => setExpandedDeckType(t)}
+                    />
+                )}
 
                 {/* ───── Timeline Panel (FIXED HEIGHT) ───── */}
                 <div className="relative border border-border-light dark:border-border-dark rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm mb-4">
