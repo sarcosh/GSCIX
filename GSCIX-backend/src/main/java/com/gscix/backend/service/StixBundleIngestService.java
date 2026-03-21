@@ -314,6 +314,9 @@ public class StixBundleIngestService {
             entity.setGsciAttributes(gsciAttributes);
         }
 
+        // Inherit first_seen from parent entity if not provided
+        resolveFirstSeen(entity);
+
         entityRepository.save(entity);
         logger.info("Ingested Entity from Bundle: type={} name={} ({}) [{}]", type,
                 entity.getName(), id, existingOpt.isPresent() ? "merged" : "new");
@@ -426,5 +429,40 @@ public class StixBundleIngestService {
             target.setFirstSeen(source.getFirstSeen());
         if (source.getLastSeen() != null)
             target.setLastSeen(source.getLastSeen());
+    }
+
+    /**
+     * If the entity has no first_seen, inherit it from the parent entity
+     * (found via relations where this entity is the target_ref).
+     * If no parent has first_seen either, default to now.
+     */
+    private void resolveFirstSeen(GscixEntity entity) {
+        if (entity.getFirstSeen() != null) return;
+        if (entity.getGsciAttributes() != null && entity.getGsciAttributes().getFirstSeen() != null) {
+            entity.setFirstSeen(entity.getGsciAttributes().getFirstSeen());
+            return;
+        }
+
+        Instant inherited = resolveParentFirstSeen(entity.getStixId());
+        Instant resolved = inherited != null ? inherited : Instant.now();
+        entity.setFirstSeen(resolved);
+        if (entity.getGsciAttributes() != null && entity.getGsciAttributes().getFirstSeen() == null) {
+            entity.getGsciAttributes().setFirstSeen(resolved);
+        }
+    }
+
+    private Instant resolveParentFirstSeen(String entityId) {
+        List<GscixRelation> incomingRelations = relationRepository.findByTargetRef(entityId);
+        for (GscixRelation rel : incomingRelations) {
+            var parentOpt = entityRepository.findById(rel.getSourceRef());
+            if (parentOpt.isPresent()) {
+                GscixEntity parent = parentOpt.get();
+                if (parent.getFirstSeen() != null) return parent.getFirstSeen();
+                if (parent.getGsciAttributes() != null && parent.getGsciAttributes().getFirstSeen() != null) {
+                    return parent.getGsciAttributes().getFirstSeen();
+                }
+            }
+        }
+        return null;
     }
 }

@@ -33,7 +33,6 @@ function App() {
   const [currentView, setCurrentView] = useState<'explorer' | 'ingestion' | 'influence' | 'timeline'>('explorer');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [selectedActorId, setSelectedActorId] = useState<string | undefined>(undefined);
-  const [selectedTimelineEntityId, setSelectedTimelineEntityId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -43,14 +42,19 @@ function App() {
     }
   }, [isDarkMode]);
 
+  // Both "View in Graph" and "View in Timeline" fix the same actor for both views
   const handleNavigateToGraph = useCallback((actorId: string) => {
     setSelectedActorId(actorId);
     setCurrentView('influence');
   }, []);
 
-  const handleNavigateToTimeline = useCallback((entityId: string) => {
-    setSelectedTimelineEntityId(entityId);
+  const handleNavigateToTimeline = useCallback((actorId: string) => {
+    setSelectedActorId(actorId);
     setCurrentView('timeline');
+  }, []);
+
+  const handleNavigateToExplorer = useCallback(() => {
+    setCurrentView('explorer');
   }, []);
 
   const handleViewChange = useCallback((view: 'explorer' | 'ingestion' | 'influence' | 'timeline') => {
@@ -75,7 +79,7 @@ function App() {
           ) : currentView === 'influence' ? (
             <GeoStrategicInfluenceGraph initialActorId={selectedActorId} />
           ) : currentView === 'timeline' ? (
-            <EntityExplorerTimeline initialEntityId={selectedTimelineEntityId} />
+            <EntityExplorerTimeline initialEntityId={selectedActorId} onNavigateToExplorer={handleNavigateToExplorer} />
           ) : (
             <DataIngestionPanel />
           )}

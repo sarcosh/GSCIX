@@ -73,6 +73,9 @@ public class GscixController {
         entity.getMetadata().setUpdatedAt(Instant.now());
         entity.setSource("GSCIX");
 
+        // Inherit first_seen from parent entity if not provided
+        resolveFirstSeen(entity);
+
         GscixEntity saved = entityRepository.save(entity);
         return ResponseEntity.ok(saved);
     }
@@ -204,5 +207,41 @@ public class GscixController {
     @GetMapping("/config/opencti-url")
     public ResponseEntity<Map<String, String>> getOpenctiUrl() {
         return ResponseEntity.ok(Map.of("url", openctiExternalUrl));
+    }
+
+    /**
+     * If the entity has no first_seen, inherit it from the parent entity
+     * (found via relations where this entity is the target_ref).
+     * If no parent has first_seen either, default to now.
+     * Also propagates to gsciAttributes.firstSeen if present and null.
+     */
+    private void resolveFirstSeen(GscixEntity entity) {
+        if (entity.getFirstSeen() != null) return;
+        if (entity.getGsciAttributes() != null && entity.getGsciAttributes().getFirstSeen() != null) {
+            entity.setFirstSeen(entity.getGsciAttributes().getFirstSeen());
+            return;
+        }
+
+        Instant inherited = resolveParentFirstSeen(entity.getStixId());
+        Instant resolved = inherited != null ? inherited : Instant.now();
+        entity.setFirstSeen(resolved);
+        if (entity.getGsciAttributes() != null && entity.getGsciAttributes().getFirstSeen() == null) {
+            entity.getGsciAttributes().setFirstSeen(resolved);
+        }
+    }
+
+    private Instant resolveParentFirstSeen(String entityId) {
+        List<GscixRelation> incomingRelations = relationRepository.findByTargetRef(entityId);
+        for (GscixRelation rel : incomingRelations) {
+            var parentOpt = entityRepository.findById(rel.getSourceRef());
+            if (parentOpt.isPresent()) {
+                GscixEntity parent = parentOpt.get();
+                if (parent.getFirstSeen() != null) return parent.getFirstSeen();
+                if (parent.getGsciAttributes() != null && parent.getGsciAttributes().getFirstSeen() != null) {
+                    return parent.getGsciAttributes().getFirstSeen();
+                }
+            }
+        }
+        return null;
     }
 }

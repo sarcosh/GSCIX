@@ -89,6 +89,7 @@ public class GeopoliticalIngestService {
         actorAttrs.setFirstSeen(request.getFirstSeen());
         actorAttrs.setLastSeen(request.getLastSeen());
         actor.setGsciAttributes(actorAttrs);
+        resolveFirstSeen(actor, null);
         entityRepository.save(actor);
         entitiesCreated++;
         logger.info("Created x-geo-strategic-actor: {}", actor.getStixId());
@@ -111,6 +112,7 @@ public class GeopoliticalIngestService {
                 objAttrs.setFirstSeen(obj.getFirstSeen());
                 objAttrs.setLastSeen(obj.getLastSeen());
                 objective.setGsciAttributes(objAttrs);
+                resolveFirstSeen(objective, actor.getFirstSeen());
                 entityRepository.save(objective);
                 entitiesCreated++;
 
@@ -139,6 +141,7 @@ public class GeopoliticalIngestService {
             campAttrs.setFirstSeen(camp.getFirstSeen());
             campAttrs.setLastSeen(camp.getLastSeen());
             campaign.setGsciAttributes(campAttrs);
+            resolveFirstSeen(campaign, actor.getFirstSeen());
             entityRepository.save(campaign);
             entitiesCreated++;
 
@@ -168,6 +171,7 @@ public class GeopoliticalIngestService {
                 ivAttrs.setChannel(iv.getChannel());
                 ivAttrs.setTargetAudience(iv.getTargetAudience());
                 vector.setGsciAttributes(ivAttrs);
+                resolveFirstSeen(vector, actor.getFirstSeen());
                 entityRepository.save(vector);
                 entitiesCreated++;
 
@@ -214,6 +218,7 @@ public class GeopoliticalIngestService {
             if (imp.getConfidenceScore() != null) {
                 impact.setConfidence(imp.getConfidenceScore().intValue());
             }
+            resolveFirstSeen(impact, actor.getFirstSeen());
             entityRepository.save(impact);
             entitiesCreated++;
 
@@ -241,6 +246,7 @@ public class GeopoliticalIngestService {
             assessAttrs.setFirstSeen(assess.getFirstSeen());
             assessAttrs.setLastSeen(assess.getLastSeen());
             assessment.setGsciAttributes(assessAttrs);
+            resolveFirstSeen(assessment, actor.getFirstSeen());
             entityRepository.save(assessment);
             entitiesCreated++;
 
@@ -514,6 +520,28 @@ public class GeopoliticalIngestService {
         // Validate Assessment
         if (request.getAssessment() != null) {
             validationService.validate("x-strategic-assessment", request.getAssessment());
+        }
+    }
+
+    /**
+     * If the entity has no first_seen, inherit it from gsciAttributes, then from
+     * the parent entity's first_seen, and finally default to now.
+     * Sets both root firstSeen and gsciAttributes.firstSeen consistently.
+     *
+     * @param entity          the entity to resolve
+     * @param parentFirstSeen the parent entity's firstSeen (nullable, used as fallback)
+     */
+    private void resolveFirstSeen(GscixEntity entity, Instant parentFirstSeen) {
+        if (entity.getFirstSeen() != null) return;
+        if (entity.getGsciAttributes() != null && entity.getGsciAttributes().getFirstSeen() != null) {
+            entity.setFirstSeen(entity.getGsciAttributes().getFirstSeen());
+            return;
+        }
+
+        Instant resolved = parentFirstSeen != null ? parentFirstSeen : Instant.now();
+        entity.setFirstSeen(resolved);
+        if (entity.getGsciAttributes() != null && entity.getGsciAttributes().getFirstSeen() == null) {
+            entity.getGsciAttributes().setFirstSeen(resolved);
         }
     }
 }
