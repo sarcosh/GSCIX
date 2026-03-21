@@ -35,6 +35,8 @@ export const DataIngestionPanel: React.FC = () => {
     const [originalJsonContent, setOriginalJsonContent] = useState<string>('');
     const [fileName, setFileName] = useState<string>('');
     const [loadedFiles, setLoadedFiles] = useState<{ name: string; content: string }[]>([]);
+    // Files being validated — not yet confirmed into loadedFiles
+    const [pendingFiles, setPendingFiles] = useState<{ name: string; content: string }[]>([]);
     const [isDragging, setIsDragging] = useState(false);
     const [strategy, setStrategy] = useState('Upsert');
     const [confidence, setConfidence] = useState(85);
@@ -229,7 +231,14 @@ export const DataIngestionPanel: React.FC = () => {
         }
     }, []);
 
-    const validateJson = useCallback(async (content: string) => {
+    /**
+     * Validates the merged JSON content against the backend schema.
+     * @param content   The merged JSON string to validate.
+     * @param candidateFiles  The file list that produced this content.
+     *                        If validation passes → committed to loadedFiles.
+     *                        If validation fails  → discarded; loadedFiles unchanged.
+     */
+    const validateJson = useCallback(async (content: string, candidateFiles?: { name: string; content: string }[]) => {
         if (!content) return;
         autoDetectActor(content);
         try {
@@ -249,52 +258,86 @@ export const DataIngestionPanel: React.FC = () => {
             }
 
             setValidationResult(result);
+
+            // Confirm or reject candidate files based on validation result
+            if (candidateFiles) {
+                if (result.status === 'ERROR') {
+                    // Validation failed → reject: don't add files, clear preview content
+                    setPendingFiles([]);
+                    setJsonContent('');
+                    setOriginalJsonContent('');
+                    setFileName('');
+                } else {
+                    // Validation passed (OK or WARNING) → confirm files into loadedFiles
+                    setLoadedFiles(candidateFiles);
+                    setPendingFiles([]);
+                }
+            }
         } catch (err) {
             console.error('Validation failed:', err);
             setValidationResult({
                 status: 'ERROR',
                 message: 'Invalid JSON format. Please check syntax.',
             });
+            // Reject candidate files on parse/network error too
+            if (candidateFiles) {
+                setPendingFiles([]);
+                setJsonContent('');
+                setOriginalJsonContent('');
+                setFileName('');
+            }
         } finally {
             setValidating(false);
         }
     }, [autoDetectActor, detectOrphanEntities]);
 
-    // Process files: reads them, merges, validates
-    const processFiles = useCallback((files: { name: string; content: string }[]) => {
-        if (files.length === 0) {
+    // Process files: merges content, sets preview, and triggers validation.
+    // Files are NOT committed to loadedFiles here — that happens in validateJson
+    // only if the validation passes.
+    const processFiles = useCallback((candidateFiles: { name: string; content: string }[]) => {
+        if (candidateFiles.length === 0) {
             setFileName('');
             setOriginalJsonContent('');
             setJsonContent('');
             setValidationResult(null);
+            setLoadedFiles([]);
+            setPendingFiles([]);
             return;
         }
-        const displayName = files.length === 1 ? files[0].name : `${files.length} files merged`;
+        const displayName = candidateFiles.length === 1 ? candidateFiles[0].name : `${candidateFiles.length} files merged`;
         setFileName(displayName);
+        setPendingFiles(candidateFiles);
 
-        const merged = mergeBundles(files);
+        const merged = mergeBundles(candidateFiles);
         setOriginalJsonContent(merged);
         setJsonContent(merged);
         setValidationResult(null);
-        if (merged) validateJson(merged);
+        if (merged) validateJson(merged, candidateFiles);
     }, [mergeBundles, validateJson]);
 
     const readFilesAndMerge = useCallback((fileList: FileList, append: boolean) => {
         const jsonFiles = Array.from(fileList).filter(f => f.name.endsWith('.json') || f.type === 'application/json');
         if (jsonFiles.length === 0) return;
 
+        // Deduplicate: skip files whose name is already loaded (or pending)
+        const existingNames = new Set(loadedFiles.map(f => f.name));
+        const uniqueFiles = append ? jsonFiles.filter(f => !existingNames.has(f.name)) : jsonFiles;
+        if (uniqueFiles.length === 0) return; // All files already loaded
+
         let completed = 0;
         const newEntries: { name: string; content: string }[] = [];
 
-        jsonFiles.forEach(file => {
+        uniqueFiles.forEach(file => {
             const reader = new FileReader();
             reader.onload = (event) => {
                 newEntries.push({ name: file.name, content: event.target?.result as string });
                 completed++;
-                if (completed === jsonFiles.length) {
-                    const updatedFiles = append ? [...loadedFiles, ...newEntries] : newEntries;
-                    setLoadedFiles(updatedFiles);
-                    processFiles(updatedFiles);
+                if (completed === uniqueFiles.length) {
+                    // Build candidate list but do NOT commit to loadedFiles yet.
+                    // processFiles will trigger validation, and validateJson will
+                    // confirm or reject the candidates based on the result.
+                    const candidateFiles = append ? [...loadedFiles, ...newEntries] : newEntries;
+                    processFiles(candidateFiles);
                 }
             };
             reader.readAsText(file);
@@ -520,7 +563,14 @@ export const DataIngestionPanel: React.FC = () => {
                                         {loadedFiles.length > 1 && <span className="text-amber-500 font-normal">(merged)</span>}
                                     </span>
                                     <button
-                                        onClick={() => { setLoadedFiles([]); processFiles([]); }}
+                                        onClick={() => {
+                                            setLoadedFiles([]);
+                                            setPendingFiles([]);
+                                            setFileName('');
+                                            setOriginalJsonContent('');
+                                            setJsonContent('');
+                                            setValidationResult(null);
+                                        }}
                                         className="text-[10px] text-slate-400 hover:text-red-500 transition-colors"
                                     >
                                         Clear all
@@ -538,8 +588,25 @@ export const DataIngestionPanel: React.FC = () => {
                                         <button
                                             onClick={() => {
                                                 const updated = loadedFiles.filter((_, idx) => idx !== i);
+                                                // Removing a previously-validated file: update loadedFiles
+                                                // immediately (these files already passed validation) and
+                                                // reprocess to rebuild the merged content.
                                                 setLoadedFiles(updated);
-                                                processFiles(updated);
+                                                if (updated.length === 0) {
+                                                    setFileName('');
+                                                    setOriginalJsonContent('');
+                                                    setJsonContent('');
+                                                    setValidationResult(null);
+                                                    setPendingFiles([]);
+                                                } else {
+                                                    const displayName = updated.length === 1 ? updated[0].name : `${updated.length} files merged`;
+                                                    setFileName(displayName);
+                                                    const merged = mergeBundles(updated);
+                                                    setOriginalJsonContent(merged);
+                                                    setJsonContent(merged);
+                                                    setValidationResult(null);
+                                                    if (merged) validateJson(merged);
+                                                }
                                             }}
                                             className="p-0.5 text-slate-400 hover:text-red-500 transition-colors shrink-0 ml-2"
                                             title="Remove file"
@@ -671,11 +738,27 @@ export const DataIngestionPanel: React.FC = () => {
                 {/* Right Column: Preview & Action */}
                 <div className="lg:col-span-2 space-y-6 flex flex-col">
                     {/* Ready for Ingest — top for accessibility */}
-                    <div className="bg-surface-light dark:bg-surface-dark shadow-sm rounded-xl p-6 border border-border-light dark:border-border-dark flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className={cn(
+                        "shadow-sm rounded-xl p-6 border flex flex-col sm:flex-row justify-between items-center gap-4",
+                        validationResult?.status === 'ERROR'
+                            ? "bg-rose-50/50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800/50"
+                            : "bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark"
+                    )}>
                         <div className="text-center sm:text-left">
-                            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Ready for Ingest</h3>
+                            <h3 className={cn(
+                                "text-sm font-bold uppercase tracking-wider",
+                                validationResult?.status === 'ERROR' ? "text-rose-700 dark:text-rose-400" : "text-slate-900 dark:text-white"
+                            )}>
+                                {validationResult?.status === 'ERROR' ? 'Validation Failed' : 'Ready for Ingest'}
+                            </h3>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                {jsonContent ? "Valid JSON structure detected." : "Waiting for valid payload input."}
+                                {!jsonContent
+                                    ? "Waiting for valid payload input."
+                                    : validationResult?.status === 'ERROR'
+                                        ? "Fix the validation errors before ingesting."
+                                        : validationResult?.status === 'OK' || validationResult?.status === 'WARNING'
+                                            ? "Validated successfully. Ready to ingest."
+                                            : "Loaded. Click 'Validate Schema' before ingesting."}
                             </p>
                         </div>
                         <div className="flex gap-3 w-full sm:w-auto">
@@ -689,7 +772,7 @@ export const DataIngestionPanel: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleIngestClick}
-                                disabled={!jsonContent || stats.processing}
+                                disabled={!jsonContent || stats.processing || validationResult?.status === 'ERROR'}
                                 className="flex-1 sm:flex-none px-8 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {stats.processing ? <RefreshCw className="animate-spin" size={18} /> : <Send size={18} />}
@@ -809,7 +892,30 @@ export const DataIngestionPanel: React.FC = () => {
                                 )}
                             </div>
                         </div>
-                        {previewTab === 'graph' ? (
+                        {validationResult?.status === 'ERROR' ? (
+                            <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center bg-rose-50/30 dark:bg-rose-900/5 p-8 relative">
+                                <div className="flex flex-col items-center text-center max-w-md">
+                                    <div className="w-16 h-16 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center mb-5">
+                                        <XCircle size={32} className="text-rose-500" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-rose-700 dark:text-rose-400 mb-2">Validation Failed</h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                                        The JSON bundle contains {validationResult.errors?.length ?? 0} error{(validationResult.errors?.length ?? 0) !== 1 ? 's' : ''} that must be fixed before it can be ingested.
+                                    </p>
+                                    <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-rose-200 dark:border-rose-800/50 p-4 max-h-48 overflow-y-auto text-left">
+                                        <ul className="space-y-2">
+                                            {validationResult.errors?.map((err, i) => (
+                                                <li key={i} className="text-xs text-rose-600 dark:text-rose-300 flex items-start gap-2">
+                                                    <XCircle size={12} className="shrink-0 mt-0.5" />
+                                                    <span><span className="font-bold opacity-70">[{err.objectType}]</span> {err.error}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 mt-4">Fix the errors in the source JSON and reload the file.</p>
+                                </div>
+                            </div>
+                        ) : previewTab === 'graph' ? (
                             <div className="flex-1 min-h-[400px] overflow-hidden">
                                 <IngestionGraphPreview ref={graphPreviewRef} jsonContent={jsonContent} />
                             </div>
