@@ -383,6 +383,8 @@ const StackedGroup: React.FC<StackedGroupProps> = ({
     // ── State: cards → show deck badges only (cards are displayed in the detail panel above the timeline) ──
     if (expandState === 'cards' && expandedDeckType) {
         const activeDeck = group.decks.find(d => d.type === expandedDeckType);
+        // Guard: if deck no longer exists (e.g. graph data changed mid-render), fall through to null
+        if (!activeDeck) return null;
         const otherDecks = group.decks.filter(d => d.type !== expandedDeckType);
         const dominantColor = TYPE_COLOR[expandedDeckType]?.connector || '#64748b';
 
@@ -392,7 +394,7 @@ const StackedGroup: React.FC<StackedGroupProps> = ({
                     <>
                         <div className="flex items-end gap-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
                             <DeckBadge
-                                deck={activeDeck!}
+                                deck={activeDeck}
                                 isActive={true}
                                 onClick={(e) => { e.stopPropagation(); onClickDeck(group.id, expandedDeckType); }}
                             />
@@ -413,7 +415,7 @@ const StackedGroup: React.FC<StackedGroupProps> = ({
                         <div className="w-0.5 h-8 mb-1" style={{ background: `linear-gradient(to bottom, ${dominantColor}10, ${dominantColor}40)` }} />
                         <div className="flex items-start gap-2 animate-in fade-in slide-in-from-top-4 duration-300">
                             <DeckBadge
-                                deck={activeDeck!}
+                                deck={activeDeck}
                                 isActive={true}
                                 onClick={(e) => { e.stopPropagation(); onClickDeck(group.id, expandedDeckType); }}
                             />
@@ -754,8 +756,22 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
     }, [graphEntities]);
 
     useEffect(() => {
-        if (graphEntities.length > 0 && !windowInitialized) { setWindowStart(globalMin); setWindowEnd(globalMax); setWindowInitialized(true); }
-    }, [graphEntities, globalMin, globalMax, windowInitialized]);
+        if (graphEntities.length > 0 && !windowInitialized) {
+            // Find the selected entity in the graph data and position it at the left edge
+            const selectedInGraph = selectedEntityId ? graphEntities.find(e => e.stixId === selectedEntityId) : null;
+            const selectedDate = selectedInGraph ? getEntityDate(selectedInGraph) : null;
+            if (selectedDate) {
+                const rootTime = selectedDate.getTime();
+                const padding = globalSpan * 0.03;
+                const ws = Math.max(rootTime - padding, globalMin);
+                setWindowStart(ws);
+                setWindowEnd(globalMax);
+                setWindowInitialized(true);
+                return;
+            }
+            setWindowStart(globalMin); setWindowEnd(globalMax); setWindowInitialized(true);
+        }
+    }, [graphEntities, globalMin, globalMax, globalSpan, windowInitialized, selectedEntityId]);
 
     const { allGeoEntities, allCyberEntities } = useMemo(() => {
         const geo: GscixEntity[] = [], cyber: GscixEntity[] = [];
