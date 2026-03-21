@@ -3,6 +3,7 @@ package com.gscix.backend.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gscix.backend.model.GscixEntity;
 import com.gscix.backend.model.GscixRelation;
+import com.gscix.backend.model.GscixRelationshipMatrix;
 import com.gscix.backend.repository.GscixEntityRepository;
 import com.gscix.backend.repository.GscixRelationRepository;
 import org.slf4j.Logger;
@@ -179,12 +180,12 @@ public class StixBundleIngestService {
             int linked = 0;
             for (String entityId : ingestedEntityIds) {
                 if (!entityId.equals(targetActorId) && !reachable.contains(entityId)) {
-                    createAttributedToRelation(targetActorId, entityId, defaultConfidence);
+                    createOrphanLink(targetActorId, entityId, defaultConfidence);
                     relationsCreated++;
                     linked++;
                 }
             }
-            logger.info("Created {} 'attributed-to' relations linking actor {} to orphaned entities (out of {} ingested, {} reachable).",
+            logger.info("Created {} auto-link relations (via Relationship Matrix) for actor {} ({} ingested, {} reachable).",
                     linked, targetActorId, ingestedEntityIds.size(), reachable.size());
         }
 
@@ -322,26 +323,81 @@ public class StixBundleIngestService {
                 entity.getName(), id, existingOpt.isPresent() ? "merged" : "new");
     }
 
-    private void createAttributedToRelation(String actorId, String entityId, Integer defaultConfidence) {
+    /**
+     * Creates an auto-link relation between the target actor and an orphaned entity.
+     * Uses the GSCIX Relationship Matrix to determine the correct relationship type
+     * and direction instead of defaulting to a generic 'attributed-to'.
+     */
+    private void createOrphanLink(String actorId, String entityId, Integer defaultConfidence) {
+        GscixEntity actorEntity = entityRepository.findById(actorId).orElse(null);
+        GscixEntity orphanEntity = entityRepository.findById(entityId).orElse(null);
+
+        String sourceRef = actorId;
+        String targetRef = entityId;
+        String relType = "attributed-to"; // fallback only if matrix has no answer
+
+        if (actorEntity != null && orphanEntity != null) {
+            GscixRelationshipMatrix.ResolvedRelation resolved = GscixRelationshipMatrix.resolve(
+                    actorId, actorEntity.getType(), entityId, orphanEntity.getType());
+            if (resolved != null) {
+                sourceRef = resolved.sourceRef();
+                targetRef = resolved.targetRef();
+                relType = resolved.relationshipType();
+                logger.info("Resolved orphan link: {} [{}] {} -> {} (from matrix)",
+                        relType, orphanEntity.getType(), sourceRef, targetRef);
+            } else {
+                logger.warn("No valid relation in matrix for {} ({}) <-> {} ({}). Using fallback 'attributed-to'.",
+                        actorId, actorEntity.getType(), entityId, orphanEntity.getType());
+            }
+        }
+
         GscixRelation relation = new GscixRelation();
-        relation.setId("relationship--" + java.util.UUID.randomUUID());
-        relation.setSourceRef(actorId);
-        relation.setTargetRef(entityId);
-        relation.setRelationshipType("attributed-to");
-        relation.setDescription("Auto-generated link from target actor to ingested entity.");
+        relation.setId("relationship--auto-link-" + System.currentTimeMillis() + "-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+        relation.setSourceRef(sourceRef);
+        relation.setTargetRef(targetRef);
+        relation.setRelationshipType(relType);
+        relation.setDescription("Auto-generated link to orphaned entity (resolved via GSCIX Relationship Matrix).");
         relation.setExtensions(Collections.singletonList(GSCI_EXTENSION_ID));
         relation.setStartTime(Instant.now());
         relation.setConfidence(defaultConfidence != null ? defaultConfidence : 85);
         relationRepository.save(relation);
-        logger.info("Created attributed-to relation: {} -> {}", actorId, entityId);
     }
 
     private void processRelationship(Map<String, Object> obj, Integer defaultConfidence) {
+        String sourceRef = (String) obj.get("source_ref");
+        String targetRef = (String) obj.get("target_ref");
+        String relType = (String) obj.get("relationship_type");
+
+        // Validate against the GSCIX Relationship Matrix
+        GscixEntity sourceEntity = sourceRef != null ? entityRepository.findById(sourceRef).orElse(null) : null;
+        GscixEntity targetEntity = targetRef != null ? entityRepository.findById(targetRef).orElse(null) : null;
+
+        if (sourceEntity != null && targetEntity != null) {
+            String validationError = GscixRelationshipMatrix.validate(
+                    sourceEntity.getType(), targetEntity.getType(), relType);
+            if (validationError != null) {
+                // Try resolving the correct relationship via the matrix
+                GscixRelationshipMatrix.ResolvedRelation resolved = GscixRelationshipMatrix.resolve(
+                        sourceRef, sourceEntity.getType(), targetRef, targetEntity.getType());
+                if (resolved != null) {
+                    logger.warn("Bundle relationship '{}' ({} -> {}) is invalid: {}. Auto-corrected to '{}' ({} -> {}).",
+                            relType, sourceRef, targetRef, validationError,
+                            resolved.relationshipType(), resolved.sourceRef(), resolved.targetRef());
+                    sourceRef = resolved.sourceRef();
+                    targetRef = resolved.targetRef();
+                    relType = resolved.relationshipType();
+                } else {
+                    logger.warn("Bundle relationship '{}' ({} -> {}) is invalid and cannot be auto-corrected: {}. Persisting as-is.",
+                            relType, sourceRef, targetRef, validationError);
+                }
+            }
+        }
+
         GscixRelation relation = new GscixRelation();
         relation.setId((String) obj.get("id"));
-        relation.setSourceRef((String) obj.get("source_ref"));
-        relation.setTargetRef((String) obj.get("target_ref"));
-        relation.setRelationshipType((String) obj.get("relationship_type"));
+        relation.setSourceRef(sourceRef);
+        relation.setTargetRef(targetRef);
+        relation.setRelationshipType(relType);
         relation.setDescription((String) obj.get("description"));
         relation.setExtensions(Collections.singletonList(GSCI_EXTENSION_ID));
         relation.setStartTime(Instant.now());
@@ -355,7 +411,7 @@ public class StixBundleIngestService {
         }
 
         relationRepository.save(relation);
-        logger.info("Ingested Relationship from Bundle: {}", relation.getId());
+        logger.info("Ingested Relationship from Bundle: {} [{}] {} -> {}", relation.getId(), relType, sourceRef, targetRef);
     }
 
     private void copyNonNullProperties(GscixEntity.GsciAttributes source, GscixEntity.GsciAttributes target) {

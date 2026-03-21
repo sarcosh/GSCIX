@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { GscixEntity, ValidationResponse, GscixRelation, IngestionJob, HpiAnalytics, InfluenceGraphData } from '../types/api';
+import type { GscixEntity, ValidationResponse, GscixRelation, IngestionJob, HpiAnalytics, InfluenceGraphData, StreamStatus } from '../types/api';
 
 // __VITE_API_URL__ is replaced at container startup by entrypoint.sh
 // with the value of the VITE_API_URL environment variable.
@@ -144,7 +144,13 @@ export const apiService = {
 
     deleteRelation: async (id: string): Promise<void> => {
         await apiClient.delete(`/gscix/relations/${encodeURIComponent(id)}`);
-    }
+    },
+
+    // Stream Status
+    getStreamStatus: async (): Promise<StreamStatus> => {
+        const response = await apiClient.get<StreamStatus>('/gscix/stream/status');
+        return response.data;
+    },
 };
 
 export default apiService;

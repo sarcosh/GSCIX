@@ -26,15 +26,18 @@ public class OpenCtiSyncService {
 
     private final GscixEntityRepository entityRepository;
     private final GscixRelationRepository relationRepository;
+    private final StreamStatusService streamStatusService;
     private final WebClient webClient;
 
     public OpenCtiSyncService(
             GscixEntityRepository entityRepository,
             GscixRelationRepository relationRepository,
+            StreamStatusService streamStatusService,
             @Value("${opencti.url}") String openctiUrl,
             @Value("${opencti.token}") String openctiToken) {
         this.entityRepository = entityRepository;
         this.relationRepository = relationRepository;
+        this.streamStatusService = streamStatusService;
         this.webClient = WebClient.builder()
                 .baseUrl(openctiUrl)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + openctiToken)
@@ -88,11 +91,14 @@ public class OpenCtiSyncService {
                     entityCount++;
                 }
                 logger.info("Threat-Actor sync completed: {} active actors.", entityCount);
+                streamStatusService.recordSuccess();
             } else {
                 logger.warn("Received empty or malformed Threat-Actor response from OpenCTI.");
+                streamStatusService.recordSuccess(); // Empty response is not a failure
             }
         } catch (Exception e) {
             logger.error("Error during Threat-Actor synchronization: {}", e.getMessage());
+            streamStatusService.recordFailure("Threat-Actor sync: " + e.getMessage());
         }
     }
 
@@ -143,11 +149,14 @@ public class OpenCtiSyncService {
                     entityCount++;
                 }
                 logger.info("Intrusion-Set sync completed: {} active sets.", entityCount);
+                streamStatusService.recordSuccess();
             } else {
                 logger.warn("Received empty or malformed Intrusion-Set response from OpenCTI.");
+                streamStatusService.recordSuccess();
             }
         } catch (Exception e) {
             logger.error("Error during Intrusion-Set synchronization: {}", e.getMessage());
+            streamStatusService.recordFailure("Intrusion-Set sync: " + e.getMessage());
         }
     }
 
@@ -259,8 +268,10 @@ public class OpenCtiSyncService {
                         existingRel.isPresent() ? "Updated" : "Created", relStixId, relType, sourceId, targetId);
             }
             logger.info("Relationship sync completed: {} relations synced.", count);
+            streamStatusService.recordSuccess();
         } catch (Exception e) {
             logger.error("Error during Relationship synchronization: {}", e.getMessage());
+            streamStatusService.recordFailure("Relationship sync: " + e.getMessage());
         }
     }
 

@@ -1,6 +1,13 @@
 
 
-- 
+- Si se produce un error en la validación de un fichero JSON el fichero JSON no se deberá mostrar como la zona izquierda como si estuviera preparado para ser ingestado. Si cargo dos veces el "error.json" resulta que el mensaje es "Validation successful. No schema violations found." y además los mergea.
+
+
+- Habria que mejorar el proceso de crear / actualizar una relación ya que cuando hay muchos elementos un único combo para escoger el FROM y el TO es complicado. Quizás se podria usar un buscador o algo similar.
+
+- Habria que fijar como una tabla maestra el tipo de relaciones que pueden darse entre dos objetos. Por ejemplo, entre un actor y un objetivo, entre un actor y un actor, etc. Y que solo se muestren las relaciones que sean válidas para el tipo de objetos que se están relacionando. La información puede encontrarse en: https://github.com/sarcosh/GSCIX/blob/main/custom_schemas/README.MD
+
+
 
 
 

@@ -1,5 +1,6 @@
 package com.gscix.backend.service;
 
+import com.gscix.backend.model.GscixRelationshipMatrix;
 import com.gscix.backend.service.dto.ValidationResponse;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -112,8 +113,22 @@ public class JsonSchemaValidationService {
             // It's a STIX bundle
             JsonNode objects = payload.get("objects");
             if (objects != null && objects.isArray()) {
+                // First pass: validate entity schemas and index entity types by ID
+                Map<String, String> entityTypes = new HashMap<>();
                 for (JsonNode obj : objects) {
+                    String type = obj.has("type") ? obj.get("type").asText() : null;
+                    String id = obj.has("id") ? obj.get("id").asText() : null;
+                    if (type != null && !"relationship".equals(type) && id != null) {
+                        entityTypes.put(id, type);
+                    }
                     validateObject(obj, allErrors);
+                }
+
+                // Second pass: validate relationships against the GSCIX Relationship Matrix
+                for (JsonNode obj : objects) {
+                    if ("relationship".equals(obj.has("type") ? obj.get("type").asText() : null)) {
+                        validateRelationship(obj, entityTypes, allErrors);
+                    }
                 }
             }
         } else {
@@ -131,6 +146,42 @@ public class JsonSchemaValidationService {
         }
 
         return response;
+    }
+
+    /**
+     * Validates a STIX relationship object against the GSCIX Relationship Matrix.
+     * Checks that the relationship_type is valid for the source and target entity types.
+     */
+    private void validateRelationship(JsonNode relObj, Map<String, String> entityTypes,
+                                       List<ValidationResponse.ValidationError> allErrors) {
+        String relId = relObj.has("id") ? relObj.get("id").asText() : "unknown";
+        String sourceRef = relObj.has("source_ref") ? relObj.get("source_ref").asText() : null;
+        String targetRef = relObj.has("target_ref") ? relObj.get("target_ref").asText() : null;
+        String relType = relObj.has("relationship_type") ? relObj.get("relationship_type").asText() : null;
+
+        if (sourceRef == null || targetRef == null || relType == null) {
+            ValidationResponse.ValidationError vErr = new ValidationResponse.ValidationError();
+            vErr.setObjectId(relId);
+            vErr.setObjectType("relationship");
+            vErr.setError("Relationship is missing required fields: source_ref, target_ref, or relationship_type.");
+            allErrors.add(vErr);
+            return;
+        }
+
+        String sourceType = entityTypes.get(sourceRef);
+        String targetType = entityTypes.get(targetRef);
+
+        // Only validate if both entities are present in the bundle (external refs are not validated)
+        if (sourceType != null && targetType != null) {
+            String validationError = GscixRelationshipMatrix.validate(sourceType, targetType, relType);
+            if (validationError != null) {
+                ValidationResponse.ValidationError vErr = new ValidationResponse.ValidationError();
+                vErr.setObjectId(relId);
+                vErr.setObjectType("relationship");
+                vErr.setError("Invalid relationship: " + relType + " (" + sourceType + " -> " + targetType + "). " + validationError);
+                allErrors.add(vErr);
+            }
+        }
     }
 
     private void validateObject(JsonNode obj, List<ValidationResponse.ValidationError> allErrors) {

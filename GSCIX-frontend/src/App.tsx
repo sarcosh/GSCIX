@@ -5,6 +5,8 @@ import { GeoStrategicActorExplorer } from './components/GeoStrategicActorExplore
 import { DataIngestionPanel } from './components/DataIngestionPanel';
 import { GeoStrategicInfluenceGraph } from './components/GeoStrategicInfluenceGraph';
 import { EntityExplorerTimeline } from './components/EntityExplorerTimeline';
+import apiService from './services/api';
+import type { StreamStatus } from './types/api';
 
 interface Props { children: ReactNode; }
 interface State { hasError: boolean; error: Error | null; }
@@ -33,6 +35,19 @@ function App() {
   const [currentView, setCurrentView] = useState<'explorer' | 'ingestion' | 'influence' | 'timeline'>('explorer');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [selectedActorId, setSelectedActorId] = useState<string | undefined>(undefined);
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>({ active: false, lastSyncAt: null, lastError: null, consecutiveFailures: 0 });
+
+  // Poll stream status every 30 seconds
+  useEffect(() => {
+    const fetchStatus = () => {
+      apiService.getStreamStatus()
+        .then(setStreamStatus)
+        .catch(() => setStreamStatus({ active: false, lastSyncAt: null, lastError: 'Backend unreachable', consecutiveFailures: -1 }));
+    };
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -68,6 +83,7 @@ function App() {
         onViewChange={handleViewChange}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        streamStatus={streamStatus}
       />
       <main>
         <ErrorBoundary>

@@ -3,6 +3,7 @@ package com.gscix.backend.controller;
 import com.gscix.backend.dto.InfluenceGraphResponse;
 import com.gscix.backend.model.GscixEntity;
 import com.gscix.backend.model.GscixRelation;
+import com.gscix.backend.model.GscixRelationshipMatrix;
 import com.gscix.backend.repository.GscixEntityRepository;
 import com.gscix.backend.repository.GscixRelationRepository;
 import com.gscix.backend.service.InfluenceGraphService;
@@ -127,14 +128,25 @@ public class GscixController {
     }
 
     @PostMapping("/relations")
-    public ResponseEntity<GscixRelation> createRelation(@RequestBody GscixRelation relation) {
+    public ResponseEntity<?> createRelation(@RequestBody GscixRelation relation) {
         if (relation.getId() == null) {
             relation.setId("relationship--" + UUID.randomUUID());
         }
 
-        if (!entityRepository.existsById(relation.getSourceRef())
-                || !entityRepository.existsById(relation.getTargetRef())) {
-            return ResponseEntity.badRequest().build();
+        GscixEntity sourceEntity = entityRepository.findById(relation.getSourceRef()).orElse(null);
+        GscixEntity targetEntity = entityRepository.findById(relation.getTargetRef()).orElse(null);
+
+        if (sourceEntity == null || targetEntity == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Source or target entity not found."));
+        }
+
+        // Validate relationship type against the GSCIX Relationship Matrix
+        String validationError = GscixRelationshipMatrix.validate(
+                sourceEntity.getType(), targetEntity.getType(), relation.getRelationshipType());
+        if (validationError != null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", validationError));
         }
 
         GscixRelation saved = relationRepository.save(relation);
@@ -147,7 +159,7 @@ public class GscixController {
     }
 
     @PutMapping("/relations/{id}")
-    public ResponseEntity<GscixRelation> updateRelation(@PathVariable String id, @RequestBody GscixRelation incoming) {
+    public ResponseEntity<?> updateRelation(@PathVariable String id, @RequestBody GscixRelation incoming) {
         GscixRelation existing = relationRepository.findById(id).orElse(null);
         if (existing == null) {
             return ResponseEntity.notFound().build();
@@ -155,10 +167,12 @@ public class GscixController {
 
         // Validate that source and target entities exist
         if (incoming.getSourceRef() != null && !entityRepository.existsById(incoming.getSourceRef())) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Source entity not found: " + incoming.getSourceRef()));
         }
         if (incoming.getTargetRef() != null && !entityRepository.existsById(incoming.getTargetRef())) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Target entity not found: " + incoming.getTargetRef()));
         }
 
         // Merge non-null fields
@@ -167,6 +181,18 @@ public class GscixController {
         if (incoming.getRelationshipType() != null) existing.setRelationshipType(incoming.getRelationshipType());
         if (incoming.getDescription() != null) existing.setDescription(incoming.getDescription());
         if (incoming.getConfidence() != null) existing.setConfidence(incoming.getConfidence());
+
+        // Validate the final (merged) relation against the GSCIX Relationship Matrix
+        GscixEntity sourceEntity = entityRepository.findById(existing.getSourceRef()).orElse(null);
+        GscixEntity targetEntity = entityRepository.findById(existing.getTargetRef()).orElse(null);
+        if (sourceEntity != null && targetEntity != null) {
+            String validationError = GscixRelationshipMatrix.validate(
+                    sourceEntity.getType(), targetEntity.getType(), existing.getRelationshipType());
+            if (validationError != null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", validationError));
+            }
+        }
 
         GscixRelation saved = relationRepository.save(existing);
         return ResponseEntity.ok(saved);

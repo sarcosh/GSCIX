@@ -128,3 +128,10 @@ export interface InfluenceGraphData {
     nodeCount: number;
     edgeCount: number;
 }
+
+export interface StreamStatus {
+    active: boolean;
+    lastSyncAt: string | null;
+    lastError: string | null;
+    consecutiveFailures: number;
+}

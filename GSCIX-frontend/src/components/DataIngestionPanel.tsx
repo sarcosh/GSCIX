@@ -311,7 +311,55 @@ export const DataIngestionPanel: React.FC = () => {
         validateJson(jsonContent);
     };
 
-    // Inject 'attributed-to' relationships for orphan entities targeting the actor
+    // ─── GSCIX Relationship Matrix (mirrors backend GscixRelationshipMatrix) ────
+    // Used to resolve the correct relationship type and direction for orphan auto-linking.
+    const VALID_RELATIONS: Record<string, Record<string, string[]>> = {
+        'x-geo-strategic-actor': {
+            'x-strategic-objective': ['pursues'],
+            'x-hybrid-campaign': ['executes'],
+            'x-strategic-impact': ['generates'],
+            'threat-actor': ['controls'],
+            'intrusion-set': ['sponsors'],
+        },
+        'x-hybrid-campaign': {
+            'x-influence-vector': ['integrates'],
+            'intrusion-set': ['integrates'],
+            'x-strategic-impact': ['generates'],
+            'identity': ['targets'],
+            'location': ['targets'],
+        },
+        'x-influence-vector': {
+            'identity': ['targets'],
+        },
+        'x-strategic-assessment': {
+            'x-geo-strategic-actor': ['evaluates'],
+            'x-hybrid-campaign': ['evaluates'],
+            'x-strategic-impact': ['evaluates'],
+        },
+        'intrusion-set': {
+            'threat-actor': ['attributed-to'],
+        },
+    };
+
+    /** Resolves the correct relation (type + direction) between two entity types via the matrix. */
+    const resolveRelation = useCallback((
+        sourceId: string, sourceType: string,
+        targetId: string, targetType: string,
+    ): { source_ref: string; target_ref: string; relationship_type: string } | null => {
+        // Forward: source → target
+        const forwardRels = VALID_RELATIONS[sourceType]?.[targetType];
+        if (forwardRels && forwardRels.length > 0) {
+            return { source_ref: sourceId, target_ref: targetId, relationship_type: forwardRels[0] };
+        }
+        // Reverse: target → source (swap direction)
+        const reverseRels = VALID_RELATIONS[targetType]?.[sourceType];
+        if (reverseRels && reverseRels.length > 0) {
+            return { source_ref: targetId, target_ref: sourceId, relationship_type: reverseRels[0] };
+        }
+        return null;
+    }, []);
+
+    // Inject smart relationships for orphan entities using the GSCIX Relationship Matrix
     const injectOrphanRelations = useCallback((content: string): string => {
         try {
             const data = JSON.parse(content);
@@ -320,6 +368,7 @@ export const DataIngestionPanel: React.FC = () => {
             // Find the geo-strategic-actor in the bundle
             const actor = data.objects.find((o: any) => o.type === 'x-geo-strategic-actor');
             const actorId = actor?.id || targetActorId;
+            const actorType = actor?.type || 'x-geo-strategic-actor';
             if (!actorId) return content;
 
             const entities = data.objects.filter((o: any) => o.type !== 'relationship' && o.id);
@@ -334,21 +383,34 @@ export const DataIngestionPanel: React.FC = () => {
             const orphans = entities.filter((e: any) => !referencedIds.has(e.id) && e.id !== actorId);
             if (orphans.length === 0) return content;
 
-            // Generate new relationships for orphans
-            const newRels = orphans.map((e: any, i: number) => ({
-                type: 'relationship',
-                id: `relationship--auto-link-${Date.now()}-${i}`,
-                relationship_type: 'attributed-to',
-                source_ref: e.id,
-                target_ref: actorId,
-            }));
+            // Generate new relationships for orphans using the matrix
+            const newRels: any[] = [];
+            orphans.forEach((e: any, i: number) => {
+                const resolved = resolveRelation(actorId, actorType, e.id, e.type);
+                if (resolved) {
+                    newRels.push({
+                        type: 'relationship',
+                        id: `relationship--auto-link-${Date.now()}-${i}`,
+                        ...resolved,
+                    });
+                } else {
+                    // Fallback: no valid relation in matrix, use attributed-to
+                    newRels.push({
+                        type: 'relationship',
+                        id: `relationship--auto-link-${Date.now()}-${i}`,
+                        relationship_type: 'attributed-to',
+                        source_ref: e.id,
+                        target_ref: actorId,
+                    });
+                }
+            });
 
             data.objects.push(...newRels);
             return JSON.stringify(data, null, 2);
         } catch {
             return content;
         }
-    }, [targetActorId]);
+    }, [targetActorId, resolveRelation]);
 
     const handleIngestClick = () => {
         if (!jsonContent) return;

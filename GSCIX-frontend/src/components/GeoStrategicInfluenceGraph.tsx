@@ -22,6 +22,47 @@ const LAYER_FILTERS = [
     { key: 'threat-actor', label: 'Threat Actors', icon: Users, color: 'text-slate-400 bg-slate-400/10' },
 ];
 
+// ─── GSCIX Relationship Matrix (Master Table) ────────────────────────────────
+// Defines which relationship types are valid for each source→target type pair.
+// Source: custom_schemas/README.MD — GSCIX Relationship Matrix (GSCI Model)
+const VALID_RELATIONS: Record<string, Record<string, string[]>> = {
+    'x-geo-strategic-actor': {
+        'x-strategic-objective': ['pursues'],
+        'x-hybrid-campaign': ['executes'],
+        'x-strategic-impact': ['generates'],
+        'threat-actor': ['controls'],
+        'intrusion-set': ['sponsors'],
+    },
+    'x-hybrid-campaign': {
+        'x-influence-vector': ['integrates'],
+        'intrusion-set': ['integrates'],
+        'x-strategic-impact': ['generates'],
+        'identity': ['targets'],
+        'location': ['targets'],
+    },
+    'x-influence-vector': {
+        'identity': ['targets'],
+    },
+    'x-strategic-assessment': {
+        'x-geo-strategic-actor': ['evaluates'],
+        'x-hybrid-campaign': ['evaluates'],
+        'x-strategic-impact': ['evaluates'],
+    },
+    'intrusion-set': {
+        'threat-actor': ['attributed-to'],
+    },
+};
+
+/** Given a source entity type, returns the set of valid target types. */
+function getValidTargetTypes(sourceType: string): string[] {
+    return Object.keys(VALID_RELATIONS[sourceType] || {});
+}
+
+/** Given source and target entity types, returns the valid relationship types. */
+function getValidRelationshipTypes(sourceType: string, targetType: string): string[] {
+    return VALID_RELATIONS[sourceType]?.[targetType] || [];
+}
+
 interface InfluenceGraphProps {
     initialActorId?: string;
     onNavigateToExplorer?: () => void;
@@ -51,7 +92,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     const [graphMode, setGraphMode] = useState<'view' | 'add-entity' | 'add-relation' | 'edit-relation' | 'edit-entity'>('view');
     const [saving, setSaving] = useState(false);
     const [newEntity, setNewEntity] = useState<Record<string, any>>({ type: 'x-strategic-objective', name: '', description: '' });
-    const [newRelation, setNewRelation] = useState({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
+    const [newRelation, setNewRelation] = useState({ source_ref: '', relationship_type: '', target_ref: '' });
     const [deleteTarget, setDeleteTarget] = useState<{ entity: GscixEntity; childCount: number; relationCount: number } | null>(null);
     const [deleteRelationTarget, setDeleteRelationTarget] = useState<GscixRelation | null>(null);
     const [editingRelation, setEditingRelation] = useState<GscixRelation | null>(null);
@@ -1254,7 +1295,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     setOpenctiEntities([]);
                                     setNewRelation({
                                         source_ref: savedEntityStixId,
-                                        relationship_type: 'attributed-to',
+                                        relationship_type: '',
                                         target_ref: '',
                                     });
                                     setGraphMode('add-relation');
@@ -1290,35 +1331,69 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         {/* Source */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Source *</label>
-                            <select value={newRelation.source_ref} onChange={(e) => setNewRelation(prev => ({ ...prev, source_ref: e.target.value }))}
+                            <select value={newRelation.source_ref} onChange={(e) => {
+                                const sourceRef = e.target.value;
+                                // Cascade: reset target and relation type when source changes
+                                setNewRelation(prev => ({ ...prev, source_ref: sourceRef, target_ref: '', relationship_type: '' }));
+                            }}
                                 className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
                                 <option value="">Select source entity...</option>
-                                {allEntities.map((e) => (
+                                {allEntities.filter(e => Object.keys(VALID_RELATIONS).includes(e.type)).map((e) => (
                                     <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
                                 ))}
                             </select>
                         </div>
-                        {/* Relation Type */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Relation Type *</label>
-                            <select value={newRelation.relationship_type} onChange={(e) => setNewRelation(prev => ({ ...prev, relationship_type: e.target.value }))}
-                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-                                {['attributed-to', 'pursues', 'executes', 'uses', 'deploys', 'generates', 'evaluates', 'associated-with', 'targets', 'indicates', 'mitigates'].map(rt => (
-                                    <option key={rt} value={rt}>{rt}</option>
-                                ))}
-                            </select>
-                        </div>
-                        {/* Target */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Target *</label>
-                            <select value={newRelation.target_ref} onChange={(e) => setNewRelation(prev => ({ ...prev, target_ref: e.target.value }))}
-                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-                                <option value="">Select target entity...</option>
-                                {allEntities.filter(e => e.stixId !== newRelation.source_ref).map((e) => (
-                                    <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {/* Target — filtered by valid target types for the selected source */}
+                        {(() => {
+                            const sourceEntity = allEntities.find(e => e.stixId === newRelation.source_ref);
+                            const validTargetTypes = sourceEntity ? getValidTargetTypes(sourceEntity.type) : [];
+                            const filteredTargets = allEntities.filter(e => e.stixId !== newRelation.source_ref && validTargetTypes.includes(e.type));
+                            return (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Target *</label>
+                                    <select value={newRelation.target_ref} onChange={(e) => {
+                                        const targetRef = e.target.value;
+                                        const targetEntity = allEntities.find(ent => ent.stixId === targetRef);
+                                        // Auto-select relationship type if only one is valid
+                                        const validRels = sourceEntity && targetEntity ? getValidRelationshipTypes(sourceEntity.type, targetEntity.type) : [];
+                                        setNewRelation(prev => ({
+                                            ...prev,
+                                            target_ref: targetRef,
+                                            relationship_type: validRels.length === 1 ? validRels[0] : '',
+                                        }));
+                                    }}
+                                        disabled={!newRelation.source_ref}
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none disabled:opacity-50">
+                                        <option value="">{!newRelation.source_ref ? 'Select a source first...' : filteredTargets.length === 0 ? 'No valid targets for this source type' : 'Select target entity...'}</option>
+                                        {filteredTargets.map((e) => (
+                                            <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            );
+                        })()}
+                        {/* Relation Type — filtered by valid types for the selected source+target pair */}
+                        {(() => {
+                            const sourceEntity = allEntities.find(e => e.stixId === newRelation.source_ref);
+                            const targetEntity = allEntities.find(e => e.stixId === newRelation.target_ref);
+                            const validRels = sourceEntity && targetEntity ? getValidRelationshipTypes(sourceEntity.type, targetEntity.type) : [];
+                            return (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Relation Type *</label>
+                                    <select value={newRelation.relationship_type} onChange={(e) => setNewRelation(prev => ({ ...prev, relationship_type: e.target.value }))}
+                                        disabled={validRels.length <= 1}
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none disabled:opacity-50">
+                                        {validRels.length === 0 && <option value="">Select source and target first...</option>}
+                                        {validRels.map(rt => (
+                                            <option key={rt} value={rt}>{rt}</option>
+                                        ))}
+                                    </select>
+                                    {validRels.length === 1 && (
+                                        <p className="text-[10px] text-cyan-500 mt-1">Auto-selected: only valid relation for this pair.</p>
+                                    )}
+                                </div>
+                            );
+                        })()}
                         {/* Confidence */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Confidence (0-100)</label>
@@ -1327,7 +1402,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder:text-slate-400" />
                         </div>
                         {/* Visual preview */}
-                        {newRelation.source_ref && newRelation.target_ref && (
+                        {newRelation.source_ref && newRelation.target_ref && newRelation.relationship_type && (
                             <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Preview</p>
                                 <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
@@ -1345,7 +1420,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             <ArrowLeft size={16} /> Cancel
                         </button>
                         <button
-                            disabled={!newRelation.source_ref || !newRelation.target_ref || saving}
+                            disabled={!newRelation.source_ref || !newRelation.target_ref || !newRelation.relationship_type || saving}
                             onClick={async () => {
                                 try {
                                     setSaving(true);
@@ -1356,7 +1431,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     };
                                     if ((newRelation as any).confidence !== undefined) relPayload.confidence = (newRelation as any).confidence;
                                     await apiService.createRelation(relPayload);
-                                    setNewRelation({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
+                                    setNewRelation({ source_ref: '', relationship_type: '', target_ref: '' });
                                     setGraphMode('view');
                                     fetchGraph(initialActorId);
                                 } catch (err) {
@@ -1391,35 +1466,68 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         {/* Source */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Source *</label>
-                            <select value={newRelation.source_ref} onChange={(e) => setNewRelation(prev => ({ ...prev, source_ref: e.target.value }))}
+                            <select value={newRelation.source_ref} onChange={(e) => {
+                                const sourceRef = e.target.value;
+                                // Cascade: reset target and relation type when source changes
+                                setNewRelation(prev => ({ ...prev, source_ref: sourceRef, target_ref: '', relationship_type: '' }));
+                            }}
                                 className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
                                 <option value="">Select source entity...</option>
-                                {allEntities.map((e) => (
+                                {allEntities.filter(e => Object.keys(VALID_RELATIONS).includes(e.type)).map((e) => (
                                     <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
                                 ))}
                             </select>
                         </div>
-                        {/* Relation Type */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Relation Type *</label>
-                            <select value={newRelation.relationship_type} onChange={(e) => setNewRelation(prev => ({ ...prev, relationship_type: e.target.value }))}
-                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
-                                {['attributed-to', 'pursues', 'executes', 'uses', 'deploys', 'generates', 'evaluates', 'associated-with', 'targets', 'indicates', 'mitigates', 'controls', 'sponsors', 'integrates'].map(rt => (
-                                    <option key={rt} value={rt}>{rt}</option>
-                                ))}
-                            </select>
-                        </div>
-                        {/* Target */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Target *</label>
-                            <select value={newRelation.target_ref} onChange={(e) => setNewRelation(prev => ({ ...prev, target_ref: e.target.value }))}
-                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
-                                <option value="">Select target entity...</option>
-                                {allEntities.filter(e => e.stixId !== newRelation.source_ref).map((e) => (
-                                    <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {/* Target — filtered by valid target types for the selected source */}
+                        {(() => {
+                            const sourceEntity = allEntities.find(e => e.stixId === newRelation.source_ref);
+                            const validTargetTypes = sourceEntity ? getValidTargetTypes(sourceEntity.type) : [];
+                            const filteredTargets = allEntities.filter(e => e.stixId !== newRelation.source_ref && validTargetTypes.includes(e.type));
+                            return (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Target *</label>
+                                    <select value={newRelation.target_ref} onChange={(e) => {
+                                        const targetRef = e.target.value;
+                                        const targetEntity = allEntities.find(ent => ent.stixId === targetRef);
+                                        const validRels = sourceEntity && targetEntity ? getValidRelationshipTypes(sourceEntity.type, targetEntity.type) : [];
+                                        setNewRelation(prev => ({
+                                            ...prev,
+                                            target_ref: targetRef,
+                                            relationship_type: validRels.length === 1 ? validRels[0] : '',
+                                        }));
+                                    }}
+                                        disabled={!newRelation.source_ref}
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:opacity-50">
+                                        <option value="">{!newRelation.source_ref ? 'Select a source first...' : filteredTargets.length === 0 ? 'No valid targets for this source type' : 'Select target entity...'}</option>
+                                        {filteredTargets.map((e) => (
+                                            <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            );
+                        })()}
+                        {/* Relation Type — filtered by valid types for the selected source+target pair */}
+                        {(() => {
+                            const sourceEntity = allEntities.find(e => e.stixId === newRelation.source_ref);
+                            const targetEntity = allEntities.find(e => e.stixId === newRelation.target_ref);
+                            const validRels = sourceEntity && targetEntity ? getValidRelationshipTypes(sourceEntity.type, targetEntity.type) : [];
+                            return (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Relation Type *</label>
+                                    <select value={newRelation.relationship_type} onChange={(e) => setNewRelation(prev => ({ ...prev, relationship_type: e.target.value }))}
+                                        disabled={validRels.length <= 1}
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:opacity-50">
+                                        {validRels.length === 0 && <option value="">Select source and target first...</option>}
+                                        {validRels.map(rt => (
+                                            <option key={rt} value={rt}>{rt}</option>
+                                        ))}
+                                    </select>
+                                    {validRels.length === 1 && (
+                                        <p className="text-[10px] text-amber-500 mt-1">Auto-selected: only valid relation for this pair.</p>
+                                    )}
+                                </div>
+                            );
+                        })()}
                         {/* Confidence */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Confidence (0-100)</label>
@@ -1428,7 +1536,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                 className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none placeholder:text-slate-400" />
                         </div>
                         {/* Visual preview */}
-                        {newRelation.source_ref && newRelation.target_ref && (
+                        {newRelation.source_ref && newRelation.target_ref && newRelation.relationship_type && (
                             <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Preview</p>
                                 <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
@@ -1446,7 +1554,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             <ArrowLeft size={16} /> Cancel
                         </button>
                         <button
-                            disabled={!newRelation.source_ref || !newRelation.target_ref || saving}
+                            disabled={!newRelation.source_ref || !newRelation.target_ref || !newRelation.relationship_type || saving}
                             onClick={async () => {
                                 try {
                                     setSaving(true);
@@ -1457,7 +1565,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                     };
                                     if ((newRelation as any).confidence !== undefined) payload.confidence = (newRelation as any).confidence;
                                     await apiService.updateRelation(editingRelation.id, payload);
-                                    setNewRelation({ source_ref: '', relationship_type: 'attributed-to', target_ref: '' });
+                                    setNewRelation({ source_ref: '', relationship_type: '', target_ref: '' });
                                     setEditingRelation(null);
                                     setHighlightedRelationId(null);
                                     setGraphMode('view');

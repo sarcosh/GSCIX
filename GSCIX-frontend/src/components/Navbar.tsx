@@ -1,19 +1,47 @@
 import React from 'react';
 import { cn } from '../lib/utils';
+import { Activity } from 'lucide-react';
+import type { StreamStatus } from '../types/api';
 
 interface NavbarProps {
     activeView: 'explorer' | 'ingestion' | 'influence' | 'timeline';
     onViewChange: (view: 'explorer' | 'ingestion' | 'influence' | 'timeline') => void;
     isDarkMode: boolean;
     onToggleDarkMode: () => void;
+    streamStatus?: StreamStatus;
+}
+
+function formatLastSync(iso: string | null): string {
+    if (!iso) return 'Never';
+    try {
+        const d = new Date(iso);
+        const now = Date.now();
+        const diffSec = Math.round((now - d.getTime()) / 1000);
+        if (diffSec < 60) return `${diffSec}s ago`;
+        if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
+        return `${Math.round(diffSec / 3600)}h ago`;
+    } catch {
+        return 'Unknown';
+    }
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
     activeView,
     onViewChange,
     isDarkMode,
-    onToggleDarkMode
+    onToggleDarkMode,
+    streamStatus,
 }) => {
+    const isActive = streamStatus?.active ?? false;
+    const tooltipLines = [
+        `Status: ${isActive ? 'Active' : 'Inactive'}`,
+        `Last sync: ${formatLastSync(streamStatus?.lastSyncAt ?? null)}`,
+        streamStatus?.lastError ? `Error: ${streamStatus.lastError}` : null,
+        streamStatus?.consecutiveFailures && streamStatus.consecutiveFailures > 0
+            ? `Consecutive failures: ${streamStatus.consecutiveFailures}`
+            : null,
+    ].filter(Boolean).join('\n');
+
     return (
         <nav className="border-b border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark sticky top-0 z-50">
             <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -76,6 +104,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
 
                     <div className="flex items-center gap-4">
+                        {/* Live Stream Status Indicator */}
+                        <div
+                            className={cn(
+                                'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[11px] font-mono font-bold uppercase tracking-wider transition-all',
+                                isActive
+                                    ? 'border-green-500/30 bg-green-500/5 text-green-600 dark:text-green-400'
+                                    : 'border-red-500/30 bg-red-500/5 text-red-600 dark:text-red-400',
+                            )}
+                            title={tooltipLines}
+                        >
+                            <Activity size={14} className={cn(isActive && 'animate-pulse')} />
+                            <div className={cn('w-1.5 h-1.5 rounded-full', isActive ? 'bg-green-500 animate-pulse' : 'bg-red-500')} />
+                            <span className="hidden lg:inline">Live stream:</span>
+                            <span>{isActive ? 'Active' : 'Inactive'}</span>
+                        </div>
+
                         <button
                             onClick={onToggleDarkMode}
                             className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
