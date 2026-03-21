@@ -17,7 +17,8 @@ import {
     AlertTriangle,
     X,
     Pencil,
-    Save
+    Save,
+    Clock,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import apiService from '../services/api';
@@ -270,7 +271,7 @@ const HPITrendChart = ({ analytics, loading }: { analytics?: HpiAnalytics; loadi
 };
 
 
-export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId: string) => void }> = ({ onNavigateToGraph }) => {
+export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId: string) => void; onNavigateToTimeline?: (entityId: string) => void }> = ({ onNavigateToGraph, onNavigateToTimeline }) => {
     const [actors, setActors] = useState<GscixEntity[]>([]);
     const [selectedActor, setSelectedActor] = useState<GscixEntity | null>(null);
     const [loading, setLoading] = useState(true);
@@ -591,6 +592,19 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
                                                                     >
                                                                         <Share2 size={14} />
                                                                         View in Graph
+                                                                    </button>
+                                                                )}
+                                                                {onNavigateToTimeline && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setOpenMenuId(null);
+                                                                            onNavigateToTimeline(actor.stixId);
+                                                                        }}
+                                                                        className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <Clock size={14} />
+                                                                        View in Timeline
                                                                     </button>
                                                                 )}
                                                                 <button

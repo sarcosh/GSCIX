@@ -2,8 +2,8 @@ import React from 'react';
 import { cn } from '../lib/utils';
 
 interface NavbarProps {
-    activeView: 'explorer' | 'ingestion' | 'influence';
-    onViewChange: (view: 'explorer' | 'ingestion' | 'influence') => void;
+    activeView: 'explorer' | 'ingestion' | 'influence' | 'timeline';
+    onViewChange: (view: 'explorer' | 'ingestion' | 'influence' | 'timeline') => void;
     isDarkMode: boolean;
     onToggleDarkMode: () => void;
 }
@@ -49,6 +49,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 )}
                             >
                                 Influence Graph
+                            </button>
+                            <button
+                                onClick={() => onViewChange('timeline')}
+                                className={cn(
+                                    "text-sm font-medium py-5 transition-colors border-b-2",
+                                    activeView === 'timeline'
+                                        ? "text-primary border-primary"
+                                        : "text-slate-500 dark:text-slate-400 border-transparent hover:text-primary"
+                                )}
+                            >
+                                Entity Timeline
                             </button>
                             <button
                                 onClick={() => onViewChange('ingestion')}

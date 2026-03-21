@@ -4,6 +4,7 @@ import { Navbar } from './components/Navbar';
 import { GeoStrategicActorExplorer } from './components/GeoStrategicActorExplorer';
 import { DataIngestionPanel } from './components/DataIngestionPanel';
 import { GeoStrategicInfluenceGraph } from './components/GeoStrategicInfluenceGraph';
+import { EntityExplorerTimeline } from './components/EntityExplorerTimeline';
 
 interface Props { children: ReactNode; }
 interface State { hasError: boolean; error: Error | null; }
@@ -29,9 +30,10 @@ class ErrorBoundary extends Component<Props, State> {
 }
 
 function App() {
-  const [currentView, setCurrentView] = useState<'explorer' | 'ingestion' | 'influence'>('explorer');
+  const [currentView, setCurrentView] = useState<'explorer' | 'ingestion' | 'influence' | 'timeline'>('explorer');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [selectedActorId, setSelectedActorId] = useState<string | undefined>(undefined);
+  const [selectedTimelineEntityId, setSelectedTimelineEntityId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -46,7 +48,12 @@ function App() {
     setCurrentView('influence');
   }, []);
 
-  const handleViewChange = useCallback((view: 'explorer' | 'ingestion' | 'influence') => {
+  const handleNavigateToTimeline = useCallback((entityId: string) => {
+    setSelectedTimelineEntityId(entityId);
+    setCurrentView('timeline');
+  }, []);
+
+  const handleViewChange = useCallback((view: 'explorer' | 'ingestion' | 'influence' | 'timeline') => {
     setCurrentView(view);
   }, []);
 
@@ -61,9 +68,14 @@ function App() {
       <main>
         <ErrorBoundary>
           {currentView === 'explorer' ? (
-            <GeoStrategicActorExplorer onNavigateToGraph={handleNavigateToGraph} />
+            <GeoStrategicActorExplorer
+              onNavigateToGraph={handleNavigateToGraph}
+              onNavigateToTimeline={handleNavigateToTimeline}
+            />
           ) : currentView === 'influence' ? (
             <GeoStrategicInfluenceGraph initialActorId={selectedActorId} />
+          ) : currentView === 'timeline' ? (
+            <EntityExplorerTimeline initialEntityId={selectedTimelineEntityId} />
           ) : (
             <DataIngestionPanel />
           )}
