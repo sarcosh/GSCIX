@@ -330,7 +330,7 @@ const StackedGroup: React.FC<StackedGroupProps> = ({
                                     </div>
                                 );
                             })}
-                            <div className="absolute -top-2 -right-2 z-30 flex items-center gap-1 bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 px-2 py-0.5 rounded-full shadow-lg">
+                            <div className="absolute -bottom-2 -right-2 z-30 flex items-center gap-1 bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 px-2 py-0.5 rounded-full shadow-lg">
                                 <Layers size={10} />
                                 <span className="text-[10px] font-mono font-bold">{group.totalCount}</span>
                             </div>
