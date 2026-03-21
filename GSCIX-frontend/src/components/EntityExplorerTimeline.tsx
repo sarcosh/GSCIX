@@ -172,7 +172,7 @@ function clusterEntities(
 
 // ─── Timeline Card ────────────────────────────────────────────────────────────
 
-const TimelineCard: React.FC<{ entity: GscixEntity; compact?: boolean }> = ({ entity, compact }) => {
+const TimelineCard: React.FC<{ entity: GscixEntity; compact?: boolean; onSelect?: (stixId: string) => void; isSelected?: boolean }> = ({ entity, compact, onSelect, isSelected }) => {
     const colors = TYPE_COLOR[entity.type] || DEFAULT_COLOR;
     const confidence = entity.confidence ?? entity.gsciAttributes?.hybrid_pressure_index;
     const dateStr = entity.first_seen || entity.gsciAttributes?.first_seen;
@@ -190,11 +190,16 @@ const TimelineCard: React.FC<{ entity: GscixEntity; compact?: boolean }> = ({ en
     }
 
     return (
-        <div className={cn(
-            'bg-white dark:bg-slate-900 p-4 rounded-xl shadow-md border w-56',
-            'hover:shadow-lg transition-all cursor-pointer relative flex-shrink-0',
-            colors.border,
-        )}>
+        <div
+            className={cn(
+                'bg-white dark:bg-slate-900 p-4 rounded-xl shadow-md border w-56',
+                'hover:shadow-lg transition-all cursor-pointer relative flex-shrink-0',
+                colors.border,
+                isSelected && 'ring-2 ring-primary ring-offset-2',
+                onSelect && 'hover:scale-[1.03] active:scale-[0.98]',
+            )}
+            onClick={onSelect ? (e) => { e.stopPropagation(); onSelect(entity.stixId); } : undefined}
+        >
             <div className="flex justify-between items-start mb-2 gap-1">
                 <span className={cn('text-[9px] font-mono uppercase font-bold tracking-widest leading-tight', colors.text)}>
                     {getTypeShortLabel(entity.type)}
@@ -461,9 +466,11 @@ interface EntityDetailPanelProps {
     group: TemporalGroup | null;
     deckType: string | null;
     onSwitchDeck: (deckType: string) => void;
+    onSelectEntity?: (stixId: string) => void;
+    selectedEntityId?: string | null;
 }
 
-const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({ group, deckType, onSwitchDeck }) => {
+const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({ group, deckType, onSwitchDeck, onSelectEntity, selectedEntityId }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
@@ -598,7 +605,12 @@ const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({ group, deckType, 
                     style={{ scrollBehavior: 'smooth', scrollbarWidth: 'none' }}
                 >
                     {activeDeck.entities.map(entity => (
-                        <TimelineCard key={entity.stixId} entity={entity} />
+                        <TimelineCard
+                            key={entity.stixId}
+                            entity={entity}
+                            onSelect={onSelectEntity}
+                            isSelected={selectedEntityId === entity.stixId}
+                        />
                     ))}
                 </div>
             </div>
@@ -688,6 +700,7 @@ interface EntityExplorerTimelineProps {
 }
 
 export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ initialEntityId, onNavigateToExplorer }) => {
+    const [selectedEntityId, setSelectedEntityId] = useState<string | undefined>(initialEntityId);
     const [rootEntity, setRootEntity] = useState<GscixEntity | null>(null);
     const [graphDepth, setGraphDepth] = useState<number>(2);
     const [graphData, setGraphData] = useState<InfluenceGraphData | null>(null);
@@ -705,19 +718,24 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
 
     const timelineContainerRef = useRef<HTMLDivElement>(null);
 
+    // Sync selectedEntityId when initialEntityId changes from outside
+    useEffect(() => { setSelectedEntityId(initialEntityId); }, [initialEntityId]);
+
     // ── Fetch root entity ──
     useEffect(() => {
-        if (!initialEntityId) { setRootEntity(null); setGraphData(null); setWindowInitialized(false); return; }
+        if (!selectedEntityId) { setRootEntity(null); setGraphData(null); setWindowInitialized(false); return; }
         setLoadingEntity(true); setError(null);
-        apiService.getEntity(initialEntityId).then(e => setRootEntity(e)).catch(e => setError(e.message)).finally(() => setLoadingEntity(false));
-    }, [initialEntityId]);
+        apiService.getEntity(selectedEntityId).then(e => setRootEntity(e)).catch(e => setError(e.message)).finally(() => setLoadingEntity(false));
+    }, [selectedEntityId]);
 
     // ── Fetch graph ──
+    const isRootActor = selectedEntityId === initialEntityId;
     useEffect(() => {
-        if (!initialEntityId) return;
+        if (!selectedEntityId) return;
+        const direction = selectedEntityId === initialEntityId ? 'both' : 'outgoing';
         setLoadingGraph(true); setError(null); setWindowInitialized(false);
-        apiService.getInfluenceGraph(initialEntityId, graphDepth).then(d => setGraphData(d)).catch(e => setError(e.message)).finally(() => setLoadingGraph(false));
-    }, [initialEntityId, graphDepth]);
+        apiService.getInfluenceGraph(selectedEntityId, graphDepth, direction).then(d => setGraphData(d)).catch(e => setError(e.message)).finally(() => setLoadingGraph(false));
+    }, [selectedEntityId, graphDepth, initialEntityId]);
 
     // Reset expand state when graph data changes (not on zoom/pan)
     useEffect(() => { setExpandedGroupId(null); setExpandedDeckType(null); }, [graphData]);
@@ -796,6 +814,13 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
     const resetWindow = useCallback(() => { setWindowStart(globalMin); setWindowEnd(globalMax); }, [globalMin, globalMax]);
     const handleMinimapChange = useCallback((s: number, e: number) => { setWindowStart(s); setWindowEnd(e); }, []);
 
+    // ── Entity selection handler ──
+    const handleSelectEntity = useCallback((stixId: string) => {
+        if (stixId !== selectedEntityId) {
+            setSelectedEntityId(stixId);
+        }
+    }, [selectedEntityId]);
+
     // ── Interaction handlers for stacking ──
     const handleClickStack = useCallback((groupId: string) => {
         setExpandedGroupId(prev => prev === groupId ? null : groupId);
@@ -846,8 +871,8 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
 
     const handleRefresh = () => {
         if (!initialEntityId) return;
-        setLoadingGraph(true); setWindowInitialized(false);
-        apiService.getInfluenceGraph(initialEntityId, graphDepth).then(d => setGraphData(d)).catch(e => setError(e.message)).finally(() => setLoadingGraph(false));
+        // Reset to the original geo-strategic-actor
+        setSelectedEntityId(initialEntityId);
     };
 
     const isLoading = loadingEntity || loadingGraph;
@@ -945,6 +970,8 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
                         group={expandedGroupId ? [...geoGroups, ...cyberGroups].find(g => g.id === expandedGroupId) || null : null}
                         deckType={expandedDeckType}
                         onSwitchDeck={(t) => setExpandedDeckType(t)}
+                        onSelectEntity={handleSelectEntity}
+                        selectedEntityId={selectedEntityId}
                     />
                 )}
 

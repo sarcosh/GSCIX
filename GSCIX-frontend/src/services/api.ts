@@ -104,9 +104,9 @@ export const apiService = {
     },
 
     // Influence Graph (server-side BFS)
-    getInfluenceGraph: async (rootId: string, depth: number = 2): Promise<InfluenceGraphData> => {
+    getInfluenceGraph: async (rootId: string, depth: number = 2, direction: 'both' | 'outgoing' | 'incoming' = 'both'): Promise<InfluenceGraphData> => {
         const response = await apiClient.get<InfluenceGraphData>(`/gscix/graph/${rootId}`, {
-            params: { depth }
+            params: { depth, direction }
         });
         return response.data;
     },

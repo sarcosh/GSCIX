@@ -31,8 +31,11 @@ public class InfluenceGraphService {
      * maxDepth hops.
      * Returns only entities and relations within the reachable set.
      */
-    public InfluenceGraphResponse buildSubgraph(String rootId, int maxDepth) {
-        log.info("Building influence subgraph for root={} depth={}", rootId, maxDepth);
+    public InfluenceGraphResponse buildSubgraph(String rootId, int maxDepth, String direction) {
+        log.info("Building influence subgraph for root={} depth={} direction={}", rootId, maxDepth, direction);
+
+        boolean includeOutgoing = "both".equals(direction) || "outgoing".equals(direction);
+        boolean includeIncoming = "both".equals(direction) || "incoming".equals(direction);
 
         // BFS to collect reachable entity IDs
         Set<String> reachableIds = new LinkedHashSet<>();
@@ -53,25 +56,28 @@ public class InfluenceGraphService {
             if (currentDepth >= maxDepth)
                 continue;
 
-            // Find relations where this entity is source or target
-            List<GscixRelation> outgoing = relationRepository.findBySourceRef(currentId);
-            List<GscixRelation> incoming = relationRepository.findByTargetRef(currentId);
-
-            for (GscixRelation r : outgoing) {
-                if (collectedRelationIds.add(r.getId())) {
-                    subgraphRelations.add(r);
-                }
-                if (reachableIds.add(r.getTargetRef())) {
-                    queue.add(Map.entry(r.getTargetRef(), currentDepth + 1));
+            // Find relations based on direction
+            if (includeOutgoing) {
+                List<GscixRelation> outgoing = relationRepository.findBySourceRef(currentId);
+                for (GscixRelation r : outgoing) {
+                    if (collectedRelationIds.add(r.getId())) {
+                        subgraphRelations.add(r);
+                    }
+                    if (reachableIds.add(r.getTargetRef())) {
+                        queue.add(Map.entry(r.getTargetRef(), currentDepth + 1));
+                    }
                 }
             }
 
-            for (GscixRelation r : incoming) {
-                if (collectedRelationIds.add(r.getId())) {
-                    subgraphRelations.add(r);
-                }
-                if (reachableIds.add(r.getSourceRef())) {
-                    queue.add(Map.entry(r.getSourceRef(), currentDepth + 1));
+            if (includeIncoming) {
+                List<GscixRelation> incoming = relationRepository.findByTargetRef(currentId);
+                for (GscixRelation r : incoming) {
+                    if (collectedRelationIds.add(r.getId())) {
+                        subgraphRelations.add(r);
+                    }
+                    if (reachableIds.add(r.getSourceRef())) {
+                        queue.add(Map.entry(r.getSourceRef(), currentDepth + 1));
+                    }
                 }
             }
         }
