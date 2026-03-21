@@ -10,18 +10,7 @@ import ForceGraph2D from 'react-force-graph-2d';
 import { cn } from '../lib/utils';
 import apiService from '../services/api';
 import type { GscixEntity, GscixRelation, HpiAnalytics } from '../types/api';
-
-// --- Type map for node styling ---
-const NODE_CONFIG: Record<string, { color: string; border: string; path: string; label: string }> = {
-    'x-geo-strategic-actor': { color: '#06b6d4', border: '#0891b2', path: 'M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20z', label: 'Geo-Strategic Actor' },
-    'x-strategic-objective': { color: '#f59e0b', border: '#d97706', path: 'M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z M4 22v-7', label: 'Strategic Objective' },
-    'x-hybrid-campaign': { color: '#ef4444', border: '#dc2626', path: 'm3 11 18-5v12L3 14v-3z M11.6 16.8a3 3 0 1 1-5.8-1.6', label: 'Hybrid Campaign' },
-    'x-influence-vector': { color: '#8b5cf6', border: '#7c3aed', path: 'M4.9 19.1C1 15.2 1 8.8 4.9 4.9 M19.1 4.9c3.9 3.9 3.9 10.2 0 14.1 M8.5 15.5c-1.9-1.9-1.9-5.1 0-7 M15.5 8.5c1.9 1.9 1.9 5.1 0 7 M12 12h.01', label: 'Influence Vector' },
-    'x-strategic-impact': { color: '#6366f1', border: '#4f46e5', path: 'M12 3v18 M3 7h18 M3 7l-2 9a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2z M15 7l-2 9a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2z', label: 'Strategic Impact' },
-    'x-strategic-assessment': { color: '#10b981', border: '#059669', path: 'M3 3v18h18 M18 17V9 M13 17V5 M8 17v-3', label: 'Strategic Assessment' },
-    'intrusion-set': { color: '#64748b', border: '#475569', path: 'M12 2L2 7l10 5l10-5L12 2z M2 17l10 5l10-5 M2 12l10 5l10-5', label: 'Intrusion Set' },
-    'threat-actor': { color: '#94a3b8', border: '#64748b', path: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 7a4 4 0 1 0 0-8a4 4 0 0 0 0 8z', label: 'Threat Actor' },
-};
+import { NODE_CONFIG, paintNode as sharedPaintNode, paintLinkLabel } from './graphUtils';
 
 const LAYER_FILTERS = [
     { key: 'x-strategic-objective', label: 'Strategic Objectives', icon: Flag, color: 'text-amber-500 bg-amber-500/10' },
@@ -47,7 +36,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     const [selectedAnalytics, setSelectedAnalytics] = useState<HpiAnalytics | null>(null);
     const [highlightedConnectionId, setHighlightedConnectionId] = useState<string | null>(null);
     const [panelVisible, setPanelVisible] = useState(true);
-    const [leftPanelVisible, setLeftPanelVisible] = useState(true);
+    const [leftPanelVisible, setLeftPanelVisible] = useState(false);
     const [activeLayers, setActiveLayers] = useState<Record<string, boolean>>({
         'x-strategic-objective': true,
         'x-hybrid-campaign': true,
@@ -282,91 +271,21 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
     useEffect(() => { highlightedRelationIdRef.current = highlightedRelationId; }, [highlightedRelationId]);
 
     // Canvas node renderer — stable callback (no rootActor dependency, uses refs)
-    const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-        // Defensive check for non-finite coordinates (avoids createRadialGradient crash)
-        if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
-
-        const cfg = NODE_CONFIG[node.type] || { color: '#64748b', border: '#475569', path: '', label: 'Unknown' };
-
-        const r = 12;
-
+    const paintNodeCb = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
         const isHighlighted = highlightedConnectionIdRef.current === node.id;
         const isSelected = rootActorRef.current?.stixId === node.id;
 
-        // Outer glow
-        if (isSelected || isHighlighted) {
-            const glowColor = cfg.color;
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, r + 8, 0, 2 * Math.PI);
-            ctx.fillStyle = glowColor + '30';
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, r + 4, 0, 2 * Math.PI);
-            ctx.fillStyle = glowColor + '15';
-            ctx.fill();
-        }
+        // Shared rendering (circle, gradient, icon, label)
+        sharedPaintNode(node, ctx, globalScale, { isSelected, isHighlighted });
 
-        // Main circle node background
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
-        ctx.fillStyle = '#0f172a'; // Deep slate background for nodes
-        ctx.fill();
-
-        // Soft glowing inner fill
-        const gradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, r);
-        gradient.addColorStop(0, cfg.color + '40');
-        gradient.addColorStop(1, cfg.color + '10');
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        // Outline stroke — always uses the node's own color
-        ctx.strokeStyle = cfg.color;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Draw Icon Path (centered)
-        if (cfg.path) {
-            const boxSize = r * 1.1; // Size of the icon bounding box inside circle
-            const scale = boxSize / 24; // Lucide icons are 24x24
-
-            ctx.save();
-            ctx.translate(node.x - boxSize / 2, node.y - boxSize / 2);
-            ctx.scale(scale, scale);
-
-            ctx.lineWidth = 1.6 / scale;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = '#ffffff'; // Crisp white icon
-
-            const p2d = new Path2D(cfg.path);
-            ctx.stroke(p2d);
-
-            ctx.restore();
-        }
-
-
-        // Label below — white text with dark outline for readability
+        // "Unlinked" badge — specific to InfluenceGraph (not in preview)
         if (globalScale > 0.4) {
-            const label = node.name.length > 25 ? node.name.substring(0, 23) + '…' : node.name;
-            const labelFontSize = Math.max(4, 11 / globalScale);
-            ctx.font = `600 ${labelFontSize}px Inter, sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            const labelY = node.y + r + 6;
-
-            // Dark outline for contrast
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.lineWidth = 3 / globalScale;
-            ctx.lineJoin = 'round';
-            ctx.strokeText(label, node.x, labelY);
-
-            // White text
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(label, node.x, labelY);
-
-            // "Unlinked" badge for intrusion-set / threat-actor without OpenCTI ID
             const entity = node.entity;
             if (entity && (entity.type === 'intrusion-set' || entity.type === 'threat-actor') && !entity.metadata?.openctiInternalId) {
+                const r = 12;
+                const labelFontSize = Math.max(4, 11 / globalScale);
+                const labelY = node.y + r + 6;
+
                 const badgeText = '\u26A0 Unlinked';
                 const badgeFontSize = Math.max(3, 8 / globalScale);
                 ctx.font = `700 ${badgeFontSize}px Inter, sans-serif`;
@@ -379,7 +298,6 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                 const bPadY = 1.5 / globalScale;
                 const bRadius = 2 / globalScale;
 
-                // Badge background
                 ctx.beginPath();
                 ctx.roundRect(node.x - badgeW / 2 - bPadX, badgeY - bPadY, badgeW + bPadX * 2, badgeFontSize + bPadY * 2, bRadius);
                 ctx.fillStyle = 'rgba(245, 158, 11, 0.2)';
@@ -388,7 +306,6 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                 ctx.lineWidth = 0.8 / globalScale;
                 ctx.stroke();
 
-                // Badge text
                 ctx.fillStyle = 'rgba(245, 158, 11, 1)';
                 ctx.fillText(badgeText, node.x, badgeY);
             }
@@ -706,7 +623,7 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                     <ForceGraph2D
                         ref={graphRef}
                         graphData={graphData}
-                        nodeCanvasObject={paintNode}
+                        nodeCanvasObject={paintNodeCb}
                         onNodeClick={handleNodeClick}
                         onLinkClick={(link: any) => {
                             const wasEditing = graphMode === 'edit-relation' || graphMode === 'edit-entity';
@@ -741,47 +658,8 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         linkLineDash={() => [4, 2]}
                         linkCanvasObjectMode={() => 'after'}
                         linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-                            if (globalScale < 0.4) return; // Same threshold as node labels
-                            const label = link.relType;
-                            if (!label) return;
-
-                            const source = link.source;
-                            const target = link.target;
-                            if (!source || !target) return;
-                            if (!Number.isFinite(source.x) || !Number.isFinite(target.x)) return;
-
-                            const midX = (source.x + target.x) / 2;
-                            const midY = (source.y + target.y) / 2;
-
-                            // Same font size as node labels
-                            const fontSize = Math.max(4, 11 / globalScale);
-                            ctx.font = `500 ${fontSize}px Inter, sans-serif`;
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-
-                            const textWidth = ctx.measureText(label).width;
-                            const padX = 4 / globalScale;
-                            const padY = 2.5 / globalScale;
-                            const boxX = midX - textWidth / 2 - padX;
-                            const boxY = midY - fontSize / 2 - padY;
-                            const boxW = textWidth + padX * 2;
-                            const boxH = fontSize + padY * 2;
-                            const borderRadius = 3 / globalScale;
-
                             const isHighlightedLink = link.id === highlightedRelationIdRef.current;
-
-                            // Rounded rectangle background — opaque to occlude the link line beneath
-                            ctx.beginPath();
-                            ctx.roundRect(boxX, boxY, boxW, boxH, borderRadius);
-                            ctx.fillStyle = isHighlightedLink ? 'rgba(15, 23, 42, 0.95)' : 'rgba(15, 23, 42, 0.85)';
-                            ctx.fill();
-                            ctx.strokeStyle = isHighlightedLink ? 'rgba(6, 182, 212, 0.8)' : 'rgba(148, 163, 184, 0.4)';
-                            ctx.lineWidth = (isHighlightedLink ? 1.5 : 1) / globalScale;
-                            ctx.stroke();
-
-                            // Text
-                            ctx.fillStyle = isHighlightedLink ? 'rgba(6, 182, 212, 1)' : 'rgba(203, 213, 225, 0.95)';
-                            ctx.fillText(label, midX, midY);
+                            paintLinkLabel(link, ctx, globalScale, isHighlightedLink);
                         }}
                         enableNodeDrag={true}
                         enableZoomInteraction={false}

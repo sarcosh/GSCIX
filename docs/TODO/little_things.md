@@ -1,11 +1,13 @@
 
 
-
-- En la vista "Influence Graph" la sección izquierda (donde se muestra "Graph Layers") debería aparecer, por defecto, plegada.
-
+- 
 
 
-- Cuando no hay un actor seleccionado hay que alinear las vistas de "Influence Graph" y "Entity Timeline" para que muestren el mismo mensaje con el mismo look & feel. De las dos me gusta más la de "Entity Timeline"
+
+
+
+
+
 
 
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
     CloudUpload,
     FileJson,
@@ -13,11 +13,17 @@ import {
     Search,
     Link,
     X,
-    Layers
+    Layers,
+    GitBranch,
+    Plus,
+    Minus,
+    Maximize2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import apiService from '../services/api';
 import type { GscixEntity, ValidationResponse, IngestionJob } from '../types/api';
+import IngestionGraphPreview from './IngestionGraphPreview';
+import type { IngestionGraphPreviewHandle } from './IngestionGraphPreview';
 
 interface IngestionStats {
     processing: boolean;
@@ -42,6 +48,8 @@ export const DataIngestionPanel: React.FC = () => {
         recentJobs: []
     });
     const [showOrphanDialog, setShowOrphanDialog] = useState(false);
+    const [previewTab, setPreviewTab] = useState<'graph' | 'json'>('graph');
+    const graphPreviewRef = useRef<IngestionGraphPreviewHandle>(null);
 
     const fetchHistory = useCallback(async () => {
         try {
@@ -680,34 +688,84 @@ export const DataIngestionPanel: React.FC = () => {
 
                     <div className="bg-surface-light dark:bg-surface-dark shadow-sm rounded-xl border border-border-light dark:border-border-dark flex flex-col flex-1 overflow-hidden">
                         <div className="px-4 py-3 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-                            <div className="flex items-center gap-3">
-                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Payload Preview</span>
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-500">JSON</span>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setPreviewTab('graph')}
+                                    className={cn(
+                                        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all',
+                                        previewTab === 'graph'
+                                            ? 'bg-primary/10 text-primary border border-primary/20'
+                                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700',
+                                    )}
+                                >
+                                    <GitBranch size={12} />
+                                    Graph Preview
+                                </button>
+                                <button
+                                    onClick={() => setPreviewTab('json')}
+                                    className={cn(
+                                        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all',
+                                        previewTab === 'json'
+                                            ? 'bg-primary/10 text-primary border border-primary/20'
+                                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700',
+                                    )}
+                                >
+                                    <Code size={12} />
+                                    JSON
+                                </button>
                             </div>
-                            <div className="flex gap-2">
-                                <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all" title="Copy to clipboard">
-                                    <Copy size={16} />
-                                </button>
-                                <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all" title="Toggle Code View">
-                                    <Code size={16} />
-                                </button>
+                            <div className="flex items-center gap-1">
+                                {previewTab === 'graph' && (
+                                    <>
+                                        <button
+                                            onClick={() => graphPreviewRef.current?.zoomIn()}
+                                            className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                                            title="Zoom In"
+                                        >
+                                            <Plus size={15} />
+                                        </button>
+                                        <button
+                                            onClick={() => graphPreviewRef.current?.zoomOut()}
+                                            className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                                            title="Zoom Out"
+                                        >
+                                            <Minus size={15} />
+                                        </button>
+                                        <button
+                                            onClick={() => graphPreviewRef.current?.zoomToFit()}
+                                            className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                                            title="Fit to Screen"
+                                        >
+                                            <Maximize2 size={15} />
+                                        </button>
+                                    </>
+                                )}
+                                {previewTab === 'json' && (
+                                    <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all" title="Copy to clipboard">
+                                        <Copy size={16} />
+                                    </button>
+                                )}
                             </div>
                         </div>
-                        <div className="flex-1 overflow-auto bg-[#f8f9fa] dark:bg-[#0d1117] p-6 font-mono text-sm min-h-[400px]">
-                            {jsonContent ? (
-                                <pre className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
-                                    <code>{jsonContent}</code>
-                                </pre>
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50 cursor-default select-none">
-                                    <Code size={48} className="mb-4" />
-                                    <p>No content to preview</p>
-                                    <p className="text-xs mt-1 italic">Drop or select a JSON file to begin</p>
-                                </div>
-                            )}
-                        </div>
-
-
+                        {previewTab === 'graph' ? (
+                            <div className="flex-1 min-h-[400px] overflow-hidden">
+                                <IngestionGraphPreview ref={graphPreviewRef} jsonContent={jsonContent} />
+                            </div>
+                        ) : (
+                            <div className="flex-1 overflow-auto bg-[#f8f9fa] dark:bg-[#0d1117] p-6 font-mono text-sm min-h-[400px]">
+                                {jsonContent ? (
+                                    <pre className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                        <code>{jsonContent}</code>
+                                    </pre>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50 cursor-default select-none">
+                                        <Code size={48} className="mb-4" />
+                                        <p>No content to preview</p>
+                                        <p className="text-xs mt-1 italic">Drop or select a JSON file to begin</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                 </div>

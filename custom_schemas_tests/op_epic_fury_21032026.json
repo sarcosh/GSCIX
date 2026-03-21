@@ -1,0 +1,163 @@
+{
+    "type": "bundle",
+    "id": "bundle--9d7a2e33-2182-4c22-b5e1-876219be8799",
+    "objects": [
+        {
+            "type": "x-geo-strategic-actor",
+            "id": "x-geo-strategic-actor--79f4277e-8c88-4222-92e1-456079be8775",
+            "name": "Islamic Republic of Iran",
+            "strategic_alignment": "Non-Aligned",
+            "geopolitical_doctrine": "Mosaic Defense / Horizontal Escalation",
+            "revisionist_index": 8.5,
+            "doctrine_type": "revisionist",
+            "technological_modernization_rate": 6.8,
+            "confidence": 95,
+            "first_seen": "1979-02-11T00:00:00Z",
+            "last_seen": "2026-03-21T18:52:00Z"
+        },
+        {
+            "type": "x-strategic-objective",
+            "id": "x-strategic-objective--b1d2e33-2182-4c22-b5e1-876219be8777",
+            "name": "Regime Survival and Continuity",
+            "objective_type": "political",
+            "priority_level": "critical",
+            "time_horizon": "short-term",
+            "civil_military_fusion": true,
+            "confidence": 100,
+            "first_seen": "2026-02-28T06:15:00Z",
+            "last_seen": "2026-03-21T18:52:00Z"
+        },
+        {
+            "type": "x-strategic-objective",
+            "id": "x-strategic-objective--c1d2e33-2182-4c22-b5e1-876219be8778",
+            "name": "De-facto Closure of the Strait of Hormuz",
+            "objective_type": "economic",
+            "priority_level": "high",
+            "time_horizon": "short-term",
+            "civil_military_fusion": false,
+            "confidence": 95,
+            "first_seen": "2026-02-28T10:00:00Z",
+            "last_seen": "2026-03-21T18:52:00Z"
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "id": "x-hybrid-campaign--e1d2e33-2182-4c22-b5e1-876219be8780",
+            "name": "Operation True Promise IV",
+            "phase": "sustained-pressure",
+            "velocity": "fast-spike",
+            "nature": [
+                "kinetic",
+                "cyber",
+                "infrastructural"
+            ],
+            "escalation_risk_score": 9.4,
+            "confidence": 100,
+            "first_seen": "2026-02-28T09:45:00Z",
+            "last_seen": "2026-03-21T18:52:00Z"
+        },
+        {
+            "type": "threat-actor",
+            "id": "threat-actor--f1d2e33-2182-4c22-b5e1-876219be8781",
+            "name": "MuddyWater (APT33)",
+            "threat_actor_types": [
+                "state-sponsored"
+            ],
+            "description": "Cyber unit associated with the Iranian Ministry of Intelligence and Security (MOIS).",
+            "resource_level": "government",
+            "confidence": 90,
+            "first_seen": "2017-01-01T00:00:00Z",
+            "last_seen": "2026-03-21T18:52:00Z"
+        },
+        {
+            "type": "x-influence-vector",
+            "id": "x-influence-vector--a1d2e33-2182-4c22-b5e1-876219be8782",
+            "name": "Museum of Imperialist Crimes Narrative",
+            "narrative": "Commemoration of the Minab school attack to ensure national martyrology fuels long-term resistance.",
+            "channel": "State Media / Educational Institutions",
+            "target_audience": "Domestic Populace / Global South",
+            "confidence": 95
+        },
+        {
+            "type": "x-strategic-impact",
+            "id": "x-strategic-impact--b1d2e33-2182-4c22-b5e1-876219be8783",
+            "name": "Global Energy Disruption (March 2026)",
+            "description": "Brent crude spike to $114/barrel and 96.2% reduction in daily ship transits through Hormuz.",
+            "political_destabilization_index": 6.0,
+            "economic_disruption_index": 9.8,
+            "alliance_fragmentation_score": 7.5,
+            "deterrence_signal_strength": 8.0,
+            "confidence": 95,
+            "first_seen": "2026-02-28T12:00:00Z",
+            "last_seen": "2026-03-21T18:52:00Z"
+        },
+        {
+            "type": "x-strategic-impact",
+            "id": "x-strategic-impact--c1d2e33-2182-4c22-b5e1-876219be8784",
+            "name": "Leadership Decapitation and Rapid Succession",
+            "description": "Assassination of Ali Khamenei followed by the election of Mojtaba Khamenei on Day 9.",
+            "political_destabilization_index": 9.5,
+            "economic_disruption_index": 2.0,
+            "alliance_fragmentation_score": 1.0,
+            "deterrence_signal_strength": 9.5,
+            "confidence": 100,
+            "first_seen": "2026-02-28T06:15:00Z",
+            "last_seen": "2026-03-09T09:00:00Z"
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--d1d2e33-2182-4c22-b5e1-876219be8785",
+            "name": "Day 21 Conflict Resilience Audit",
+            "description": "Assessment of the Iranian state's ability to impose asymmetric costs despite near-total conventional degradation.",
+            "hybrid_pressure_index": 9.9,
+            "escalation_probability_score": 0.9,
+            "strategic_signaling_score": 9.5,
+            "cyber_geopolitical_coupling_index": 9.8,
+            "narrative_penetration_score": 7.5,
+            "confidence": 85,
+            "first_seen": "2026-02-28T00:00:00Z",
+            "last_seen": "2026-03-21T18:52:00Z"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--r1",
+            "relationship_type": "pursues",
+            "source_ref": "x-geo-strategic-actor--79f4277e-8c88-4222-92e1-456079be8775",
+            "target_ref": "x-strategic-objective--b1d2e33-2182-4c22-b5e1-876219be8777"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--r2",
+            "relationship_type": "executes",
+            "source_ref": "x-geo-strategic-actor--79f4277e-8c88-4222-92e1-456079be8775",
+            "target_ref": "x-hybrid-campaign--e1d2e33-2182-4c22-b5e1-876219be8780"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--r3",
+            "relationship_type": "controls",
+            "source_ref": "x-geo-strategic-actor--79f4277e-8c88-4222-92e1-456079be8775",
+            "target_ref": "threat-actor--f1d2e33-2182-4c22-b5e1-876219be8781"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--r4",
+            "relationship_type": "integrates",
+            "source_ref": "x-hybrid-campaign--e1d2e33-2182-4c22-b5e1-876219be8780",
+            "target_ref": "threat-actor--f1d2e33-2182-4c22-b5e1-876219be8781"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--r5",
+            "relationship_type": "generates",
+            "source_ref": "x-hybrid-campaign--e1d2e33-2182-4c22-b5e1-876219be8780",
+            "target_ref": "x-strategic-impact--b1d2e33-2182-4c22-b5e1-876219be8783"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--r6",
+            "relationship_type": "evaluates",
+            "source_ref": "x-strategic-assessment--d1d2e33-2182-4c22-b5e1-876219be8785",
+            "target_ref": "x-geo-strategic-actor--79f4277e-8c88-4222-92e1-456079be8775"
+        }
+    ]
+}
