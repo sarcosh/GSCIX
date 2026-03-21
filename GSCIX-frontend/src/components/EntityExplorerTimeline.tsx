@@ -16,6 +16,7 @@ import {
     ChevronsRight,
     Maximize2,
     Layers,
+    X,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import apiService from '../services/api';
@@ -375,7 +376,7 @@ const StackedGroup: React.FC<StackedGroupProps> = ({
         );
     }
 
-    // ── State: cards → show the expanded deck's individual cards ──
+    // ── State: cards → show deck badges only (cards are displayed in the detail panel above the timeline) ──
     if (expandState === 'cards' && expandedDeckType) {
         const activeDeck = group.decks.find(d => d.type === expandedDeckType);
         const otherDecks = group.decks.filter(d => d.type !== expandedDeckType);
@@ -385,14 +386,7 @@ const StackedGroup: React.FC<StackedGroupProps> = ({
             <div className="flex flex-col items-center">
                 {lane === 'geo' && (
                     <>
-                        {/* Expanded cards */}
-                        <div className="flex items-end gap-3 mb-2 animate-in fade-in slide-in-from-bottom-3 duration-300">
-                            {activeDeck?.entities.map(entity => (
-                                <TimelineCard key={entity.stixId} entity={entity} />
-                            ))}
-                        </div>
-                        {/* The active deck badge + other decks */}
-                        <div className="flex items-end gap-2 mb-1">
+                        <div className="flex items-end gap-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
                             <DeckBadge
                                 deck={activeDeck!}
                                 isActive={true}
@@ -407,14 +401,13 @@ const StackedGroup: React.FC<StackedGroupProps> = ({
                                 />
                             ))}
                         </div>
-                        <div className="w-0.5 h-6" style={{ background: `linear-gradient(to bottom, ${dominantColor}40, ${dominantColor}10)` }} />
+                        <div className="w-0.5 h-8 mt-1" style={{ background: `linear-gradient(to bottom, ${dominantColor}40, ${dominantColor}10)` }} />
                     </>
                 )}
                 {lane === 'cyber' && (
                     <>
-                        <div className="w-0.5 h-6" style={{ background: `linear-gradient(to bottom, ${dominantColor}10, ${dominantColor}40)` }} />
-                        {/* The active deck badge + other decks */}
-                        <div className="flex items-start gap-2 mt-1">
+                        <div className="w-0.5 h-8 mb-1" style={{ background: `linear-gradient(to bottom, ${dominantColor}10, ${dominantColor}40)` }} />
+                        <div className="flex items-start gap-2 animate-in fade-in slide-in-from-top-4 duration-300">
                             <DeckBadge
                                 deck={activeDeck!}
                                 isActive={true}
@@ -427,12 +420,6 @@ const StackedGroup: React.FC<StackedGroupProps> = ({
                                     isActive={false}
                                     onClick={(e) => { e.stopPropagation(); onClickDeck(group.id, deck.type); }}
                                 />
-                            ))}
-                        </div>
-                        {/* Expanded cards */}
-                        <div className="flex items-start gap-3 mt-2 animate-in fade-in slide-in-from-top-3 duration-300">
-                            {activeDeck?.entities.map(entity => (
-                                <TimelineCard key={entity.stixId} entity={entity} />
                             ))}
                         </div>
                     </>
@@ -465,6 +452,148 @@ const ActivityLogRow: React.FC<{ relation: GscixRelation; entities: GscixEntity[
                 <span className="font-semibold text-slate-800 dark:text-slate-200">{target?.name || relation.target_ref.slice(0, 20)}</span>
             </span>
             {relation.confidence !== undefined && <span className="text-[10px] font-mono text-slate-400 flex-shrink-0">{Math.round(relation.confidence)}%</span>}
+        </div>
+    );
+};
+
+// ─── Entity Detail Panel (horizontal scroll strip above timeline) ─────────────
+
+interface EntityDetailPanelProps {
+    group: TemporalGroup;
+    deckType: string;
+    onClose: () => void;
+    onSwitchDeck: (deckType: string) => void;
+}
+
+const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({ group, deckType, onClose, onSwitchDeck }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    const activeDeck = group.decks.find(d => d.type === deckType);
+    const dominantColor = TYPE_COLOR[deckType]?.connector || '#64748b';
+    const colors = TYPE_COLOR[deckType] || DEFAULT_COLOR;
+
+    const updateScrollIndicators = useCallback(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        setCanScrollLeft(el.scrollLeft > 0);
+        setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    }, []);
+
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        updateScrollIndicators();
+        el.addEventListener('scroll', updateScrollIndicators, { passive: true });
+        const obs = new ResizeObserver(updateScrollIndicators);
+        obs.observe(el);
+        return () => { el.removeEventListener('scroll', updateScrollIndicators); obs.disconnect(); };
+    }, [updateScrollIndicators, activeDeck]);
+
+    // Reset scroll when deck type changes
+    useEffect(() => {
+        if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+    }, [deckType, group.id]);
+
+    const scroll = (direction: 'left' | 'right') => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const amount = 240;
+        el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
+    };
+
+    if (!activeDeck) return null;
+
+    return (
+        <div
+            className="mb-4 border border-border-light dark:border-border-dark rounded-2xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300"
+            style={{ borderTopWidth: '3px', borderTopColor: dominantColor }}
+            onClick={e => e.stopPropagation()}
+        >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/30">
+                <div className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: dominantColor }} />
+                    <span className={cn('text-[10px] font-mono uppercase font-bold tracking-widest', colors.text)}>
+                        {ENTITY_TYPE_LABELS[deckType] || deckType}
+                    </span>
+                    <span className={cn('text-[10px] font-mono font-bold px-2 py-0.5 rounded border', colors.text, colors.bg, colors.border)}>
+                        {activeDeck.entities.length} {activeDeck.entities.length === 1 ? 'entity' : 'entities'}
+                    </span>
+                    {/* Deck switcher pills */}
+                    {group.decks.length > 1 && (
+                        <div className="flex items-center gap-1.5 ml-3 pl-3 border-l border-border-light dark:border-border-dark">
+                            {group.decks.map(deck => {
+                                const dc = TYPE_COLOR[deck.type] || DEFAULT_COLOR;
+                                const isActive = deck.type === deckType;
+                                return (
+                                    <button
+                                        key={deck.type}
+                                        onClick={() => onSwitchDeck(deck.type)}
+                                        className={cn(
+                                            'flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-mono uppercase font-bold tracking-wider transition-all',
+                                            isActive
+                                                ? cn('ring-1 ring-offset-1 ring-primary/40', dc.bg, dc.text, dc.border, 'border')
+                                                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
+                                        )}
+                                    >
+                                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: TYPE_COLOR[deck.type]?.connector || '#64748b' }} />
+                                        {getTypeShortLabel(deck.type)} x{deck.entities.length}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+                <button
+                    onClick={onClose}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                    title="Close panel"
+                >
+                    <X size={16} />
+                </button>
+            </div>
+
+            {/* Scrollable card strip */}
+            <div className="relative">
+                {/* Left fade + arrow */}
+                {canScrollLeft && (
+                    <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center">
+                        <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-white dark:from-slate-900 to-transparent pointer-events-none" />
+                        <button
+                            onClick={() => scroll('left')}
+                            className="relative z-10 ml-2 p-1.5 rounded-full bg-white dark:bg-slate-800 border border-border-light dark:border-border-dark shadow-md text-slate-500 hover:text-primary hover:border-primary/30 transition-all"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                    </div>
+                )}
+
+                {/* Right fade + arrow */}
+                {canScrollRight && (
+                    <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center">
+                        <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white dark:from-slate-900 to-transparent pointer-events-none" />
+                        <button
+                            onClick={() => scroll('right')}
+                            className="relative z-10 mr-2 p-1.5 rounded-full bg-white dark:bg-slate-800 border border-border-light dark:border-border-dark shadow-md text-slate-500 hover:text-primary hover:border-primary/30 transition-all"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                )}
+
+                {/* Cards */}
+                <div
+                    ref={scrollRef}
+                    className="flex items-start gap-4 px-5 py-4 overflow-x-auto"
+                    style={{ scrollBehavior: 'smooth', scrollbarWidth: 'none' }}
+                >
+                    {activeDeck.entities.map(entity => (
+                        <TimelineCard key={entity.stixId} entity={entity} />
+                    ))}
+                </div>
+            </div>
         </div>
     );
 };
@@ -582,8 +711,8 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
         apiService.getInfluenceGraph(initialEntityId, graphDepth).then(d => setGraphData(d)).catch(e => setError(e.message)).finally(() => setLoadingGraph(false));
     }, [initialEntityId, graphDepth]);
 
-    // Reset expand state when data changes
-    useEffect(() => { setExpandedGroupId(null); setExpandedDeckType(null); }, [graphData, windowStart, windowEnd]);
+    // Reset expand state when graph data changes (not on zoom/pan)
+    useEffect(() => { setExpandedGroupId(null); setExpandedDeckType(null); }, [graphData]);
 
     const graphEntities = useMemo(() => graphData?.entities || [], [graphData]);
     const graphRelations = useMemo(() => graphData?.relations || [], [graphData]);
@@ -801,6 +930,20 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
                         <AlertCircle size={16} /><span className="font-mono">{error}</span>
                     </div>
                 )}
+
+                {/* ───── Entity Detail Panel (shown when a deck is expanded) ───── */}
+                {!isLoading && expandedGroupId && expandedDeckType && (() => {
+                    const activeGroup = [...geoGroups, ...cyberGroups].find(g => g.id === expandedGroupId);
+                    if (!activeGroup) return null;
+                    return (
+                        <EntityDetailPanel
+                            group={activeGroup}
+                            deckType={expandedDeckType}
+                            onClose={() => { setExpandedGroupId(null); setExpandedDeckType(null); }}
+                            onSwitchDeck={(t) => setExpandedDeckType(t)}
+                        />
+                    );
+                })()}
 
                 {/* ───── Timeline Panel (FIXED HEIGHT) ───── */}
                 <div className="relative border border-border-light dark:border-border-dark rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm mb-4">
