@@ -35,9 +35,10 @@ const LAYER_FILTERS = [
 
 interface InfluenceGraphProps {
     initialActorId?: string;
+    onNavigateToExplorer?: () => void;
 }
 
-export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ initialActorId }) => {
+export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ initialActorId, onNavigateToExplorer }) => {
     const [entities, setEntities] = useState<GscixEntity[]>([]);
     const [relations, setRelations] = useState<GscixRelation[]>([]);
     const [allEntities, setAllEntities] = useState<GscixEntity[]>([]);
@@ -514,15 +515,22 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
 
     if (!initialActorId && entities.length === 0 && !loading) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center h-[calc(100vh-64px)] w-full bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 flex flex-col items-center max-w-sm text-center border border-slate-100 dark:border-slate-700">
-                    <Globe size={48} className="text-cyan-500 mb-4 opacity-80" strokeWidth={1.5} />
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2 tracking-tight">Geo-Strategic Graph</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-                        Visualize multi-domain hybrid campaigns, infrastructure, and objectives.
-                    </p>
-                    <div className="bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 text-xs px-4 py-2.5 rounded-lg border border-cyan-100 dark:border-cyan-500/20 font-medium w-full shadow-inner">
-                        Select an actor in the Explorer to begin.
+            <div className="min-h-screen bg-background-light dark:bg-background-dark">
+                <div className="max-w-screen-2xl mx-auto px-6 py-8">
+                    <div className="flex flex-col items-center justify-center py-32">
+                        <div className="bg-white dark:bg-slate-900 border border-border-light dark:border-border-dark rounded-2xl p-12 shadow-sm max-w-md text-center">
+                            <Globe size={56} className="mx-auto mb-6 text-slate-300 dark:text-slate-600" />
+                            <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-3">No Actor Selected</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+                                Select a Geo-Strategic Actor from the <span className="font-semibold text-primary">Actor Explorer</span> to visualize its influence graph.
+                            </p>
+                            <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-6">Use "View in Graph" from the actor actions menu</p>
+                            {onNavigateToExplorer && (
+                                <button onClick={onNavigateToExplorer} className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium transition-all shadow-lg shadow-primary/20 text-sm">
+                                    <ArrowLeft size={16} /> Go to Actor Explorer
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -77,7 +77,7 @@ function App() {
               onNavigateToTimeline={handleNavigateToTimeline}
             />
           ) : currentView === 'influence' ? (
-            <GeoStrategicInfluenceGraph initialActorId={selectedActorId} />
+            <GeoStrategicInfluenceGraph initialActorId={selectedActorId} onNavigateToExplorer={handleNavigateToExplorer} />
           ) : currentView === 'timeline' ? (
             <EntityExplorerTimeline initialEntityId={selectedActorId} onNavigateToExplorer={handleNavigateToExplorer} />
           ) : (
