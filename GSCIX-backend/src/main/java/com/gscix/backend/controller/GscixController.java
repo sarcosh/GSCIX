@@ -193,7 +193,7 @@ public class GscixController {
             @PathVariable String rootId,
             @RequestParam(defaultValue = "2") int depth,
             @RequestParam(defaultValue = "both") String direction) {
-        InfluenceGraphResponse response = influenceGraphService.buildSubgraph(rootId, Math.min(depth, 4), direction);
+        InfluenceGraphResponse response = influenceGraphService.buildSubgraph(rootId, Math.min(depth, 5), direction);
         return ResponseEntity.ok(response);
     }
 

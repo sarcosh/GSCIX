@@ -704,7 +704,7 @@ interface EntityExplorerTimelineProps {
 export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ initialEntityId, onNavigateToExplorer }) => {
     const [selectedEntityId, setSelectedEntityId] = useState<string | undefined>(initialEntityId);
     const [rootEntity, setRootEntity] = useState<GscixEntity | null>(null);
-    const [graphDepth, setGraphDepth] = useState<number>(2);
+    const [graphDepth, setGraphDepth] = useState<number>(5);
     const [graphData, setGraphData] = useState<InfluenceGraphData | null>(null);
     const [loadingEntity, setLoadingEntity] = useState(false);
     const [loadingGraph, setLoadingGraph] = useState(false);
@@ -951,21 +951,23 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
                                 </span>
                                 <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-wider">// STRATEGIC HYBRID TIMELINE</span>
                             </div>
-                            <div className="flex items-center gap-3 flex-wrap">
+                            <div className="flex items-center gap-3">
                                 <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 truncate max-w-[400px]">
                                     {loadingEntity ? <Loader2 size={20} className="animate-spin text-primary inline" /> : rootEntity?.name || 'Loading...'}
                                 </h1>
-                                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 border border-border-light dark:border-border-dark">
-                                    <GitBranch size={13} className="text-slate-400" />
-                                    <span className="text-[10px] font-mono uppercase text-slate-400 tracking-widest">Depth</span>
-                                    {[1, 2, 3, 4, 5].map(d => (
-                                        <button key={d} onClick={() => setGraphDepth(d)} className={cn('w-6 h-6 rounded text-[11px] font-bold font-mono transition-all', graphDepth === d ? 'bg-primary text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700')}>{d}</button>
-                                    ))}
-                                </div>
-                                <button onClick={handleRefresh} disabled={isLoading} className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/10 transition-all border border-border-light dark:border-border-dark" title="Refresh timeline">
-                                    <RefreshCw size={14} className={cn(isLoading && 'animate-spin')} />
-                                </button>
                             </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1.5 border border-border-light dark:border-border-dark">
+                                <GitBranch size={13} className="text-slate-400" />
+                                <span className="text-[10px] font-mono uppercase text-slate-400 tracking-widest">Depth</span>
+                                {[1, 2, 3, 4, 5].map(d => (
+                                    <button key={d} onClick={() => setGraphDepth(d)} className={cn('w-6 h-6 rounded text-[11px] font-bold font-mono transition-all', graphDepth === d ? 'bg-primary text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700')}>{d}</button>
+                                ))}
+                            </div>
+                            <button onClick={handleRefresh} disabled={isLoading} className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/10 transition-all border border-border-light dark:border-border-dark" title="Refresh timeline">
+                                <RefreshCw size={14} className={cn(isLoading && 'animate-spin')} />
+                            </button>
                         </div>
                         <div className="flex gap-3">
                             <div className="bg-white dark:bg-slate-900 border border-border-light dark:border-border-dark rounded-xl p-4 flex flex-col min-w-[110px] shadow-sm">
