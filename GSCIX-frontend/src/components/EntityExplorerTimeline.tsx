@@ -762,7 +762,11 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
             const selectedDate = selectedInGraph ? getEntityDate(selectedInGraph) : null;
             if (selectedDate) {
                 const rootTime = selectedDate.getTime();
-                const padding = globalSpan * 0.03;
+                // Calculate padding based on actual container width so the card doesn't clip
+                const containerWidth = timelineContainerRef.current?.clientWidth || 1000;
+                const halfCardPx = 128; // half of w-56 (224px) + some margin
+                const halfCardRatio = halfCardPx / containerWidth;
+                const padding = globalSpan * halfCardRatio;
                 const ws = Math.max(rootTime - padding, globalMin);
                 setWindowStart(ws);
                 setWindowEnd(globalMax);
@@ -887,8 +891,20 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
 
     const handleRefresh = () => {
         if (!initialEntityId) return;
-        // Reset to the original geo-strategic-actor
+        // Reset to the original geo-strategic-actor, reload graph, and reset zoom/window
         setSelectedEntityId(initialEntityId);
+        setExpandedGroupId(null);
+        setExpandedDeckType(null);
+        setLoadingGraph(true); setError(null);
+        apiService.getInfluenceGraph(initialEntityId, graphDepth, 'both')
+            .then(d => {
+                // Batch windowInitialized reset together with graphData update
+                // so the window init useEffect runs with the correct new data
+                setWindowInitialized(false);
+                setGraphData(d);
+            })
+            .catch(e => setError(e.message))
+            .finally(() => setLoadingGraph(false));
     };
 
     const isLoading = loadingEntity || loadingGraph;
