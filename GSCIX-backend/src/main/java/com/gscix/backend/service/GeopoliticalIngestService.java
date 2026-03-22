@@ -347,32 +347,67 @@ public class GeopoliticalIngestService {
         Queue<String> queue = new LinkedList<>();
         queue.add(rootId);
 
-        // Collect all relations that will be removed (for logging)
-        int relationsDeleted = 0;
-
+        // ── Phase 1: BFS following outgoing relations (source → target) ──
+        // Collects child entities that would become orphaned when their only
+        // incoming relations come from entities already in the deletion set.
         while (!queue.isEmpty()) {
             String currentId = queue.poll();
 
-            // Find children: nodes pointed to by outgoing relations from currentId
             List<GscixRelation> outgoing = relationRepository.findBySourceRef(currentId);
             for (GscixRelation r : outgoing) {
                 String childId = r.getTargetRef();
-                if (toDelete.contains(childId)) continue; // already scheduled for deletion
+                if (toDelete.contains(childId)) continue;
 
-                // Check if this child has any incoming relations from nodes OUTSIDE toDelete
                 List<GscixRelation> childIncoming = relationRepository.findByTargetRef(childId);
                 boolean hasExternalParent = childIncoming.stream()
                         .anyMatch(ir -> !toDelete.contains(ir.getSourceRef()));
 
                 if (!hasExternalParent) {
-                    // Child would be orphaned → add to deletion set
                     toDelete.add(childId);
                     queue.add(childId);
                 }
             }
         }
 
-        // Delete all entities in the set and their relations
+        // ── Phase 2: Reverse pass — capture entities that point TOWARDS ──
+        // entities in the deletion set (e.g. x-strategic-assessment --evaluates--> actor).
+        // A node P that has ALL its relations (both incoming and outgoing) referencing
+        // only entities within toDelete would become completely isolated → include it.
+        // Repeat until the set stabilizes (no new additions).
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            // Snapshot current set to avoid ConcurrentModificationException
+            List<String> snapshot = new ArrayList<>(toDelete);
+            for (String entityId : snapshot) {
+                // Find nodes that point towards this entity (P --rel--> entityId)
+                List<GscixRelation> incoming = relationRepository.findByTargetRef(entityId);
+                for (GscixRelation r : incoming) {
+                    String candidateId = r.getSourceRef();
+                    if (toDelete.contains(candidateId)) continue;
+
+                    // Check ALL relations of the candidate (both directions)
+                    List<GscixRelation> candidateOutgoing = relationRepository.findBySourceRef(candidateId);
+                    List<GscixRelation> candidateIncoming = relationRepository.findByTargetRef(candidateId);
+
+                    // The candidate is fully isolated if every relation it participates in
+                    // references only entities within the deletion set
+                    boolean allOutgoingInternal = candidateOutgoing.stream()
+                            .allMatch(cr -> toDelete.contains(cr.getTargetRef()));
+                    boolean allIncomingInternal = candidateIncoming.stream()
+                            .allMatch(cr -> toDelete.contains(cr.getSourceRef()));
+
+                    if (allOutgoingInternal && allIncomingInternal) {
+                        toDelete.add(candidateId);
+                        changed = true;
+                        logger.debug("Reverse-pass: adding orphaned entity {} to deletion set", candidateId);
+                    }
+                }
+            }
+        }
+
+        // ── Phase 3: Delete all entities in the set and their relations ──
+        int relationsDeleted = 0;
         for (String entityId : toDelete) {
             List<GscixRelation> src = relationRepository.findBySourceRef(entityId);
             List<GscixRelation> tgt = relationRepository.findByTargetRef(entityId);

@@ -323,7 +323,7 @@ export const GeoStrategicActorExplorer: React.FC<{ onNavigateToGraph?: (actorId:
         if (window.confirm('Are you sure you want to delete this actor and all its associated relations? This action cannot be undone.')) {
             try {
                 setLoading(true);
-                await apiService.deleteEntity(stixId);
+                await apiService.deleteEntityCascade(stixId);
                 if (selectedActor?.stixId === stixId) {
                     setSelectedActor(null);
                 }

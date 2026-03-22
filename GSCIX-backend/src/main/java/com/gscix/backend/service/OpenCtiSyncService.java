@@ -82,17 +82,19 @@ public class OpenCtiSyncService {
 
             if (response != null && response.getData() != null && response.getData().getThreatActors() != null) {
                 int entityCount = 0;
-                Set<String> freshIds = new HashSet<>();
+                Set<String> freshStixIds = new HashSet<>();
+                Set<String> freshOpenctiIds = new HashSet<>();
                 for (GraphQLResponse.Edge edge : response.getData().getThreatActors().getEdges()) {
                     GraphQLResponse.Node node = edge.getNode();
-                    // Always track the ID so revoked entities are NOT deleted from GSCIX
-                    if (node.getStandard_id() != null) freshIds.add(node.getStandard_id());
+                    // Always track both IDs so revoked entities are NOT deleted/unlinked from GSCIX
+                    if (node.getStandard_id() != null) freshStixIds.add(node.getStandard_id());
+                    if (node.getId() != null) freshOpenctiIds.add(node.getId());
                     if (Boolean.TRUE.equals(node.getRevoked())) continue;
                     saveEntity(node, "threat-actor");
                     entityCount++;
                 }
-                // Detect and delete entities that no longer exist in OpenCTI
-                int deleted = deleteStaleOpenCtiEntities(freshIds, "threat-actor");
+                // Detect and delete/unlink entities that no longer exist in OpenCTI
+                int deleted = deleteStaleOpenCtiEntities(freshStixIds, freshOpenctiIds, "threat-actor");
                 logger.info("Threat-Actor sync completed: {} active actors, {} stale removed.", entityCount, deleted);
                 streamStatusService.recordSuccess();
             } else {
@@ -145,17 +147,19 @@ public class OpenCtiSyncService {
 
             if (response != null && response.getData() != null && response.getData().getIntrusionSets() != null) {
                 int entityCount = 0;
-                Set<String> freshIds = new HashSet<>();
+                Set<String> freshStixIds = new HashSet<>();
+                Set<String> freshOpenctiIds = new HashSet<>();
                 for (GraphQLResponse.Edge edge : response.getData().getIntrusionSets().getEdges()) {
                     GraphQLResponse.Node node = edge.getNode();
-                    // Always track the ID so revoked entities are NOT deleted from GSCIX
-                    if (node.getStandard_id() != null) freshIds.add(node.getStandard_id());
+                    // Always track both IDs so revoked entities are NOT deleted/unlinked from GSCIX
+                    if (node.getStandard_id() != null) freshStixIds.add(node.getStandard_id());
+                    if (node.getId() != null) freshOpenctiIds.add(node.getId());
                     if (Boolean.TRUE.equals(node.getRevoked())) continue;
                     saveEntity(node, "intrusion-set");
                     entityCount++;
                 }
-                // Detect and delete entities that no longer exist in OpenCTI
-                int deleted = deleteStaleOpenCtiEntities(freshIds, "intrusion-set");
+                // Detect and delete/unlink entities that no longer exist in OpenCTI
+                int deleted = deleteStaleOpenCtiEntities(freshStixIds, freshOpenctiIds, "intrusion-set");
                 logger.info("Intrusion-Set sync completed: {} active sets, {} stale removed.", entityCount, deleted);
                 streamStatusService.recordSuccess();
             } else {
@@ -294,21 +298,27 @@ public class OpenCtiSyncService {
     // =========================================================================
 
     /**
-     * Detects and deletes entities of the given STIX type that were previously
-     * synced from OpenCTI (source = "OPENCTI") but are no longer present in the
-     * current OpenCTI response. This handles the case where an entity has been
-     * deleted in OpenCTI.
+     * Detects and handles entities of the given STIX type that were previously
+     * linked to OpenCTI but whose OpenCTI counterpart no longer exists.
      *
-     * For each stale entity:
-     *   1. All relations referencing it (sourceRef or targetRef) are deleted.
-     *   2. The entity document itself is deleted.
+     * Two passes:
+     *   Pass 1 — Entities with source="OPENCTI" whose STIX ID is no longer in
+     *            the fresh set: these are OpenCTI-originated entities that were
+     *            deleted in OpenCTI → delete the entity and all its relations.
      *
-     * @param freshStixIds  Set of STIX standard_ids returned by OpenCTI in this cycle
-     * @param stixType      The STIX type to check (e.g. "threat-actor", "intrusion-set")
-     * @return the number of stale entities deleted
+     *   Pass 2 — Entities of ANY source that have a metadata.openctiInternalId
+     *            pointing to an OpenCTI internal UUID that is no longer in the
+     *            fresh set: these are GSCIX entities manually linked to an
+     *            OpenCTI entity that was deleted → clear the link so the entity
+     *            shows the ⚠ Unlinked badge.
+     *
+     * @param freshStixIds     STIX standard_ids returned by OpenCTI in this cycle
+     * @param freshOpenctiIds  OpenCTI internal UUIDs returned by OpenCTI in this cycle
+     * @param stixType         The STIX type to check (e.g. "threat-actor", "intrusion-set")
+     * @return the number of stale entities deleted (pass 1 only)
      */
-    private int deleteStaleOpenCtiEntities(Set<String> freshStixIds, String stixType) {
-        // Retrieve all locally-stored entities with source=OPENCTI of this type
+    private int deleteStaleOpenCtiEntities(Set<String> freshStixIds, Set<String> freshOpenctiIds, String stixType) {
+        // ── Pass 1: delete entities created by OpenCTI sync that no longer exist ──
         List<GscixEntity> localOpenCtiEntities = entityRepository.findBySource("OPENCTI")
                 .stream()
                 .filter(e -> stixType.equals(e.getType()))
@@ -338,6 +348,28 @@ public class OpenCtiSyncService {
                         stixType, entityName, entityId, relationsDeleted);
             }
         }
+
+        // ── Pass 2: unlink GSCIX entities whose OpenCTI counterpart was deleted ──
+        // These are entities imported from bundles (source != OPENCTI) that were
+        // manually linked to an OpenCTI entity via the edit form. When the linked
+        // OpenCTI entity is deleted, clear the link so the ⚠ Unlinked badge appears.
+        List<GscixEntity> linkedEntities = entityRepository.findByType(stixType).stream()
+                .filter(e -> e.getMetadata() != null
+                        && e.getMetadata().getOpenctiInternalId() != null
+                        && !e.getMetadata().getOpenctiInternalId().isBlank())
+                .collect(Collectors.toList());
+
+        for (GscixEntity entity : linkedEntities) {
+            String octiId = entity.getMetadata().getOpenctiInternalId();
+            if (!freshOpenctiIds.contains(octiId)) {
+                entity.getMetadata().setOpenctiInternalId(null);
+                entity.getMetadata().setUpdatedAt(Instant.now());
+                entityRepository.save(entity);
+                logger.info("Unlinked entity {} \"{}\" ({}) from deleted OpenCTI entity (openctiId={}).",
+                        entity.getType(), entity.getName(), entity.getStixId(), octiId);
+            }
+        }
+
         return deleted;
     }
 
