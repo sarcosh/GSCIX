@@ -109,31 +109,52 @@ public class JsonSchemaValidationService {
         ValidationResponse response = new ValidationResponse();
         List<ValidationResponse.ValidationError> allErrors = new ArrayList<>();
 
-        if (payload.has("type") && "bundle".equals(payload.get("type").asText())) {
-            // It's a STIX bundle
-            JsonNode objects = payload.get("objects");
-            if (objects != null && objects.isArray()) {
-                // First pass: validate entity schemas and index entity types by ID
-                Map<String, String> entityTypes = new HashMap<>();
-                for (JsonNode obj : objects) {
-                    String type = obj.has("type") ? obj.get("type").asText() : null;
-                    String id = obj.has("id") ? obj.get("id").asText() : null;
-                    if (type != null && !"relationship".equals(type) && id != null) {
-                        entityTypes.put(id, type);
-                    }
-                    validateObject(obj, allErrors);
-                }
+        // ── Structural validation: payload MUST be a STIX 2.1 Bundle ──
+        if (!payload.has("type") || !"bundle".equals(payload.get("type").asText())) {
+            ValidationResponse.ValidationError vErr = new ValidationResponse.ValidationError();
+            vErr.setObjectId("root");
+            vErr.setObjectType(payload.has("type") ? payload.get("type").asText() : "unknown");
+            vErr.setError("Invalid payload: expected a STIX 2.1 Bundle with \"type\": \"bundle\". "
+                    + "The submitted JSON is not a valid STIX Bundle.");
+            allErrors.add(vErr);
 
-                // Second pass: validate relationships against the GSCIX Relationship Matrix
-                for (JsonNode obj : objects) {
-                    if ("relationship".equals(obj.has("type") ? obj.get("type").asText() : null)) {
-                        validateRelationship(obj, entityTypes, allErrors);
-                    }
-                }
+            response.setStatus("ERROR");
+            response.setMessage("Validation failed: payload is not a STIX 2.1 Bundle.");
+            response.setErrors(allErrors);
+            return response;
+        }
+
+        // ── Bundle must contain an 'objects' array ──
+        JsonNode objects = payload.get("objects");
+        if (objects == null || !objects.isArray() || objects.isEmpty()) {
+            ValidationResponse.ValidationError vErr = new ValidationResponse.ValidationError();
+            vErr.setObjectId(payload.has("id") ? payload.get("id").asText() : "bundle");
+            vErr.setObjectType("bundle");
+            vErr.setError("STIX Bundle must contain a non-empty \"objects\" array.");
+            allErrors.add(vErr);
+
+            response.setStatus("ERROR");
+            response.setMessage("Validation failed: Bundle contains no objects.");
+            response.setErrors(allErrors);
+            return response;
+        }
+
+        // ── First pass: validate entity schemas and index entity types by ID ──
+        Map<String, String> entityTypes = new HashMap<>();
+        for (JsonNode obj : objects) {
+            String type = obj.has("type") ? obj.get("type").asText() : null;
+            String id = obj.has("id") ? obj.get("id").asText() : null;
+            if (type != null && !"relationship".equals(type) && id != null) {
+                entityTypes.put(id, type);
             }
-        } else {
-            // Single object
-            validateObject(payload, allErrors);
+            validateObject(obj, allErrors);
+        }
+
+        // ── Second pass: validate relationships against the GSCIX Relationship Matrix ──
+        for (JsonNode obj : objects) {
+            if ("relationship".equals(obj.has("type") ? obj.get("type").asText() : null)) {
+                validateRelationship(obj, entityTypes, allErrors);
+            }
         }
 
         if (allErrors.isEmpty()) {

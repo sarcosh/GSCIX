@@ -1,0 +1,143 @@
+{
+    "type": "bundle",
+    "id": "bundle--2f7e4a1b-9c3d-4e5f-a6b7-c8d9e0f1a2b3",
+    "objects": [
+        {
+            "type": "x-geo-strategic-actor",
+            "id": "x-geo-strategic-actor--irn-gov-001",
+            "name": "Islamic Republic of Iran",
+            "strategic_alignment": "Other",
+            "geopolitical_doctrine": "Mosaic Defense",
+            "revisionist_index": 9.8,
+            "strategic_ambiguity_score": 9.2,
+            "doctrine_type": "revisionist",
+            "technological_modernization_rate": 7.5,
+            "confidence": 95,
+            "first_seen": "1979-02-11T00:00:00Z",
+            "last_seen": "2026-03-22T11:08:00Z",
+            "description": "State actor currently operating under a decentralized command structure (Mosaic Defense) following the decapitation of its senior leadership on February 28, 2026 [7-9]. The regime prioritizes asymmetric survival and regional disruption [10, 11]."
+        },
+        {
+            "type": "x-strategic-objective",
+            "id": "x-strategic-objective--survival-001",
+            "name": "Regime Survival and Deterrence Restoration",
+            "objective_type": "political",
+            "priority_level": "critical",
+            "time_horizon": "short-term",
+            "civil_military_fusion": true,
+            "confidence": 90,
+            "first_seen": "2026-02-28T07:30:00Z",
+            "description": "Maintain internal control through IRGC units and restore regional deterrence by targeting coalitional energy interests and critical infrastructure [10-12]."
+        },
+        {
+            "type": "x-hybrid-campaign",
+            "id": "x-hybrid-campaign--promise-4-001",
+            "name": "Operation True Promise 4",
+            "phase": "escalation",
+            "velocity": "fast-spike",
+            "nature": [
+                "kinetic",
+                "cyber",
+                "cognitive"
+            ],
+            "escalation_risk_score": 10.0,
+            "confidence": 100,
+            "first_seen": "2026-02-28T13:30:00Z",
+            "last_seen": "2026-03-22T00:00:00Z",
+            "description": "A multi-domain retaliatory campaign involving ballistic missile strikes on regional airbases and synchronized destructive cyber operations against Western and Gulf infrastructure [13-15]."
+        },
+        {
+            "type": "threat-actor",
+            "id": "threat-actor--muddywater-tois",
+            "name": "MuddyWater",
+            "description": "Iranian MOIS-linked unit confirmed infiltrating US aerospace and defense networks on March 9, 2026 [5, 16].",
+            "first_seen": "2017-10-01T00:00:00Z",
+            "last_seen": "2026-03-09T15:26:00Z"
+        },
+        {
+            "type": "intrusion-set",
+            "id": "intrusion-set--handala-proxy",
+            "name": "Handala",
+            "description": "Hacktivist-aligned proxy group identified in high-impact destructive operations, specifically the global shutdown of Stryker Corporation using cloud administration tool abuse [4, 17, 18].",
+            "first_seen": "2023-12-15T00:00:00Z",
+            "last_seen": "2026-03-12T14:20:00Z"
+        },
+        {
+            "type": "x-influence-vector",
+            "id": "x-influence-vector--badesaba-psops",
+            "name": "Civilian Application Narrative Manipulation",
+            "narrative": "National mobilization and internal resistance coordination.",
+            "channel": "BadeSaba Prayer App Ecosystem",
+            "target_audience": "Iranian domestic population",
+            "confidence": 85,
+            "description": "Compromise of the BadeSaba app to send push notifications for regime-directed mobilization and protest containment [19]."
+        },
+        {
+            "type": "x-strategic-impact",
+            "id": "x-strategic-impact--hormuz-001",
+            "name": "Global Energy Trade Paralysis",
+            "description": "De-facto closure of the Strait of Hormuz, resulting in a 70% reduction in maritime traffic and oil price volatility [13, 20].",
+            "economic_disruption_index": 9.7,
+            "political_destabilization_index": 6.5,
+            "deterrence_signal_strength": 8.0,
+            "confidence": 95,
+            "first_seen": "2026-02-28T20:00:00Z",
+            "last_seen": "2026-03-22T08:10:00Z"
+        },
+        {
+            "type": "x-strategic-assessment",
+            "id": "x-strategic-assessment--threat-audit-mar26",
+            "name": "Strategic Audit: Iran Conflict Phase I",
+            "hybrid_pressure_index": 9.4,
+            "escalation_probability_score": 0.98,
+            "strategic_signaling_score": 9.0,
+            "cyber_geopolitical_coupling_index": 9.5,
+            "confidence": 90,
+            "first_seen": "2026-02-28T00:00:00Z",
+            "last_seen": "2026-03-22T11:00:00Z",
+            "description": "Analysis indicates near-perfect coupling between kinetic strikes (Hormuz) and digital signals (Handala/MuddyWater), suggesting cyber is used as a primary strategic signal of maximum escalation [16, 20, 21]."
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--irn-pursues-survival",
+            "source_ref": "x-geo-strategic-actor--irn-gov-001",
+            "relationship_type": "pursues",
+            "target_ref": "x-strategic-objective--survival-001"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--irn-executes-promise4",
+            "source_ref": "x-geo-strategic-actor--irn-gov-001",
+            "relationship_type": "executes",
+            "target_ref": "x-hybrid-campaign--promise-4-001"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--irn-controls-muddywater",
+            "source_ref": "x-geo-strategic-actor--irn-gov-001",
+            "relationship_type": "controls",
+            "target_ref": "threat-actor--muddywater-tois"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--irn-sponsors-handala",
+            "source_ref": "x-geo-strategic-actor--irn-gov-001",
+            "relationship_type": "sponsors",
+            "target_ref": "intrusion-set--handala-proxy"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--promise4-integrates-badesaba",
+            "source_ref": "x-hybrid-campaign--promise-4-001",
+            "relationship_type": "integrates",
+            "target_ref": "x-influence-vector--badesaba-psops"
+        },
+        {
+            "type": "relationship",
+            "id": "relationship--assessment-evaluates-irn",
+            "source_ref": "x-strategic-assessment--threat-audit-mar26",
+            "relationship_type": "evaluates",
+            "target_ref": "x-geo-strategic-actor--irn-gov-001"
+        }
+    ]
+}
