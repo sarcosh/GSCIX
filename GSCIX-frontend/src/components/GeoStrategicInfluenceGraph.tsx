@@ -1861,11 +1861,9 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                                         <select
                                             value={editEntityForm._openctiInternalId || ''}
                                             onChange={(e) => {
-                                                const selected = openctiEntities.find(ent => ent.metadata?.openctiInternalId === e.target.value);
                                                 setEditEntityForm(prev => ({
                                                     ...prev,
                                                     _openctiInternalId: e.target.value || '',
-                                                    ...(selected ? { name: selected.name } : {}),
                                                 }));
                                             }}
                                             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none"

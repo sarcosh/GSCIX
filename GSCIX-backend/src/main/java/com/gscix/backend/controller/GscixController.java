@@ -104,8 +104,14 @@ public class GscixController {
             return ResponseEntity.notFound().build();
         }
 
-        // Merge non-null fields (same logic as POST upsert)
-        if (entity.getName() != null) target.setName(entity.getName());
+        // Merge non-null fields.
+        // Name: only update if the entity has no name yet (defensive guard).
+        // The entity name is set at creation time and should not be silently
+        // overwritten by linkage or sync operations.
+        if (entity.getName() != null && target.getName() == null) {
+            target.setName(entity.getName());
+            target.setNameKey(EntityNameNormalizer.normalizeForDedup(entity.getName()));
+        }
         if (entity.getDescription() != null) target.setDescription(entity.getDescription());
         if (entity.getFirstSeen() != null) target.setFirstSeen(entity.getFirstSeen());
         if (entity.getLastSeen() != null) target.setLastSeen(entity.getLastSeen());

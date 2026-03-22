@@ -28,4 +28,11 @@ public interface GscixEntityRepository extends ElasticsearchRepository<GscixEnti
      */
     @Query("{\"bool\":{\"must\":[{\"term\":{\"type\":\"?0\"}},{\"term\":{\"nameKey\":\"?1\"}}]}}")
     Optional<GscixEntity> findByTypeAndNameKey(String type, String nameKey);
+
+    /**
+     * Find all entities originating from a given source (e.g. "OPENCTI", "GSCIX").
+     * Used by the sync-delete logic to enumerate locally-stored OpenCTI entities.
+     */
+    @Query("{\"term\":{\"source\":\"?0\"}}")
+    List<GscixEntity> findBySource(String source);
 }

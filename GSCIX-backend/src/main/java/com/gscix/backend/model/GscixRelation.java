@@ -16,6 +16,9 @@ public class GscixRelation {
     @Field(type = FieldType.Keyword)
     private java.util.List<String> extensions;
 
+    @Field(type = FieldType.Keyword)
+    private String source;
+
     @JsonProperty("source_ref")
     @Field(type = FieldType.Keyword)
     private String sourceRef;
