@@ -726,9 +726,9 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [expandedDeckType, setExpandedDeckType] = useState<string | null>(null);
 
-    // When a single-card triggers drill-down, we store the entity type here so that
+    // When a single-card triggers drill-down, we store info here so that
     // after the graph re-fetches we can auto-expand the Entity Detail panel for that entity.
-    const pendingExpandRef = useRef<{ entityType: string } | null>(null);
+    const pendingExpandRef = useRef<{ entityStixId: string; entityType: string } | null>(null);
 
     const timelineContainerRef = useRef<HTMLDivElement>(null);
 
@@ -751,8 +751,12 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
         apiService.getInfluenceGraph(selectedEntityId, graphDepth, direction).then(d => setGraphData(d)).catch(e => setError(e.message)).finally(() => setLoadingGraph(false));
     }, [selectedEntityId, graphDepth, initialEntityId]);
 
-    // Reset expand state when graph data changes (not on zoom/pan)
-    useEffect(() => { setExpandedGroupId(null); setExpandedDeckType(null); }, [graphData]);
+    // Reset expand state when graph data changes (not on zoom/pan).
+    // The auto-expand effect will re-set expand state if a pending drill-down is active.
+    useEffect(() => {
+        setExpandedGroupId(null);
+        setExpandedDeckType(null);
+    }, [graphData]);
 
     const graphEntities = useMemo(() => graphData?.entities || [], [graphData]);
     const graphRelations = useMemo(() => graphData?.relations || [], [graphData]);
@@ -810,15 +814,14 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
 
     // ── Auto-expand Entity Detail after a single-card drill-down re-fetch ──
     // When pendingExpandRef is set, the graph has just been re-fetched from a single-card click.
-    // We find the group containing the root entity (selectedEntityId) in the new clusters
-    // and auto-expand its deck so the Entity Detail panel shows the card immediately.
+    // We wait until loading is done and the window is initialized (so clusters are correct),
+    // then find the group containing the drilled-down entity and auto-expand its deck.
     useEffect(() => {
         const pending = pendingExpandRef.current;
-        if (!pending) return;
+        if (!pending || !windowInitialized || loadingGraph || loadingEntity) return;
         const allGroups = [...geoGroups, ...cyberGroups];
-        // Find the group that contains the entity matching selectedEntityId
         const targetGroup = allGroups.find(g =>
-            g.decks.some(d => d.entities.some(e => e.stixId === selectedEntityId))
+            g.decks.some(d => d.entities.some(e => e.stixId === pending.entityStixId))
         );
         if (targetGroup) {
             const targetDeck = targetGroup.decks.find(d => d.type === pending.entityType)
@@ -827,7 +830,7 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
             setExpandedDeckType(targetDeck.type);
             pendingExpandRef.current = null;
         }
-    }, [geoGroups, cyberGroups, selectedEntityId]);
+    }, [geoGroups, cyberGroups, windowInitialized, loadingGraph, loadingEntity]);
 
     // ── Date markers ──
     const windowDateMarkers = useMemo(() => {
@@ -876,30 +879,50 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
 
     // ── Interaction handlers for stacking ──
     const handleClickStack = useCallback((groupId: string) => {
-        const isCollapsing = expandedGroupId === groupId;
-        if (isCollapsing) {
+        const allGroups = [...geoGroups, ...cyberGroups];
+        const targetGroup = allGroups.find(g => g.id === groupId);
+
+        if (targetGroup && targetGroup.totalCount === 1) {
+            // Single-entity group: trigger drill-down + auto-expand after re-fetch.
+            // Do NOT set expandedGroupId/expandedDeckType here — they would hold stale
+            // group IDs that become invalid after the graph re-fetches. Instead, store
+            // the intent in pendingExpandRef and let the auto-expand effect apply the
+            // correct expand state once the new groups are computed.
+            const singleEntity = targetGroup.decks[0].entities[0];
+
+            // If already drilled-down to this entity, toggle off
+            if (singleEntity.stixId === selectedEntityId && expandedGroupId === groupId) {
+                setExpandedGroupId(null);
+                setExpandedDeckType(null);
+                return;
+            }
+
+            // If already drilled-down to this entity (but group ID changed after re-fetch),
+            // just expand without re-fetching
+            if (singleEntity.stixId === selectedEntityId) {
+                setExpandedGroupId(groupId);
+                setExpandedDeckType(targetGroup.decks[0].type);
+                return;
+            }
+
+            // Drill-down: clear expand state (loading overlay will show),
+            // store the intent, and change the graph root
             setExpandedGroupId(null);
             setExpandedDeckType(null);
+            pendingExpandRef.current = { entityStixId: singleEntity.stixId, entityType: targetGroup.decks[0].type };
+            setSelectedEntityId(singleEntity.stixId);
         } else {
-            setExpandedGroupId(groupId);
-            // For single-entity groups, skip the intermediate "decks" state
-            // and jump directly to showing the card in EntityDetailPanel.
-            // This also triggers a drill-down (re-fetch) centered on this entity.
-            const allGroups = [...geoGroups, ...cyberGroups];
-            const targetGroup = allGroups.find(g => g.id === groupId);
-            if (targetGroup && targetGroup.totalCount === 1) {
-                const singleEntity = targetGroup.decks[0].entities[0];
-                setExpandedDeckType(targetGroup.decks[0].type);
-                // Store a pending expand intent so the useEffect([graphData]) can
-                // re-open the Entity Detail panel after the graph re-fetches.
-                pendingExpandRef.current = { entityType: targetGroup.decks[0].type };
-                // Drill-down: change graph root to this entity
-                setSelectedEntityId(singleEntity.stixId);
+            // Multi-entity group: toggle expand (no drill-down)
+            const isCollapsing = expandedGroupId === groupId;
+            if (isCollapsing) {
+                setExpandedGroupId(null);
+                setExpandedDeckType(null);
             } else {
+                setExpandedGroupId(groupId);
                 setExpandedDeckType(null);
             }
         }
-    }, [expandedGroupId, geoGroups, cyberGroups]);
+    }, [expandedGroupId, selectedEntityId, geoGroups, cyberGroups]);
 
     const handleClickDeck = useCallback((groupId: string, deckType: string) => {
         if (expandedGroupId === groupId && expandedDeckType === deckType) {
