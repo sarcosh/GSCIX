@@ -250,10 +250,12 @@ interface StackedGroupProps {
     expandedDeckType: string | null;
     onClickStack: (groupId: string) => void;
     onClickDeck: (groupId: string, deckType: string) => void;
+    onSelectEntity?: (stixId: string) => void;
+    selectedEntityId?: string | null;
 }
 
 const StackedGroup: React.FC<StackedGroupProps> = ({
-    group, lane, expandState, expandedDeckType, onClickStack, onClickDeck,
+    group, lane, expandState, expandedDeckType, onClickStack, onClickDeck, onSelectEntity, selectedEntityId,
 }) => {
     const isSingle = group.totalCount === 1;
     const singleEntity = isSingle ? group.decks[0].entities[0] : null;
@@ -261,19 +263,25 @@ const StackedGroup: React.FC<StackedGroupProps> = ({
     // ── State: collapsed → show fan of cards ──
     if (expandState === 'collapsed') {
         if (isSingle && singleEntity) {
-            // Single card, no stacking needed
+            // Single card — clicking the wrapper opens its info in the Entity Detail panel.
+            // We intentionally do NOT pass onSelect to TimelineCard here, because its
+            // internal stopPropagation() would block the wrapper's onClickStack from firing.
+            // The selection highlight is driven by selectedEntityId set inside handleClickStack.
             return (
-                <div className="flex flex-col items-center">
+                <div
+                    className="flex flex-col items-center cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); onClickStack(group.id); }}
+                >
                     {lane === 'geo' && (
                         <>
-                            <TimelineCard entity={singleEntity} />
+                            <TimelineCard entity={singleEntity} isSelected={selectedEntityId === singleEntity.stixId} />
                             <div className="w-0.5 h-10" style={{ background: `linear-gradient(to bottom, ${TYPE_COLOR[singleEntity.type]?.connector || '#64748b'}50, ${TYPE_COLOR[singleEntity.type]?.connector || '#64748b'}10)` }} />
                         </>
                     )}
                     {lane === 'cyber' && (
                         <>
                             <div className="w-0.5 h-10" style={{ background: `linear-gradient(to bottom, ${TYPE_COLOR[singleEntity.type]?.connector || '#64748b'}10, ${TYPE_COLOR[singleEntity.type]?.connector || '#64748b'}50)` }} />
-                            <TimelineCard entity={singleEntity} />
+                            <TimelineCard entity={singleEntity} isSelected={selectedEntityId === singleEntity.stixId} />
                         </>
                     )}
                 </div>
@@ -718,6 +726,10 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [expandedDeckType, setExpandedDeckType] = useState<string | null>(null);
 
+    // When a single-card triggers drill-down, we store the entity type here so that
+    // after the graph re-fetches we can auto-expand the Entity Detail panel for that entity.
+    const pendingExpandRef = useRef<{ entityType: string } | null>(null);
+
     const timelineContainerRef = useRef<HTMLDivElement>(null);
 
     // Sync selectedEntityId when initialEntityId changes from outside
@@ -796,6 +808,27 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
     const geoGroups = useMemo(() => clusterEntities(visibleGeo, windowStart, windowEnd), [visibleGeo, windowStart, windowEnd]);
     const cyberGroups = useMemo(() => clusterEntities(visibleCyber, windowStart, windowEnd), [visibleCyber, windowStart, windowEnd]);
 
+    // ── Auto-expand Entity Detail after a single-card drill-down re-fetch ──
+    // When pendingExpandRef is set, the graph has just been re-fetched from a single-card click.
+    // We find the group containing the root entity (selectedEntityId) in the new clusters
+    // and auto-expand its deck so the Entity Detail panel shows the card immediately.
+    useEffect(() => {
+        const pending = pendingExpandRef.current;
+        if (!pending) return;
+        const allGroups = [...geoGroups, ...cyberGroups];
+        // Find the group that contains the entity matching selectedEntityId
+        const targetGroup = allGroups.find(g =>
+            g.decks.some(d => d.entities.some(e => e.stixId === selectedEntityId))
+        );
+        if (targetGroup) {
+            const targetDeck = targetGroup.decks.find(d => d.type === pending.entityType)
+                || targetGroup.decks[0];
+            setExpandedGroupId(targetGroup.id);
+            setExpandedDeckType(targetDeck.type);
+            pendingExpandRef.current = null;
+        }
+    }, [geoGroups, cyberGroups, selectedEntityId]);
+
     // ── Date markers ──
     const windowDateMarkers = useMemo(() => {
         const markers: Date[] = [];
@@ -843,9 +876,30 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
 
     // ── Interaction handlers for stacking ──
     const handleClickStack = useCallback((groupId: string) => {
-        setExpandedGroupId(prev => prev === groupId ? null : groupId);
-        setExpandedDeckType(null);
-    }, []);
+        const isCollapsing = expandedGroupId === groupId;
+        if (isCollapsing) {
+            setExpandedGroupId(null);
+            setExpandedDeckType(null);
+        } else {
+            setExpandedGroupId(groupId);
+            // For single-entity groups, skip the intermediate "decks" state
+            // and jump directly to showing the card in EntityDetailPanel.
+            // This also triggers a drill-down (re-fetch) centered on this entity.
+            const allGroups = [...geoGroups, ...cyberGroups];
+            const targetGroup = allGroups.find(g => g.id === groupId);
+            if (targetGroup && targetGroup.totalCount === 1) {
+                const singleEntity = targetGroup.decks[0].entities[0];
+                setExpandedDeckType(targetGroup.decks[0].type);
+                // Store a pending expand intent so the useEffect([graphData]) can
+                // re-open the Entity Detail panel after the graph re-fetches.
+                pendingExpandRef.current = { entityType: targetGroup.decks[0].type };
+                // Drill-down: change graph root to this entity
+                setSelectedEntityId(singleEntity.stixId);
+            } else {
+                setExpandedDeckType(null);
+            }
+        }
+    }, [expandedGroupId, geoGroups, cyberGroups]);
 
     const handleClickDeck = useCallback((groupId: string, deckType: string) => {
         if (expandedGroupId === groupId && expandedDeckType === deckType) {
@@ -1005,7 +1059,7 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
                         deckType={expandedDeckType}
                         onSwitchDeck={(t) => setExpandedDeckType(t)}
                         onSelectEntity={handleSelectEntity}
-                        selectedEntityId={selectedEntityId}
+                        selectedEntityId={null}
                     />
                 )}
 
@@ -1082,6 +1136,8 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
                                                 expandedDeckType={expandedGroupId === group.id ? expandedDeckType : null}
                                                 onClickStack={handleClickStack}
                                                 onClickDeck={handleClickDeck}
+                                                onSelectEntity={handleSelectEntity}
+                                                selectedEntityId={null}
                                             />
                                         </div>
                                     ))}
@@ -1103,6 +1159,8 @@ export const EntityExplorerTimeline: React.FC<EntityExplorerTimelineProps> = ({ 
                                                 expandedDeckType={expandedGroupId === group.id ? expandedDeckType : null}
                                                 onClickStack={handleClickStack}
                                                 onClickDeck={handleClickDeck}
+                                                onSelectEntity={handleSelectEntity}
+                                                selectedEntityId={null}
                                             />
                                         </div>
                                     ))}
