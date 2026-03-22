@@ -134,19 +134,41 @@ public class StixBundleIngestService {
         int relationsCreated = 0;
         List<String> ingestedEntityIds = new ArrayList<>();
 
+        // ID remapping table: maps incoming bundle STIX IDs to canonical IDs
+        // when dedup by type+name finds an existing entity with a different ID.
+        Map<String, String> dedupIdRemap = new HashMap<>();
+
+        // First pass: process entities (so dedup remapping is ready for relationships)
         for (Map<String, Object> obj : objects) {
             String type = (String) obj.get("type");
             String id = (String) obj.get("id");
 
-            if ("relationship".equals(type)) {
+            if (type != null && !"relationship".equals(type) && !NON_ENTITY_TYPES.contains(type)) {
+                String canonicalId = processEntity(obj, defaultConfidence);
+                entitiesCreated++;
+                if (id != null && canonicalId != null) {
+                    ingestedEntityIds.add(canonicalId);
+                    if (!id.equals(canonicalId)) {
+                        dedupIdRemap.put(id, canonicalId);
+                    }
+                }
+            }
+        }
+
+        // Second pass: process relationships (applying dedup remapping to source_ref/target_ref)
+        for (Map<String, Object> obj : objects) {
+            if ("relationship".equals(obj.get("type"))) {
+                // Remap source_ref and target_ref if they point to deduplicated entities
+                String srcRef = (String) obj.get("source_ref");
+                String tgtRef = (String) obj.get("target_ref");
+                if (srcRef != null && dedupIdRemap.containsKey(srcRef)) {
+                    obj.put("source_ref", dedupIdRemap.get(srcRef));
+                }
+                if (tgtRef != null && dedupIdRemap.containsKey(tgtRef)) {
+                    obj.put("target_ref", dedupIdRemap.get(tgtRef));
+                }
                 processRelationship(obj, defaultConfidence);
                 relationsCreated++;
-            } else if (type != null && !NON_ENTITY_TYPES.contains(type)) {
-                processEntity(obj, defaultConfidence);
-                entitiesCreated++;
-                if (id != null) {
-                    ingestedEntityIds.add(id);
-                }
             }
         }
 
@@ -206,19 +228,45 @@ public class StixBundleIngestService {
      * Custom types may carry GSCIX extension attributes; standard types are
      * persisted with basic fields (name, description, first_seen, etc.) so they
      * can participate in graph traversal.
+     *
+     * Deduplication strategy:
+     *   1. Look up by STIX ID (exact document match)
+     *   2. If not found, look up by type + name (case-insensitive)
+     *   3. If found by name, merge into the existing entity (keep its canonical STIX ID)
+     *   4. If not found at all, create a new entity
+     *
+     * @return the canonical STIX ID of the persisted entity (may differ from incoming ID if deduped)
      */
-    private void processEntity(Map<String, Object> obj, Integer defaultConfidence) {
+    private String processEntity(Map<String, Object> obj, Integer defaultConfidence) {
         String type = (String) obj.get("type");
         String id = (String) obj.get("id");
         String name = (String) obj.get("name");
         String description = (String) obj.get("description");
 
-        // If entity already exists (e.g. remapped actor or re-import), merge
-        // non-null fields instead of overwriting to preserve existing data.
+        // Dedup step 1: look up by exact STIX ID
         Optional<GscixEntity> existingOpt = entityRepository.findById(id);
+
+        // Dedup step 2: if not found by ID, look up by type + normalized name key.
+        // This catches fuzzy name variants: CamelCase/snake_case, parenthetical qualifiers,
+        // roman vs arabic numerals, etc. (see EntityNameNormalizer for details).
+        if (existingOpt.isEmpty() && name != null && !name.isBlank()) {
+            String nameKey = EntityNameNormalizer.normalizeForDedup(name);
+            if (nameKey != null) {
+                existingOpt = entityRepository.findByTypeAndNameKey(type, nameKey);
+                if (existingOpt.isPresent()) {
+                    logger.info("Dedup: incoming entity id={} matched existing entity id={} by nameKey ({}: \"{}\" -> \"{}\")",
+                            id, existingOpt.get().getStixId(), type, name, nameKey);
+                }
+            }
+        }
+
         GscixEntity entity = existingOpt.orElseGet(GscixEntity::new);
 
-        entity.setStixId(id);
+        // If this is a new entity, use the incoming ID. If it already exists
+        // (found by ID or by type+name), keep its canonical ID.
+        if (entity.getStixId() == null) {
+            entity.setStixId(id);
+        }
         entity.setType(type);
         if (name != null) entity.setName(name);
         else if (entity.getName() == null) entity.setName(type);
@@ -318,9 +366,14 @@ public class StixBundleIngestService {
         // Inherit first_seen from parent entity if not provided
         resolveFirstSeen(entity);
 
+        // Compute normalized dedup key from the entity's name
+        entity.setNameKey(EntityNameNormalizer.normalizeForDedup(entity.getName()));
+
         entityRepository.save(entity);
         logger.info("Ingested Entity from Bundle: type={} name={} ({}) [{}]", type,
-                entity.getName(), id, existingOpt.isPresent() ? "merged" : "new");
+                entity.getName(), entity.getStixId(), existingOpt.isPresent() ? "merged" : "new");
+
+        return entity.getStixId();
     }
 
     /**

@@ -396,11 +396,31 @@ public class GeopoliticalIngestService {
     // =========================================================================
 
     private GscixEntity createEntity(String type, String name, String description, String source) {
+        // Dedup: check if an entity with the same type + normalized name key already exists
+        if (name != null && !name.isBlank()) {
+            String nameKey = EntityNameNormalizer.normalizeForDedup(name);
+            if (nameKey != null) {
+                Optional<GscixEntity> existing = entityRepository.findByTypeAndNameKey(type, nameKey);
+                if (existing.isPresent()) {
+                    GscixEntity entity = existing.get();
+                    // Merge non-null fields
+                    if (description != null) entity.setDescription(description);
+                    if (entity.getMetadata() != null) {
+                        entity.getMetadata().setUpdatedAt(Instant.now());
+                    }
+                    logger.info("Dedup: reusing existing entity id={} for type={} name=\"{}\" (nameKey={})",
+                            entity.getStixId(), type, name, nameKey);
+                    return entity;
+                }
+            }
+        }
+
         GscixEntity entity = new GscixEntity();
         entity.setStixId(type + "--" + UUID.randomUUID());
         entity.setExtensions(java.util.Collections.singletonList(GSCI_EXTENSION_ID));
         entity.setType(type);
         entity.setName(name);
+        entity.setNameKey(EntityNameNormalizer.normalizeForDedup(name));
         entity.setDescription(description);
         entity.setSource(source);
 

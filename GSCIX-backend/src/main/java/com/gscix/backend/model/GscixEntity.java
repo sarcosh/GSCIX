@@ -6,12 +6,16 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
+import org.springframework.data.elasticsearch.annotations.InnerField;
+import org.springframework.data.elasticsearch.annotations.MultiField;
+import org.springframework.data.elasticsearch.annotations.Setting;
 
 import java.time.Instant;
 import java.util.List;
 
 @Data
 @Document(indexName = "gscix_entities")
+@Setting(settingPath = "/elasticsearch-settings.json")
 public class GscixEntity {
     @Id
     private String stixId;
@@ -25,8 +29,22 @@ public class GscixEntity {
     @Field(type = FieldType.Keyword)
     private String source;
 
-    @Field(type = FieldType.Text)
+    @MultiField(
+        mainField = @Field(type = FieldType.Text),
+        otherFields = {
+            @InnerField(suffix = "keyword", type = FieldType.Keyword, normalizer = "lowercase")
+        }
+    )
     private String name;
+
+    /**
+     * Normalized dedup key derived from {@link #name} via
+     * {@link com.gscix.backend.service.EntityNameNormalizer#normalizeForDedup(String)}.
+     * Used for fuzzy deduplication during ingestion (matches CamelCase, delimiters,
+     * parenthetical qualifiers, roman numerals, etc.).
+     */
+    @Field(type = FieldType.Keyword)
+    private String nameKey;
 
     @Field(type = FieldType.Text)
     private String description;

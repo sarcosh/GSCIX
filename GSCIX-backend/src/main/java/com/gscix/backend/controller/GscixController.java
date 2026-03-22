@@ -6,6 +6,7 @@ import com.gscix.backend.model.GscixRelation;
 import com.gscix.backend.model.GscixRelationshipMatrix;
 import com.gscix.backend.repository.GscixEntityRepository;
 import com.gscix.backend.repository.GscixRelationRepository;
+import com.gscix.backend.service.EntityNameNormalizer;
 import com.gscix.backend.service.InfluenceGraphService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -42,10 +43,21 @@ public class GscixController {
             entity.setStixId(entity.getType() + "--" + UUID.randomUUID());
         }
 
+        // Dedup step 1: look up by exact STIX ID
         // If the entity already exists (e.g. synced from OpenCTI), merge non-null fields
         // instead of blindly overwriting to preserve existing data like aliases, goals, metadata, etc.
         GscixEntity target = entityRepository.findById(entity.getStixId())
                 .orElse(null);
+
+        // Dedup step 2: if not found by ID, look up by type + normalized name key
+        if (target == null && entity.getName() != null && !entity.getName().isBlank()
+                && entity.getType() != null) {
+            String nameKey = EntityNameNormalizer.normalizeForDedup(entity.getName());
+            if (nameKey != null) {
+                target = entityRepository.findByTypeAndNameKey(entity.getType(), nameKey)
+                        .orElse(null);
+            }
+        }
 
         if (target != null) {
             // Merge: only overwrite fields that the incoming payload actually provides
@@ -61,6 +73,7 @@ public class GscixController {
             if (entity.getConfidence() != null) target.setConfidence(entity.getConfidence());
             if (entity.getGsciAttributes() != null) target.setGsciAttributes(entity.getGsciAttributes());
             target.getMetadata().setUpdatedAt(Instant.now());
+            target.setNameKey(EntityNameNormalizer.normalizeForDedup(target.getName()));
 
             GscixEntity saved = entityRepository.save(target);
             return ResponseEntity.ok(saved);
@@ -76,6 +89,9 @@ public class GscixController {
 
         // Inherit first_seen from parent entity if not provided
         resolveFirstSeen(entity);
+
+        // Compute normalized dedup key
+        entity.setNameKey(EntityNameNormalizer.normalizeForDedup(entity.getName()));
 
         GscixEntity saved = entityRepository.save(entity);
         return ResponseEntity.ok(saved);
