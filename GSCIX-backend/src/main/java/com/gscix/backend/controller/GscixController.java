@@ -105,10 +105,10 @@ public class GscixController {
         }
 
         // Merge non-null fields.
-        // Name: only update if the entity has no name yet (defensive guard).
-        // The entity name is set at creation time and should not be silently
-        // overwritten by linkage or sync operations.
-        if (entity.getName() != null && target.getName() == null) {
+        // Name: allow explicit updates via PUT (manual edits from the UI).
+        // Sync and linkage operations use other code paths (POST / direct save),
+        // so this endpoint is safe to accept name changes unconditionally.
+        if (entity.getName() != null) {
             target.setName(entity.getName());
             target.setNameKey(EntityNameNormalizer.normalizeForDedup(entity.getName()));
         }
