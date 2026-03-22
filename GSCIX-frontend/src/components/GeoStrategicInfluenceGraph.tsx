@@ -11,6 +11,7 @@ import { cn } from '../lib/utils';
 import apiService from '../services/api';
 import type { GscixEntity, GscixRelation, HpiAnalytics } from '../types/api';
 import { NODE_CONFIG, paintNode as sharedPaintNode, paintLinkLabel } from './graphUtils';
+import EntitySearchSelect from './EntitySearchSelect';
 
 const LAYER_FILTERS = [
     { key: 'x-strategic-objective', label: 'Strategic Objectives', icon: Flag, color: 'text-amber-500 bg-amber-500/10' },
@@ -1331,17 +1332,16 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         {/* Source */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Source *</label>
-                            <select value={newRelation.source_ref} onChange={(e) => {
-                                const sourceRef = e.target.value;
-                                // Cascade: reset target and relation type when source changes
-                                setNewRelation(prev => ({ ...prev, source_ref: sourceRef, target_ref: '', relationship_type: '' }));
-                            }}
-                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-                                <option value="">Select source entity...</option>
-                                {allEntities.filter(e => Object.keys(VALID_RELATIONS).includes(e.type)).map((e) => (
-                                    <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
-                                ))}
-                            </select>
+                            <EntitySearchSelect
+                                entities={allEntities.filter(e => Object.keys(VALID_RELATIONS).includes(e.type))}
+                                value={newRelation.source_ref}
+                                onChange={(sourceRef) => {
+                                    // Cascade: reset target and relation type when source changes
+                                    setNewRelation(prev => ({ ...prev, source_ref: sourceRef, target_ref: '', relationship_type: '' }));
+                                }}
+                                placeholder="Select source entity..."
+                                accentColor="cyan"
+                            />
                         </div>
                         {/* Target — filtered by valid target types for the selected source */}
                         {(() => {
@@ -1351,24 +1351,23 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             return (
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Target *</label>
-                                    <select value={newRelation.target_ref} onChange={(e) => {
-                                        const targetRef = e.target.value;
-                                        const targetEntity = allEntities.find(ent => ent.stixId === targetRef);
-                                        // Auto-select relationship type if only one is valid
-                                        const validRels = sourceEntity && targetEntity ? getValidRelationshipTypes(sourceEntity.type, targetEntity.type) : [];
-                                        setNewRelation(prev => ({
-                                            ...prev,
-                                            target_ref: targetRef,
-                                            relationship_type: validRels.length === 1 ? validRels[0] : '',
-                                        }));
-                                    }}
+                                    <EntitySearchSelect
+                                        entities={filteredTargets}
+                                        value={newRelation.target_ref}
+                                        onChange={(targetRef) => {
+                                            const targetEntity = allEntities.find(ent => ent.stixId === targetRef);
+                                            // Auto-select relationship type if only one is valid
+                                            const validRels = sourceEntity && targetEntity ? getValidRelationshipTypes(sourceEntity.type, targetEntity.type) : [];
+                                            setNewRelation(prev => ({
+                                                ...prev,
+                                                target_ref: targetRef,
+                                                relationship_type: validRels.length === 1 ? validRels[0] : '',
+                                            }));
+                                        }}
                                         disabled={!newRelation.source_ref}
-                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none disabled:opacity-50">
-                                        <option value="">{!newRelation.source_ref ? 'Select a source first...' : filteredTargets.length === 0 ? 'No valid targets for this source type' : 'Select target entity...'}</option>
-                                        {filteredTargets.map((e) => (
-                                            <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
-                                        ))}
-                                    </select>
+                                        placeholder={!newRelation.source_ref ? 'Select a source first...' : filteredTargets.length === 0 ? 'No valid targets for this source type' : 'Select target entity...'}
+                                        accentColor="cyan"
+                                    />
                                 </div>
                             );
                         })()}
@@ -1466,17 +1465,16 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                         {/* Source */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Source *</label>
-                            <select value={newRelation.source_ref} onChange={(e) => {
-                                const sourceRef = e.target.value;
-                                // Cascade: reset target and relation type when source changes
-                                setNewRelation(prev => ({ ...prev, source_ref: sourceRef, target_ref: '', relationship_type: '' }));
-                            }}
-                                className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none">
-                                <option value="">Select source entity...</option>
-                                {allEntities.filter(e => Object.keys(VALID_RELATIONS).includes(e.type)).map((e) => (
-                                    <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
-                                ))}
-                            </select>
+                            <EntitySearchSelect
+                                entities={allEntities.filter(e => Object.keys(VALID_RELATIONS).includes(e.type))}
+                                value={newRelation.source_ref}
+                                onChange={(sourceRef) => {
+                                    // Cascade: reset target and relation type when source changes
+                                    setNewRelation(prev => ({ ...prev, source_ref: sourceRef, target_ref: '', relationship_type: '' }));
+                                }}
+                                placeholder="Select source entity..."
+                                accentColor="amber"
+                            />
                         </div>
                         {/* Target — filtered by valid target types for the selected source */}
                         {(() => {
@@ -1486,23 +1484,22 @@ export const GeoStrategicInfluenceGraph: React.FC<InfluenceGraphProps> = ({ init
                             return (
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Target *</label>
-                                    <select value={newRelation.target_ref} onChange={(e) => {
-                                        const targetRef = e.target.value;
-                                        const targetEntity = allEntities.find(ent => ent.stixId === targetRef);
-                                        const validRels = sourceEntity && targetEntity ? getValidRelationshipTypes(sourceEntity.type, targetEntity.type) : [];
-                                        setNewRelation(prev => ({
-                                            ...prev,
-                                            target_ref: targetRef,
-                                            relationship_type: validRels.length === 1 ? validRels[0] : '',
-                                        }));
-                                    }}
+                                    <EntitySearchSelect
+                                        entities={filteredTargets}
+                                        value={newRelation.target_ref}
+                                        onChange={(targetRef) => {
+                                            const targetEntity = allEntities.find(ent => ent.stixId === targetRef);
+                                            const validRels = sourceEntity && targetEntity ? getValidRelationshipTypes(sourceEntity.type, targetEntity.type) : [];
+                                            setNewRelation(prev => ({
+                                                ...prev,
+                                                target_ref: targetRef,
+                                                relationship_type: validRels.length === 1 ? validRels[0] : '',
+                                            }));
+                                        }}
                                         disabled={!newRelation.source_ref}
-                                        className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:opacity-50">
-                                        <option value="">{!newRelation.source_ref ? 'Select a source first...' : filteredTargets.length === 0 ? 'No valid targets for this source type' : 'Select target entity...'}</option>
-                                        {filteredTargets.map((e) => (
-                                            <option key={e.stixId} value={e.stixId}>{NODE_CONFIG[e.type]?.label || e.type}: {e.name}</option>
-                                        ))}
-                                    </select>
+                                        placeholder={!newRelation.source_ref ? 'Select a source first...' : filteredTargets.length === 0 ? 'No valid targets for this source type' : 'Select target entity...'}
+                                        accentColor="amber"
+                                    />
                                 </div>
                             );
                         })()}
